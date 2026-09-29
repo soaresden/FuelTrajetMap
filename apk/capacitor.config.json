@@ -1,0 +1,6 @@
+{
+  "appId": "fr.soaresden.fuelmap",
+  "appName": "FuelMap",
+  "webDir": "www",
+  "android": { "backgroundColor": "#0e1116" }
+}

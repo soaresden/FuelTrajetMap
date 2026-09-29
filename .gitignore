@@ -1,0 +1,22 @@
+# Données générées par tools/build-data.mjs (la GitHub Action les régénère à chaque publication)
+data/
+# Projet Android (Capacitor)
+apk/node_modules/
+apk/www/
+apk/android/build/
+apk/android/app/build/
+apk/android/.gradle/
+apk/android/.idea/
+apk/android/local.properties
+apk/android/app/src/main/assets/public/
+apk/android/capacitor-cordova-android-plugins/build/
+apk/*.apk
+apk/android/keystore/
+# Divers
+.DS_Store
+Thumbs.db
+*.log
+# AAB signé : jamais dans le dépôt public
+*.aab
+apk/dhu/
+apk/aa-log.txt

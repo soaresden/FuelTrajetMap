@@ -1,0 +1,53 @@
+Logos d'enseignes (facultatif)
+=============================
+
+FuelMap ne fournit aucun logo : ce sont des marques déposées qui appartiennent aux enseignes.
+Si tu déposes ici un fichier au bon nom (.png, .svg ou .webp, idéalement carré, ~96 px),
+l'appli l'affiche à la place de la pastille à initiales. Sans fichier : pastille.
+Pour l'APK : ajoute les fichiers ici puis relance apk\construire-apk.bat.
+
+Noms de fichier attendus (enseigne → fichier), par nombre de stations :
+
+  Intermarché            → intermarche.png     (1657 stations)
+  TotalEnergies          → totalenergies.png     (1645 stations)
+  Carrefour              → carrefour.png     (1395 stations)
+  Système U              → systeme-u.png     (912 stations)
+  E.Leclerc              → e-leclerc.png     (736 stations)
+  Esso                   → esso.png     (584 stations)
+  Avia                   → avia.png     (562 stations)
+  Auchan                 → auchan.png     (278 stations)
+  Eni                    → eni.png     (155 stations)
+  Netto                  → netto.png     (95 stations)
+  BP                     → bp.png     (90 stations)
+  Dyneff                 → dyneff.png     (78 stations)
+  Shell                  → shell.png     (74 stations)
+  Elan                   → elan.png     (59 stations)
+  Vito                   → vito.png     (53 stations)
+  Match                  → match.png     (39 stations)
+  Bi1                    → bi1.png     (24 stations)
+  Casino                 → casino.png     (20 stations)
+  Cora                   → cora.png     (18 stations)
+  Aire C                 → aire-c.png     (16 stations)
+  Dats 24                → dats-24.png     (15 stations)
+  Spar                   → spar.png     (15 stations)
+  Fulli                  → fulli.png     (11 stations)
+  G20                    → g20.png     (8 stations)
+  Gulf                   → gulf.png     (7 stations)
+  Proxi                  → proxi.png     (5 stations)
+  Renault                → renault.png     (5 stations)
+  Monoprix               → monoprix.png     (5 stations)
+  Utile                  → utile.png     (4 stations)
+  Station Communale      → station-communale.png     (4 stations)
+  Rousseau Carburant     → rousseau-carburant.png     (4 stations)
+  Coccinelle             → coccinelle.png     (4 stations)
+  Gme                    → gme.png     (4 stations)
+  Comptoir Énergie       → comptoir-energie.png     (4 stations)
+  Carburant Loti         → carburant-loti.png     (3 stations)
+  Élan                   → elan.png     (3 stations)
+  Servifioul             → servifioul.png     (3 stations)
+  As 24                  → as-24.png     (3 stations)
+  Orceyre Carburants     → orceyre-carburants.png     (3 stations)
+  8 À Huit               → 8-a-huit.png     (3 stations)
+
+Étranger : repsol.png, cepsa.png, galp.png, q8.png, ip.png, tamoil.png, prio.png, ballenoil.png, plenergy.png …
+Règle générale : nom de l'enseigne tel qu'affiché, en minuscules, sans accents, tout le reste remplacé par « - ».

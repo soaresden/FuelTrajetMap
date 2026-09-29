@@ -1,0 +1,23 @@
+--------- beginning of main
+09-26 21:58:25.913 29258 29276 W CAR.VALIDATOR: Package DENIED; Uses for TEMPLATE not defined [com.google.android.googlequicksearchbox]
+09-26 21:58:26.135 21197 21197 D CarApp.H: AppLifecycleEvent: ON_START
+09-26 21:58:26.153 21197 21197 D CarApp.H: AppLifecycleEvent: ON_START
+09-26 21:58:26.170 21197 21197 D CarApp.H: AppLifecycleEvent: ON_RESUME
+09-26 21:58:26.802  6352  6352 I FuelMapCar: onSurfaceAvailable 770x700 dpi=160 surface=Surface(name=null mNativeObject=-5476376657342057296)/@0xc5e70ed
+09-26 21:58:26.803  6352  6352 I FuelMapCar: zone visible Rect(440, 28 - 742, 688)
+09-26 21:58:26.812  6352  6352 I FuelMapCar: virtual display Display id 131: DisplayInfo{"FuelMapCar", displayId 131, displayGroupId 0, FLAG_PRIVATE, FLAG_PRESENTATION, real 770 x 700, largest app 770 x 700, smallest app 770 x 700, appVsyncOff 0, presDeadline 16666666, mode 134, renderFrameRate 60.0, hasArrSupport false, frameRateCategoryRate null, supportedRefreshRates [], defaultMode 134, userPreferredModeId -1, supportedModes [{id=134, width=770, height=700, fps=60.0, vsync=60.0, synthetic=false, alternativeRefreshRates=[], supportedHdrTypes=[]}], appsSupportedModes [{id=134, width=770, height=700, fps=60.0, vsync=60.0, synthetic=false, alternativeRefreshRates=[], supportedHdrTypes=[]}], hdrCapabilities null, isForceSdr false, userDisabledHdrTypes [], minimalPostProcessingSupported false, rotation 0, state ON, committedState UNKNOWN}, DisplayMetrics{density=1.0, width=770, height=700, scaledDensity=1.0, xdpi=160.0, ydpi=160.0}, isValid=true
+09-26 21:58:26.918  6352  6458 I chromium: [0926/215826.917760:INFO:android_webview/browser/variations/variations_seed_loader.cc:67] Failed to open file for reading.: No such file or directory (2)
+09-26 21:58:27.048  6352  6509 W chromium: [WARNING:net/dns/dns_config_service_android.cc:69] Failed to read DnsConfig.
+09-26 21:58:27.154  6352  6352 I FuelMapCar: presentation affichée, chargement de la page
+09-26 21:58:27.175  6461  6506 W chromium: [WARNING:content/app/android/content_main_android.cc:82] android_setCpu already initialized
+09-26 21:58:27.196  6461  6506 W chromium: [WARNING:content/child/runtime_features.cc:497] Fenced frames cannot be enabled in this configuration. Use --enable-features=FencedFrames instead.
+09-26 21:58:27.236  6461  6556 I chromium: [INFO:third_party/skia/src/ports/SkFontMgr_android_parser.cpp:724] [SkFontMgr Android Parser] '/product/etc/fonts_customization.xml' could not be opened
+09-26 21:58:27.236  6461  6556 I chromium: 
+09-26 21:58:27.697  6352  6352 I FuelMapCar: js: FuelMap Android Auto : 770x700, 1 véhicule(s) (https://localhost/js/app.js:1234)
+09-26 21:58:27.920  6352  6352 I FuelMapCar: page chargée https://localhost/index.html?car=1&aa=1
+09-26 21:58:29.102  6352  6509 W FuelMapCar: fichier absent : /icons/brands/intermarche.png
+09-26 21:58:29.113  6352  6352 W FuelMapCar: erreur https://localhost/icons/brands/intermarche.png : Une erreur réseau s'est produite.
+09-26 21:58:29.126  6352  6509 W FuelMapCar: fichier absent : /icons/brands/intermarche.svg
+09-26 21:58:29.132  6352  6352 W FuelMapCar: erreur https://localhost/icons/brands/intermarche.svg : Une erreur réseau s'est produite.
+09-26 21:58:29.135  6352  6509 W FuelMapCar: fichier absent : /icons/brands/intermarche.webp
+09-26 21:58:29.136  6352  6352 W FuelMapCar: erreur https://localhost/icons/brands/intermarche.webp : Une erreur réseau s'est produite.

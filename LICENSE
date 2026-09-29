@@ -1,0 +1,22 @@
+FuelTrajetMap — Licence « source visible »
+Copyright (c) 2026 Denis Soares (Soaresden). Tous droits réservés.
+
+Le code source est publié pour être lu, audité et pour permettre de signaler des problèmes ou proposer des
+corrections (les contributions sont les bienvenues et restent la propriété de leur auteur, qui en accorde une licence
+d'utilisation au projet).
+
+Il est permis :
+- de consulter et d'étudier le code, et d'utiliser le site publié par l'auteur ;
+- de l'exécuter localement à des fins personnelles et non commerciales de test ou de contribution ;
+- de proposer des modifications au dépôt d'origine.
+
+Il n'est pas permis, sans accord écrit de l'auteur :
+- de redistribuer le code ou une application dérivée, sous quelque forme que ce soit (dépôt, site, magasin d'applications,
+  fichier APK/AAB), gratuitement ou non ;
+- de publier ou faire tourner une copie du service à destination d'autres personnes ;
+- de contourner ou retirer les mécanismes d'abonnement ou de mise à jour de l'application ;
+- d'utiliser le nom « FuelMap », « FuelTrajetMap » ou l'icône pour une autre application.
+
+Le code est fourni « tel quel », sans garantie d'aucune sorte. Les données de prix restent soumises aux conditions de
+leurs sources respectives (voir le README). Les bibliothèques tierces embarquées (Leaflet, etc.) conservent leur propre
+licence.

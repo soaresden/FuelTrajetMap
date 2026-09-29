@@ -1,0 +1,1 @@
+{ "android": 26, "note": "versionCode minimal de l'appli Android ; en dessous, l'appli affiche un écran de mise à jour obligatoire (js/plus.js)" }
