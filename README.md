@@ -89,8 +89,11 @@ Les pays voisins ne sont chargés que si la carte (zoom ≥ 7) ou un trajet les 
   fraîcheur : pratique pour trouver une station qui a vraiment de l'essence.
   Dans Proximité : origine « Adresse » (n'importe quelle ville), filtre « Fiabilité minimale » (mise à jour aujourd'hui /
   moins de 6 h) et tri « Fiable d'abord, puis coût réel » — « je suis à Angers, où faire mon plein de SP98 ? ».
-- **Note /10** (indice maison) : prix par rapport aux stations à 25 km (6 pts : part des voisines plus chères),
-  fraîcheur du prix (2,5 pts : plein si prix du jour, 0 à 7 jours), disponibilité (1 pt automate 24/24, 0,5 pt sans rupture).
+- **Note /10** (indice maison) : d'abord l'heure du dernier prix (5 pts : 5 si moins d'une heure, 4,5 jusqu'à 6 h,
+  2,5 pour la journée, presque rien au-delà de 3 jours, plafonnée à 1 en cas de rupture déclarée), puis la proximité
+  (2 pts à moins d'un kilomètre, 0 à 15 km — dans Proximité et le mode voiture), puis le prix par rapport aux stations à
+  25 km (3 pts : part des voisines plus chères). Tri par défaut de Proximité. Les prix saisis depuis moins de 2 h ont un
+  halo animé sur la carte et une carte surlignée dans Proximité.
 - **Tri « prix mis à jour le plus récemment »** dans Proximité, et âge du prix affiché partout.
 - **Carburants compatibles** : une voiture SP95-E10 se voit aussi proposer SP95 et SP98 quand ils sont moins chers ou
   seuls disponibles ; une voiture SP95 accepte le SP98 ; jamais l'inverse.

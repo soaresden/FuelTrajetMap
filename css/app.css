@@ -360,3 +360,11 @@ html.wide #plus .sheet, html.wide #update .sheet { border-radius: 18px; }
 #plus h2, #update h2 { margin: 0 0 8px; } #plus p { margin: 8px 0; line-height: 1.45; } #plus .sheet { position: relative; } #plusClose { position: absolute; top: 10px; right: 10px; width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel2); color: var(--text); font-size: 15px; } #plusWhy { font-weight: 700; } #plusSavings { color: var(--accent); font-weight: 600; }
 #plusOffers { display: grid; gap: 8px; margin: 12px 0; } .plus-offer { width: 100%; text-align: left; } .plus-offer small { font-weight: 500; opacity: .8; }
 #update .primary { width: 100%; margin-top: 10px; } #plus a { color: var(--accent); }
+
+/* prix tout frais (≤ 2 h) : halo animé sur la carte, carte Proximité surlignée */
+.fresh-ring { width: 40px; height: 40px; border-radius: 50%; border: 2px solid #39ff14; opacity: 0; animation: freshring 2.2s ease-out infinite; }
+@keyframes freshring { 0% { transform: scale(.35); opacity: .95; } 70% { transform: scale(1.15); opacity: 0; } 100% { opacity: 0; } }
+.card.fresh { border-color: color-mix(in srgb, var(--accent) 60%, var(--line)); box-shadow: 0 0 0 0 rgba(57,255,20,.35); animation: freshcard 2.4s ease-out infinite; }
+@keyframes freshcard { 0% { box-shadow: 0 0 0 0 rgba(57,255,20,.35); } 60% { box-shadow: 0 0 0 8px rgba(57,255,20,0); } 100% { box-shadow: 0 0 0 0 rgba(57,255,20,0); } }
+.when.fresh { color: var(--accent); font-weight: 700; }
+@media (prefers-reduced-motion: reduce) { .fresh-ring, .card.fresh { animation: none; } .fresh-ring { opacity: .7; transform: none; } }

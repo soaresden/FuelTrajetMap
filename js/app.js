@@ -427,7 +427,7 @@
       }
       dots.push(p);
     });
-    drawHeat(ctx, heatPts, full, zoom);
+    drawHeat(ctx, heatPts, full, zoom); syncFresh(good, fis, zoom);
     var dark = state.theme === 'dark';
     if (zoom >= 8) { // points discrets : la couleur est portée par la heatmap
       var r = zoom < 9.5 ? 2 : zoom < 10.5 ? 3 : 4;
@@ -452,6 +452,14 @@
     return hits;
   }
 
+  var freshLayer = L.layerGroup().addTo(map), freshShown = '';
+  function syncFresh(list, fis, zoom) { // halo animé sur les prix tout frais (≤ 2 h) : visibles d'un coup d'œil
+    var vb = map.getBounds(), c = map.getCenter(), fresh = zoom >= 9 ? list.filter(function (s) { var k = pick(s, fis); return k >= 0 && ageHours(s, k) <= 2 && vb.contains([s.lat, s.lon]); }) : [];
+    fresh.sort(function (a, b) { return Math.hypot(a.lat - c.lat, a.lon - c.lng) - Math.hypot(b.lat - c.lat, b.lon - c.lng); }); fresh = fresh.slice(0, 80);
+    var key = fresh.map(function (s) { return s.id; }).join(','); if (key === freshShown) return; freshShown = key;
+    freshLayer.clearLayers();
+    fresh.forEach(function (s) { freshLayer.addLayer(L.marker([s.lat, s.lon], { icon: L.divIcon({ className: '', html: '<div class="fresh-ring"></div>', iconSize: [40, 40], iconAnchor: [20, 20] }), interactive: false, zIndexOffset: -100 })); });
+  }
   var pulse = { min: null, max: null };
   function setPulse(kind, s) {
     if (!s) { if (pulse[kind]) { map.removeLayer(pulse[kind]); pulse[kind] = null; } return; }
@@ -499,10 +507,10 @@
       var rd = rupt && s.rd && s.rd[i] ? Math.max(0, Math.floor(Date.now() / DAY) - s.rd[i]) : -1;
       rows += '<tr class="' + (i === cfi || (s.e5 && cfi === FUEL_INDEX.e10 && i === FUEL_INDEX.sp95) ? 'sel' : '') + (rupt ? ' rupt' : '') + '"><td>' + f.label + (rupt ? ' <span class="badge bad">⊘ rupture' + (rd >= 0 ? (rd === 0 ? " depuis auj." : rd === 1 ? ' depuis hier' : ' depuis ' + rd + ' j') : '') + '</span>' : '') + '</td><td>' + (s.p[i] > 0 ? price3(s.p[i]) + ' €' : '—') + '</td><td' + (a > 14 ? ' style="color:var(--warn)"' : '') + '>' + (s.p[i] > 0 ? whenText(s, i) : ageLabel(a)) + '</td></tr>';
     });
-    var sc = score(s, displayFuels()), conf = cfi >= 0 && s.p[cfi] > 0 ? confidence(s, cfi) : null;
+    var sc = score(s, displayFuels(), mePos ? haversine(mePos.lat, mePos.lon, s.lat, s.lon) : null), conf = cfi >= 0 && s.p[cfi] > 0 ? confidence(s, cfi) : null;
     var html = '<div class="pop"><h3>' + brandName(s) + esc(titleCase(s.ville)) + (s.hw ? '<span class="badge">Autoroute</span>' : '') + (s.a24 ? '<span class="badge">24/24</span>' : '') + '</h3>' +
       '<div class="addr">' + esc(titleCase(s.adr)) + ', ' + esc(s.cp) + (s.cc !== 'fr' ? ' · ' + FuelSources[s.cc].name : '') + '</div>' +
-      (sc ? '<div class="scoreline">' + scoreBadge(sc) + '<span>prix ' + num(sc.price, 1) + '/6 · fraîcheur ' + num(sc.fresh, 1) + '/2,5 · dispo ' + num(sc.avail, 1) + '/1,5</span></div>' : '') +
+      (sc ? '<div class="scoreline">' + scoreBadge(sc) + '<span>' + scoreDetail(sc) + '</span></div>' : '') +
       (conf ? '<div class="conf c' + conf.level + '">' + (conf.hours != null ? conf.short.slice(0, 2) + ' ' + FUELS[cfi].label + ' mis à jour <b>' + whenText(s, cfi, true) + '</b> (' + agoText(conf.hours) + (conf.level === 3 ? ', moins de 6 h' : '') + ')' : conf.short) + ' · carburant <b>' + conf.label + '</b></div>' : '') + '<table>' + rows + '</table>';
     var carFi = FUEL_INDEX[car().fuel];
     if (s.p[carFi] > 0) { var fi2 = fillInfo(s, carFi); html += '<div class="fill">' + esc(car().name) + ' : ' + num(fi2.liters) + ' L de ' + FUELS[carFi].label + ' pour faire le plein ≈ <b>' + eur(fi2.cost) + '</b></div>'; }
@@ -692,18 +700,19 @@
   function isFav(s) { return state.favs.indexOf(String(s.id)) >= 0; }
   function toggleFav(s) { var id = String(s.id), i = state.favs.indexOf(id); if (i >= 0) state.favs.splice(i, 1); else state.favs.push(id); save(); refreshMap(); if (nearActive()) renderNear(); return i < 0; }
 
-  // Note /10 « maison » : prix par rapport aux stations des 25 km alentour (6 pts), fraîcheur du prix (2,5 pts), disponibilité (1,5 pt).
-  function score(s, fis) {
+  // Note /10 : d'abord l'heure du dernier prix (5 pts), puis la proximité (2 pts, quand on connaît la distance), puis le prix (3 pts).
+  function score(s, fis, distKm) {
     var k = pickAny(s, fis); if (k < 0) return null;
     var p = s.p[k], d = 25 / 111, dl = d / Math.cos(s.lat * Math.PI / 180), cheaper = 0, same = 0, n = 0;
     stationsInBounds(s.lat - d, s.lon - dl, s.lat + d, s.lon + dl).forEach(function (o) { var ko = pickAny(o, fis); if (ko < 0) return; n++; if (o.p[ko] > p + 0.0005) cheaper++; else if (Math.abs(o.p[ko] - p) <= 0.0005) same++; });
-    var price = n >= 4 ? 6 * (cheaper + 0.5 * (same - 1)) / Math.max(1, n - 1) : 3;          // part des voisines plus chères
-    var age = ageDays(s, k), fresh = 2.5 * Math.max(0, 1 - age / 7);                             // prix du jour = 2,5 ; 7 jours ou plus = 0
-    var mask = 0; fis.forEach(function (f) { if (s.p[f] > 0) mask |= (1 << f); });
-    var avail = (s.a24 ? 1 : 0) + (s.r & mask ? 0 : 0.5);                                        // automate 24/24 ; aucune rupture sur les carburants que prend la voiture
-    var total = Math.max(0, Math.min(10, price + fresh + avail));
-    return { total: total, price: price, fresh: fresh, avail: avail, n: n, k: k };
+    var price = n >= 4 ? 3 * (cheaper + 0.5 * (same - 1)) / Math.max(1, n - 1) : 1.5;          // part des voisines plus chères
+    var h = ageHours(s, k), fresh = h < 1 ? 5 : h <= 6 ? 4.5 : h <= 12 ? 3.5 : h <= 24 ? 2.5 : h <= 48 ? 1.5 : h <= 72 ? 0.8 : Math.max(0, 0.5 * (1 - h / 24 / 10));
+    var mask = 0; fis.forEach(function (f) { if (s.p[f] > 0) mask |= (1 << f); }); if (s.r & mask) fresh = Math.min(fresh, 1); // rupture déclarée sur un carburant compatible
+    var near = distKm == null ? null : 2 * Math.max(0, 1 - Math.max(0, distKm - 1) / 14);       // 2 pts à moins d'1 km, 0 à 15 km
+    var total = near == null ? (fresh + price) * 10 / 8 : fresh + price + near;
+    return { total: Math.max(0, Math.min(10, total)), price: price, fresh: fresh, near: near, hours: h, n: n, k: k };
   }
+  function scoreDetail(sc) { return 'fraîcheur ' + num(sc.fresh, 1) + '/5' + (sc.near != null ? ' · proximité ' + num(sc.near, 1) + '/2' : '') + ' · prix ' + num(sc.price, 1) + '/3'; }
   function scoreBadge(sc) { if (!sc) return ''; var t = sc.total, col = t >= 7 ? 'var(--accent)' : t >= 4.5 ? 'var(--warn)' : 'var(--bad)'; return '<span class="score" style="border-color:' + col + '">' + (t >= 7 ? '👍' : t >= 4.5 ? '👌' : '👎') + ' ' + num(t, 1) + '<small>/10</small></span>'; }
 
   // ------------------------------------------------------------------ fenêtre modale
@@ -1275,16 +1284,16 @@
       if (minConf) $('nearHint').textContent += ' Seules les stations ' + (minConf >= 3 ? 'mises à jour depuis moins de 6 h' : 'mises à jour aujourd\'hui') + ' sont listées.';
       if (sort === 'reliable') $('nearHint').textContent += ' Tri : les plus fiables d\'abord, puis la moins chère.';
       var priced = items.filter(function (x) { return x.k >= 0; }), nearest = priced.slice().sort(function (a, b) { return a.d - b.d; })[0];
-      if (sort === 'score' || items.length <= 60) items.forEach(function (x) { x.sc = x.k >= 0 ? score(x.s, fis) : null; });
+      if (sort === 'score' || items.length <= 80) items.forEach(function (x) { x.sc = x.k >= 0 ? score(x.s, fis, x.d) : null; });
       if (state.shortage && sort === 'real') sort = 'reliable'; // en pénurie, ce qui compte c'est d'en trouver
       var lvl = function (x) { return x.k >= 0 ? confidence(x.s, x.k).level : -1; };
       items.sort(sort === 'reliable' ? function (a, b) { return lvl(b) - lvl(a) || a.real - b.real; } : sort === 'price' ? function (a, b) { return a.p - b.p; } : sort === 'dist' ? function (a, b) { return a.d - b.d; } : sort === 'fresh' ? function (a, b) { return ageHours(a.s, a.k) - ageHours(b.s, b.k) || a.p - b.p; } :
         sort === 'score' ? function (a, b) { return (b.sc ? b.sc.total : -1) - (a.sc ? a.sc.total : -1); } : function (a, b) { return a.real - b.real; });
       var bestReal = priced.slice().sort(function (a, b) { return a.real - b.real; })[0];
       listEl.innerHTML = items.slice(0, 30).map(function (x) {
-        var diff = nearest && x.k >= 0 ? nearest.real - x.real : 0, sc = x.sc === undefined && x.k >= 0 ? score(x.s, fis) : x.sc;
-        return '<div class="card' + (x === bestReal ? ' best' : '') + '" data-sid="' + x.s.id + '"><div><b>' + (isFav(x.s) ? '★ ' : '') + brandName(x.s) + esc(titleCase(x.s.ville)) + '</b>' + (x.s.a24 ? '<span class="badge">24/24</span>' : '') + '</div><div class="price">' + (x.k >= 0 ? price3(x.p) : '—') + '</div>' +
-          '<div class="sub">' + esc(titleCase(x.s.adr)) + ' · ' + num(x.d, 1) + ' km · ' + (x.k < 0 ? (x.rupt ? '<span style="color:var(--bad)">⊘ rupture déclarée</span>' : 'pas de prix récent') : (x.k !== fi ? FUELS[x.k].label + ' · ' : '') + '<span' + (x.age > 3 ? ' style="color:var(--warn)"' : '') + '>🕒 ' + whenText(x.s, x.k) + '</span>' + (state.shortage || sort === 'reliable' || minConf ? ' · <b class="c' + confidence(x.s, x.k).level + '">' + confidence(x.s, x.k).label + '</b>' : '')) + '</div>' +
+        var diff = nearest && x.k >= 0 ? nearest.real - x.real : 0, sc = x.sc === undefined && x.k >= 0 ? score(x.s, fis, x.d) : x.sc, fresh = x.k >= 0 && ageHours(x.s, x.k) <= 2;
+        return '<div class="card' + (x === bestReal ? ' best' : '') + (fresh ? ' fresh' : '') + '" data-sid="' + x.s.id + '"><div><b>' + (isFav(x.s) ? '★ ' : '') + brandName(x.s) + esc(titleCase(x.s.ville)) + '</b>' + (x.s.a24 ? '<span class="badge">24/24</span>' : '') + '</div><div class="price">' + (x.k >= 0 ? price3(x.p) : '—') + '</div>' +
+          '<div class="sub">' + esc(titleCase(x.s.adr)) + ' · ' + num(x.d, 1) + ' km · ' + (x.k < 0 ? (x.rupt ? '<span style="color:var(--bad)">⊘ rupture déclarée</span>' : 'pas de prix récent') : (x.k !== fi ? FUELS[x.k].label + ' <small>(compatible, moins cher ici)</small> · ' : '') + '<span class="when' + (fresh ? ' fresh' : '') + '"' + (x.age > 3 ? ' style="color:var(--warn)"' : '') + '>🕒 ' + whenText(x.s, x.k) + '</span>' + (state.shortage || sort === 'reliable' || minConf ? ' · <b class="c' + confidence(x.s, x.k).level + '">' + confidence(x.s, x.k).label + '</b>' : '')) + '</div>' +
           '<div class="real">' + scoreBadge(sc) + (x.k >= 0 ? ' ' + eur(x.real) + (x !== nearest && diff > 0.3 ? ' · <span style="color:var(--accent)">−' + eur(diff) + '</span>' : '') : '') + '</div></div>';
       }).join('');
     }).catch(function (e) { listEl.innerHTML = '<p class="hint">' + esc(e.message) + ' — choisis « Centre de la carte ».</p>'; });
