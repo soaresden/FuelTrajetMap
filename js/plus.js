@@ -13,6 +13,7 @@
   var C = window.Capacitor;
   var isApp = !!(C && C.getPlatform && C.getPlatform() === 'android');
   if (!isApp) return;
+  var PLUS_ON = !!((window.FUELMAP_CONFIG || {}).plus); // abonnement désactivé pour l'instant (js/config.js) : tout est ouvert, seule la mise à jour obligatoire reste
   var $ = function (id) { return document.getElementById(id); };
   var PRODUCT = 'fuelmap_plus', PACKAGE = 'fr.soaresden.fuelmap', MONTH = 32 * 86400000;
   var store = null, owned = false, offers = [];
@@ -35,7 +36,7 @@
     if (sv && sv.total > 1) el.textContent = '💰 L\'optimiseur t\'a déjà fait économiser ' + sv.total.toFixed(2).replace('.', ',') + ' € sur ' + sv.n + ' trajet' + (sv.n > 1 ? 's' : '') + ' : l\'abonnement annuel est remboursé en un plein.';
   }
   // Appelé par la page quand une fonction Plus est demandée : on l'exécute si abonné, sinon écran d'abonnement, puis exécution dès l'achat.
-  function require(feature, fn) { if (owned) return fn(); pending = fn; paywall(true, feature); }
+  function require(feature, fn) { if (owned || !PLUS_ON) return fn(); pending = fn; paywall(true, feature); }
   function phaseText(ph) {
     var per = { P1W: 'semaine', P1M: 'mois', P1Y: 'an', P3M: '3 mois', P6M: '6 mois' }[ph.billingPeriod] || ph.billingPeriod;
     if (ph.paymentMode === 'FreeTrial') return ph.billingPeriod === 'P1W' ? '7 jours gratuits' : 'essai gratuit ' + per;
@@ -97,10 +98,10 @@
   var started = false;
   function start() {
     if (started) return; started = true;
-    var go = function () { initStore(); checkVersion(); };
+    var go = function () { if (PLUS_ON) initStore(); else { owned = true; saveLicense(); } checkVersion(); };
     try { C.Plugins.Preferences.get({ key: 'license' }).then(function (r) { cached = r && r.value ? JSON.parse(r.value) : null; }).catch(function () { }).then(go); } catch (e) { go(); }
   }
   document.addEventListener('deviceready', start);
   setTimeout(start, 4000); // au cas où l'événement Cordova ne vienne pas
-  window.__fuelmapPlus = { get owned() { return owned; }, require: require, refresh: refresh, paywall: paywall };
+  window.__fuelmapPlus = { get owned() { return owned || !PLUS_ON; }, require: require, refresh: refresh, paywall: paywall };
 })();

@@ -155,7 +155,11 @@ même page, en mode voiture, qui est dessinée sur l'écran Android Auto.
 Itinéraires : serveur de démonstration OSRM (usage raisonnable ; remplaçable via la constante `OSRM` de `js/app.js`).
 Adresses : Géoplateforme IGN (France) + Photon (Europe). Fond de carte : OpenStreetMap. Carte : Leaflet (BSD-2).
 
-## FuelMap Plus (appli Android)
+## FuelMap Plus (appli Android) — désactivé pour l'instant
+
+**Interrupteur** : `plus: false` dans `js/config.js` et `PLUS_ENABLED = false` dans `apk/android/app/build.gradle` : tout
+est ouvert (version complète). Passer les deux à `true` (et créer l'abonnement dans la Play Console) pour activer.
+
 
 Modèle freemium : **la carte, les prix, les ruptures, l'indice de confiance, Proximité, favoris et historique sont
 gratuits**, sans compte ni pub. **FuelMap Plus** (abonnement Google Play `fuelmap_plus`, forfaits `annuel` 4,99 € et

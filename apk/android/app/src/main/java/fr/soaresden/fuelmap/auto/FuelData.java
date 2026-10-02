@@ -54,6 +54,7 @@ public class FuelData {
      * de Google Play. Valide si possédé et pas expiré depuis plus de 3 jours (marge si le téléphone n'a pas relancé l'appli).
      */
     public static boolean licensed(Context ctx) {
+        if (!fr.soaresden.fuelmap.BuildConfig.PLUS_ENABLED) return true; // abonnement désactivé : tout ouvert
         try {
             String raw = ctx.getSharedPreferences("CapacitorStorage", Context.MODE_PRIVATE).getString("license", null);
             if (raw == null) return false;
