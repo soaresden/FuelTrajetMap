@@ -116,6 +116,17 @@
           <div class="field"><label for="nearConf">Fiabilité minimale (il y a du carburant ?)</label>
             <select id="nearConf"><option value="0">Toutes les stations</option><option value="2">🟡 Prix mis à jour aujourd'hui</option><option value="3">🟢 Mis à jour il y a moins de 6 h</option></select></div>
         </div>
+        <div id="alertBox" hidden>
+          <h3>🔔 Alerte « il y a de l'essence »</h3>
+          <p class="hint">Toutes les 15 min, FuelMap regarde si une station de la zone vient de saisir un nouveau prix (donc a du carburant) et t'envoie une notification « gogogo ». La zone est fixée au moment où tu actives : aucune position suivie en arrière-plan.</p>
+          <div class="grid2">
+            <div class="field"><label for="alertRadius">Rayon</label>
+              <select id="alertRadius"><option>1</option><option selected>2</option><option>3</option><option>5</option><option>10</option></select></div>
+            <div class="field"><label>Autour de</label><div id="alertWhere" class="hint" style="padding-top:10px">l'origine choisie ci-dessus</div></div>
+          </div>
+          <div class="links"><button id="alertOn">🔔 Activer</button><button id="alertOff">Désactiver</button><button id="alertTest">Tester maintenant</button></div>
+          <p id="alertStatus" class="hint"></p>
+        </div>
         <p class="hint" id="nearHint"></p>
         <div id="nearList"></div>
       </div>
@@ -183,7 +194,7 @@
     <h2>⛽ FuelMap Plus</h2>
     <p id="plusWhy"></p>
     <p>La carte, les prix, les ruptures et Proximité restent gratuits. <b>FuelMap Plus</b> ajoute le <b>trajet optimisé</b> (où s'arrêter et combien de litres mettre),
-      le <b>mode voiture</b> et <b>Android Auto</b> : <b>7 jours d'essai gratuit</b>, puis <b>4,99 €/an</b> ou 0,99 €/mois, sans engagement.</p>
+      le <b>mode voiture</b>, <b>Android Auto</b> et l'<b>alerte « il y a de l'essence »</b> : <b>7 jours d'essai gratuit</b>, puis <b>4,99 €/an</b> ou 0,99 €/mois, sans engagement.</p>
     <p id="plusSavings" class="hint" hidden></p>
     <div id="plusOffers"></div>
     <div class="links"><button id="plusRestore">↻ Restaurer mon abonnement</button><button id="plusManage">Gérer</button><button id="plusLater">Plus tard</button></div>

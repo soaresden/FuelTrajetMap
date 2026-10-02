@@ -38,7 +38,7 @@
   var STORE_KEY = 'fuelmap.v1', STATE_VERSION = 2;
   var state = {
     cars: [], activeCar: null, fuel: 'e10', theme: 'dark', places: [],
-    v: STATE_VERSION, favs: [], brand: '', neighbours: true, startE: 4, arrivalE: 2, arrivalAny: true, corridor: 15, shortage: false, stopCost: 2, maxAge: 7, only24: false,
+    v: STATE_VERSION, favs: [], brand: '', neighbours: true, startE: 4, arrivalE: 2, arrivalAny: true, corridor: 15, shortage: false, alert: null, stopCost: 2, maxAge: 7, only24: false,
     view: { lat: 46.6, lon: 2.4, zoom: 6 }
   };
   try {
@@ -1261,6 +1261,31 @@
   $('nearMode').addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b) return; nearMode = b.getAttribute('data-v'); this.querySelectorAll('button').forEach(function (x) { x.classList.toggle('on', x === b); }); $('nearAddr').hidden = nearMode !== 'addr'; if (nearMode === 'addr' && !places.near) { $('nearInput').focus(); } renderNear(); });
   $('nearConf').addEventListener('change', renderNear);
   $('nearRadius').addEventListener('change', renderNear); $('nearSort').addEventListener('change', renderNear);
+  // Origine courante de Proximité (ma position / centre / favoris / adresse), sans ouvrir la liste
+  function nearOrigin() {
+    var center = { lat: map.getCenter().lat, lon: map.getCenter().lng, label: 'du centre de la carte' };
+    if (nearMode === 'gps') return (mePos ? Promise.resolve(mePos) : locate()).then(function (p) { return { lat: p.lat, lon: p.lon, label: 'de ma position' }; });
+    if (nearMode === 'addr') return Promise.resolve(places.near ? { lat: places.near.lat, lon: places.near.lon, label: 'de ' + places.near.label } : null);
+    return Promise.resolve(center);
+  }
+  var FuelAlert = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.FuelAlert;
+  function alertStatus() {
+    var el = $('alertStatus'), a = state.alert; if (!el) return;
+    el.className = 'hint' + (a ? ' on' : ''); el.textContent = a ? '🔔 Alerte active : ' + FUELS[FUEL_INDEX[a.fuel]].label + ' à moins de ' + a.radiusKm + ' km ' + a.label + '.' : 'Aucune alerte active.';
+    $('alertOff').hidden = !a;
+  }
+  if (FuelAlert) {
+    $('alertBox').hidden = false; alertStatus();
+    $('alertOn').addEventListener('click', function () { gate('alert', function () {
+      nearOrigin().then(function (o) {
+        if (!o) { toast('Choisis une adresse d\'abord'); return; }
+        var c = car(), a = { lat: +o.lat.toFixed(5), lon: +o.lon.toFixed(5), radiusKm: +$('alertRadius').value, fuel: c.fuel, fuels: fuelsFor(c.fuel).map(function (i) { return FUELS[i].key; }), label: o.label, since: Date.now() };
+        return window.Capacitor.Plugins.Preferences.set({ key: 'alert', value: JSON.stringify(a) }).then(function () { return FuelAlert.enable(); }).then(function () { state.alert = a; save(); alertStatus(); toast('Alerte activée : tu seras prévenu dès qu\'une station à moins de ' + a.radiusKm + ' km met son prix à jour'); });
+      }).catch(function (e) { toast(e && e.message ? e.message : 'Activation impossible'); });
+    }); });
+    $('alertOff').addEventListener('click', function () { FuelAlert.disable().then(function () { state.alert = null; save(); alertStatus(); toast('Alerte désactivée'); }); });
+    $('alertTest').addEventListener('click', function () { if (!state.alert) { toast('Active d\'abord l\'alerte'); return; } FuelAlert.test().then(function () { toast('Vérification lancée : notification dans quelques secondes s\'il y a eu une mise à jour dans les 6 dernières heures'); }); });
+  }
   function renderNear() {
     var listEl = $('nearList'), favMode = nearMode === 'fav';
     if (!stations.length) { listEl.innerHTML = '<p class="hint">⏳ Chargement des prix…</p>'; return; }
@@ -1335,5 +1360,11 @@
 
   window.__fuelmapLayoutChanged = function (wide) { showTab(wide ? 'route' : 'map'); setTimeout(function () { map.invalidateSize(); }, 50); };
   window.__fuelmapSavings = function () { return state.savings || null; };
+  function openFromUrl(url) { // notification d'alerte → fiche de la station
+    var m = /fuelmap:\/\/station\/(\d+)/.exec(url || ''); if (!m) return;
+    var tryOpen = function (n) { var s = stations.filter(function (x) { return String(x.id) === m[1]; })[0]; if (s) { showTab('map'); openStation(s, true); } else if (n < 40) setTimeout(function () { tryOpen(n + 1); }, 500); };
+    tryOpen(0);
+  }
+  try { var AppP = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App; if (AppP) { AppP.addListener('appUrlOpen', function (e) { openFromUrl(e.url); }); AppP.getLaunchUrl().then(function (r) { if (r && r.url) openFromUrl(r.url); }); } } catch (e) { }
   window.__fuelmap = { carPan: carPan, carZoom: carZoom, carInsets: carInsets, restoreLastRoute: restoreLastRoute, setCarMode: setCarMode, updateHud: updateHud, get fix() { return lastFix; }, set fix(p) { lastFix = mePos = p; updateHud(); }, setPlan: setPlan, alternativesFor: alternativesFor, tryPlan: tryPlan, state: state, compute: computeRoute, setPlace: setPlace, get route() { return routeCtx; }, get count() { return stations.length; }, get stations() { return stations; }, map: map, openStation: openStation }; // pour les tests
 })();

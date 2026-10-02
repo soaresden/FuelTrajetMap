@@ -39,6 +39,10 @@ de litres mettre). Site en ligne : https://soaresden.github.io/FuelTrajetMap/
 4. **Proximité** : classement par *coût réel du plein* (prix × litres + carburant de l'aller-retour), ou « fiable
    d'abord » ; origine GPS, centre de la carte, favoris ou n'importe quelle adresse.
 5. **Pénurie** : ruptures déclarées barrées ⊘, indice de confiance « il y a du carburant ? », mode carte par fraîcheur.
+6. **Alerte « il y a de l'essence »** (appli Android) : rayon de 1 à 10 km autour de ta position, du centre de la carte
+   ou d'une adresse ; toutes les 15 min, l'appli regarde si une station de la zone vient de saisir un nouveau prix d'un
+   carburant compatible, sans rupture déclarée, et notifie la moins chère (« SP95 à 1,990 € à Courbevoie — gogogo ! »,
+   bouton « Y aller »). Zone fixée à l'activation, aucune position en arrière-plan.
 
 ### L'optimiseur (`js/optimizer.js`)
 
@@ -156,7 +160,7 @@ Adresses : Géoplateforme IGN (France) + Photon (Europe). Fond de carte : OpenSt
 Modèle freemium : **la carte, les prix, les ruptures, l'indice de confiance, Proximité, favoris et historique sont
 gratuits**, sans compte ni pub. **FuelMap Plus** (abonnement Google Play `fuelmap_plus`, forfaits `annuel` 4,99 € et
 `mensuel` 0,99 €, chacun avec 7 jours d'essai gratuit gérés par Google — un essai par compte Google, réinstallation
-comprise) débloque le trajet optimisé, le mode voiture et Android Auto. L'écran d'abonnement n'apparaît qu'au moment où
+comprise) débloque le trajet optimisé, le mode voiture, Android Auto et l'alerte carburant. L'écran d'abonnement n'apparaît qu'au moment où
 l'une de ces fonctions est demandée, avec le total des économies déjà réalisées par l'optimiseur. `js/plus.js` porte la
 logique (cordova-plugin-purchase, Billing Library 9) et écrit l'état dans les Preferences pour Android Auto, qui affiche
 un écran « FuelMap Plus » tant que l'abonnement n'est pas actif. Le site web reste entièrement gratuit.

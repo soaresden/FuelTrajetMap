@@ -3,7 +3,11 @@ package fr.soaresden.fuelmap;
 import android.content.IntentSender;
 import android.util.Log;
 
+import android.os.Bundle;
+
 import com.getcapacitor.BridgeActivity;
+
+import fr.soaresden.fuelmap.alert.FuelAlertPlugin;
 import com.google.android.play.core.appupdate.AppUpdateManager;
 import com.google.android.play.core.appupdate.AppUpdateManagerFactory;
 import com.google.android.play.core.appupdate.AppUpdateOptions;
@@ -17,6 +21,9 @@ import com.google.android.play.core.install.model.UpdateAvailability;
  */
 public class MainActivity extends BridgeActivity {
     private AppUpdateManager updates;
+
+    @Override
+    public void onCreate(Bundle savedInstanceState) { registerPlugin(FuelAlertPlugin.class); super.onCreate(savedInstanceState); }
 
     @Override
     public void onResume() {

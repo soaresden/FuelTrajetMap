@@ -23,7 +23,7 @@
   }
 
   // ---------------------------------------------------------------- écran d'abonnement
-  var pending = null, FEATURES = { route: '🧭 Le trajet optimisé (où s\'arrêter et combien mettre) fait partie de FuelMap Plus.', car: '🚗 Le mode voiture (grand affichage, suivi GPS, prochain arrêt) fait partie de FuelMap Plus.', auto: '🚘 FuelMap sur l\'écran Android Auto fait partie de FuelMap Plus.' };
+  var pending = null, FEATURES = { route: '🧭 Le trajet optimisé (où s\'arrêter et combien mettre) fait partie de FuelMap Plus.', car: '🚗 Le mode voiture (grand affichage, suivi GPS, prochain arrêt) fait partie de FuelMap Plus.', auto: '🚘 FuelMap sur l\'écran Android Auto fait partie de FuelMap Plus.', alert: '🔔 L\'alerte « il y a de l\'essence près de moi » fait partie de FuelMap Plus.' };
   function paywall(show, feature) {
     var el = $('plus'); if (!el) return;
     el.hidden = !show;

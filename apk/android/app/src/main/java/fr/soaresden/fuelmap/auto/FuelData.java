@@ -28,7 +28,7 @@ import java.util.TimeZone;
  */
 public class FuelData {
     static final String SITE = "https://soaresden.github.io/FuelTrajetMap/";
-    static final String ODS = "https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/prix-des-carburants-en-france-flux-instantane-v2/records";
+    public static final String ODS = "https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/prix-des-carburants-en-france-flux-instantane-v2/records";
     static final String[] FUEL_KEYS = {"gazole", "sp95", "e10", "sp98", "e85", "gplc"};
     static final String[] FUEL_LABELS = {"Gazole", "SP95", "SP95-E10", "SP98", "E85", "GPLc"};
 
@@ -67,7 +67,7 @@ public class FuelData {
         return key;
     }
 
-    static String fetch(String url) throws Exception {
+    public static String fetch(String url) throws Exception {
         HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
         c.setConnectTimeout(12000); c.setReadTimeout(20000);
         c.setRequestProperty("User-Agent", "FuelTrajetMap Android Auto");
@@ -113,7 +113,7 @@ public class FuelData {
     }
 
     static JSONObject brandsCache;
-    static JSONObject brands(Context ctx) {
+    public static JSONObject brands(Context ctx) {
         if (brandsCache != null) return brandsCache;
         File f = new File(ctx.getFilesDir(), "fr-brands.json");
         try {
@@ -130,13 +130,13 @@ public class FuelData {
 
     static String enc(String s) throws Exception { return URLEncoder.encode(s, "UTF-8"); }
 
-    static double haversine(double aLat, double aLon, double bLat, double bLon) {
+    public static double haversine(double aLat, double aLon, double bLat, double bLon) {
         double R = 6371, dLat = Math.toRadians(bLat - aLat), dLon = Math.toRadians(bLon - aLon);
         double h = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(Math.toRadians(aLat)) * Math.cos(Math.toRadians(bLat)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
         return 2 * R * Math.asin(Math.sqrt(h));
     }
 
-    static String title(String s) {
+    public static String title(String s) {
         StringBuilder b = new StringBuilder(); boolean up = true;
         for (char ch : s.toLowerCase(Locale.FRANCE).toCharArray()) {
             b.append(up ? Character.toUpperCase(ch) : ch);

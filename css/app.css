@@ -368,3 +368,8 @@ html.wide #plus .sheet, html.wide #update .sheet { border-radius: 18px; }
 @keyframes freshcard { 0% { box-shadow: 0 0 0 0 rgba(57,255,20,.35); } 60% { box-shadow: 0 0 0 8px rgba(57,255,20,0); } 100% { box-shadow: 0 0 0 0 rgba(57,255,20,0); } }
 .when.fresh { color: var(--accent); font-weight: 700; }
 @media (prefers-reduced-motion: reduce) { .fresh-ring, .card.fresh { animation: none; } .fresh-ring { opacity: .7; transform: none; } }
+
+/* alerte carburant (appli Android) */
+#alertBox { border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin: 10px 0 14px; background: var(--panel2); }
+#alertBox h3 { margin: 0 0 6px; font-size: 15px; } #alertBox .links { margin-top: 6px; } #alertBox[hidden] { display: none; }
+#alertStatus.on { color: var(--accent); font-weight: 700; }
