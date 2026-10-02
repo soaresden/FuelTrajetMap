@@ -20,3 +20,5 @@ Thumbs.db
 *.aab
 apk/dhu/
 apk/aa-log.txt
+# Code mis de côté (abonnement), pas dans le dépôt public
+.plus-archive/

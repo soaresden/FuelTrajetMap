@@ -14,7 +14,6 @@
     "@capacitor/app": "^7.1.2",
     "@capacitor/cli": "^7.6.9",
     "@capacitor/core": "^7.6.9",
-    "@capacitor/preferences": "^7.0.4",
-    "cordova-plugin-purchase": "^13.18.0"
+    "@capacitor/preferences": "^7.0.4"
   }
 }

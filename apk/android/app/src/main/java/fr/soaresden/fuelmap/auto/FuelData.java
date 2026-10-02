@@ -49,20 +49,6 @@ public class FuelData {
         return c;
     }
 
-    /**
-     * Abonnement FuelMap Plus : l'appli téléphone écrit { owned, until } (clé « license ») à chaque vérification auprès
-     * de Google Play. Valide si possédé et pas expiré depuis plus de 3 jours (marge si le téléphone n'a pas relancé l'appli).
-     */
-    public static boolean licensed(Context ctx) {
-        if (!fr.soaresden.fuelmap.BuildConfig.PLUS_ENABLED) return true; // abonnement désactivé : tout ouvert
-        try {
-            String raw = ctx.getSharedPreferences("CapacitorStorage", Context.MODE_PRIVATE).getString("license", null);
-            if (raw == null) return false;
-            JSONObject j = new JSONObject(raw);
-            return j.optBoolean("owned") && j.optLong("until", Long.MAX_VALUE) + 3L * 86400000 > System.currentTimeMillis();
-        } catch (Exception e) { return false; }
-    }
-
     public static String fuelLabel(String key) {
         for (int i = 0; i < FUEL_KEYS.length; i++) if (FUEL_KEYS[i].equals(key)) return FUEL_LABELS[i];
         return key;

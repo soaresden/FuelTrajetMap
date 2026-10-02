@@ -3,14 +3,12 @@ apply plugin: 'com.android.application'
 android {
     namespace "fr.soaresden.fuelmap"
     compileSdk rootProject.ext.compileSdkVersion
-    buildFeatures { buildConfig true }
     defaultConfig {
         applicationId "fr.soaresden.fuelmap"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 30
-        versionName "1.1"
-        buildConfigField "boolean", "PLUS_ENABLED", "false" // abonnement FuelMap Plus (voir aussi js/config.js)
+        versionCode 32
+        versionName "1.2"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

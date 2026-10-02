@@ -39,7 +39,9 @@ de litres mettre). Site en ligne : https://soaresden.github.io/FuelTrajetMap/
 4. **Proximité** : classement par *coût réel du plein* (prix × litres + carburant de l'aller-retour), ou « fiable
    d'abord » ; origine GPS, centre de la carte, favoris ou n'importe quelle adresse.
 5. **Pénurie** : ruptures déclarées barrées ⊘, indice de confiance « il y a du carburant ? », mode carte par fraîcheur.
-6. **Alerte « il y a de l'essence »** (appli Android) : rayon de 1 à 10 km autour de ta position, du centre de la carte
+6. **Thèmes** (bouton 🎨) : Nuit, Jour, Plage, Neige, Rose, Citron, Océan, Forêt, Lune, Synthwave, Post-apo, Nuit noire —
+   couleurs de l'interface et traitement du fond de carte (`js/themes.js`) ; les couleurs des prix ne changent pas.
+7. **Alerte « il y a de l'essence »** (appli Android) : rayon de 1 à 10 km autour de ta position, du centre de la carte
    ou d'une adresse ; toutes les 15 min, l'appli regarde si une station de la zone vient de saisir un nouveau prix d'un
    carburant compatible, sans rupture déclarée, et notifie la moins chère (« SP95 à 1,990 € à Courbevoie — gogogo ! »,
    bouton « Y aller »). Zone fixée à l'activation, aucune position en arrière-plan.
@@ -117,7 +119,7 @@ reste se construit quand même). Puis double-clique `lancer.bat` ou `python -m h
 
 ## Appli Android (`apk/`)
 
-Projet Capacitor 7 (WebView + fichiers embarqués, GPS natif, abonnement Google Play, Android Auto). `apk\construire-apk.bat`
+Projet Capacitor 7 (WebView + fichiers embarqués, GPS natif, Android Auto, alerte carburant). `apk\construire-apk.bat`
 copie l'appli dans `www/`, synchronise et lance Gradle (Node.js + SDK Android 36 avec JDK 21) ; il produit l'APK de debug
 (`app-debug.apk`, à sideloader pour tester sur le téléphone) et, si `apk/android/keystore/keystore.properties` existe,
 l'AAB de release (`app-release.aab`) signé avec la clé d'upload — clé **jamais dans git**, à garder précieusement, elle ne
@@ -155,21 +157,9 @@ même page, en mode voiture, qui est dessinée sur l'écran Android Auto.
 Itinéraires : serveur de démonstration OSRM (usage raisonnable ; remplaçable via la constante `OSRM` de `js/app.js`).
 Adresses : Géoplateforme IGN (France) + Photon (Europe). Fond de carte : OpenStreetMap. Carte : Leaflet (BSD-2).
 
-## FuelMap Plus (appli Android) — désactivé pour l'instant
+## Mise à jour obligatoire
 
-**Interrupteur** : `plus: false` dans `js/config.js` et `PLUS_ENABLED = false` dans `apk/android/app/build.gradle` : tout
-est ouvert (version complète). Passer les deux à `true` (et créer l'abonnement dans la Play Console) pour activer.
-
-
-Modèle freemium : **la carte, les prix, les ruptures, l'indice de confiance, Proximité, favoris et historique sont
-gratuits**, sans compte ni pub. **FuelMap Plus** (abonnement Google Play `fuelmap_plus`, forfaits `annuel` 4,99 € et
-`mensuel` 0,99 €, chacun avec 7 jours d'essai gratuit gérés par Google — un essai par compte Google, réinstallation
-comprise) débloque le trajet optimisé, le mode voiture, Android Auto et l'alerte carburant. L'écran d'abonnement n'apparaît qu'au moment où
-l'une de ces fonctions est demandée, avec le total des économies déjà réalisées par l'optimiseur. `js/plus.js` porte la
-logique (cordova-plugin-purchase, Billing Library 9) et écrit l'état dans les Preferences pour Android Auto, qui affiche
-un écran « FuelMap Plus » tant que l'abonnement n'est pas actif. Le site web reste entièrement gratuit.
-
-**Mise à jour obligatoire** : `MainActivity` déclenche la mise à jour « immédiate » du Play Store dès qu'une version
+`MainActivity` déclenche la mise à jour « immédiate » du Play Store dès qu'une version
 plus récente existe, et `version-min.json` (à la racine du site) fixe le `versionCode` minimal accepté : en dessous,
 écran bloquant vers le Play Store. Monter ce nombre quand une ancienne version ne doit plus tourner (données ou calculs
 changés).
@@ -181,11 +171,7 @@ changés).
 2. **Tests → Test interne** : téléverser `apk/FuelTrajetMap-release.aab`, créer la liste de testeurs (Gmail), envoyer le
    lien d'inscription ; installer depuis le Play Store (désinstaller l'APK sideloadé avant : signature différente).
    Pas de revue Google en test interne ; FuelMap apparaît alors dans la voiture.
-3. **Monétiser → Abonnements** : abonnement `fuelmap_plus`, forfaits `annuel` (1 an, 4,99 €) et `mensuel` (1 mois,
-   0,99 €), chacun avec une offre « essai gratuit 7 jours » pour les nouveaux clients. Profil de paiement marchand requis.
-   **Configuration → Testeurs de licence** : les comptes listés paient avec une carte de test (pas débités, abonnements
-   accélérés) pour vérifier l'achat, le renouvellement et la résiliation.
-4. Sortie publique : test fermé de 14 jours avec 12 testeurs, puis revue Google, dont celle d'Android Auto (la catégorie
+3. Sortie publique : test fermé de 14 jours avec 12 testeurs, puis revue Google, dont celle d'Android Auto (la catégorie
    navigation peut être contestée pour une appli qui délègue le guidage : repli possible en catégorie points d'intérêt,
    avec la carte d'infos de l'hôte, en changeant la catégorie du service et `MapScreen`).
 

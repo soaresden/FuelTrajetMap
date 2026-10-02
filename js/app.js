@@ -37,7 +37,7 @@
   // ------------------------------------------------------------------ état persistant
   var STORE_KEY = 'fuelmap.v1', STATE_VERSION = 2;
   var state = {
-    cars: [], activeCar: null, fuel: 'e10', theme: 'dark', places: [],
+    cars: [], activeCar: null, fuel: 'e10', theme: 'nuit', places: [],
     v: STATE_VERSION, favs: [], brand: '', neighbours: true, startE: 4, arrivalE: 2, arrivalAny: true, corridor: 15, shortage: false, alert: null, stopCost: 2, maxAge: 7, only24: false,
     view: { lat: 46.6, lon: 2.4, zoom: 6 }
   };
@@ -122,8 +122,6 @@
     return '<a class="' + cls + '" target="_blank" rel="noopener" href="https://waze.com/ul?ll=' + ll + '&navigate=yes">' + (cls ? '🚗 ' : '') + 'Waze</a>' +
       '<a class="' + (cls ? 'secondary' : '') + '" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=' + ll + '">' + (cls ? 'Maps' : 'Google Maps') + '</a>';
   }
-  // FuelMap Plus (appli Android) : trajet optimisé, mode voiture et Android Auto. Sur le web, tout est ouvert.
-  function gate(feature, fn) { var P = window.__fuelmapPlus; if (!P || P.owned) return fn(); P.require(feature, fn); }
   // Date + heure exacte du dernier prix (France : à la minute ; ailleurs : le jour)
   function whenText(s, fi, long) {
     if (!(s.t && s.t[fi])) { var a = ageDays(s, fi); return long ? ageText(a) : ageLabel(a); }
@@ -274,11 +272,23 @@
     .setView([state.view.lat, state.view.lon], state.view.zoom);
   L.control.zoom({ position: 'bottomleft' }).addTo(map);
   var tiles = null;
+  var THEMES = window.FUELMAP_THEMES || {};
+  function theme() { return THEMES[state.theme] || THEMES.nuit; }
+  function isDark() { return !!theme().dark; }
   function applyTheme() {
-    document.documentElement.setAttribute('data-theme', state.theme);
-    document.querySelector('meta[name=theme-color]').setAttribute('content', state.theme === 'dark' ? '#0e1116' : '#f3f5f8');
+    if (state.theme === 'dark') state.theme = 'nuit'; if (state.theme === 'light') state.theme = 'jour'; if (!THEMES[state.theme]) state.theme = 'nuit';
+    var t = theme(), st = document.documentElement.style, vars = { bg: '--bg', panel: '--panel', panel2: '--panel2', line: '--line', text: '--text', muted: '--muted', accent: '--accent', accent2: '--accent2', ink: '--accent-ink', warn: '--warn', bad: '--bad', mapBg: '--map-bg' };
+    Object.keys(vars).forEach(function (k) { st.setProperty(vars[k], t[k]); });
+    st.setProperty('--tile-filter', t.tiles || 'none'); st.setProperty('--shadow', t.dark ? '0 8px 30px rgba(0,0,0,.45)' : '0 8px 30px rgba(20,30,50,.18)');
+    document.documentElement.setAttribute('data-theme', state.theme); document.documentElement.setAttribute('data-dark', t.dark ? '1' : '0');
+    document.querySelector('meta[name=theme-color]').setAttribute('content', t.bg);
     if (!tiles) useTiles(0);
   }
+  function openThemePicker() {
+    openModal('<h2>🎨 Thème</h2><p class="hint">Couleurs de l\'appli et du fond de carte. Les couleurs des prix (vert = pas cher, rouge = cher) ne changent pas.</p><div class="themes">' +
+      Object.keys(THEMES).map(function (k) { var t = THEMES[k]; return '<button class="theme-card' + (k === state.theme ? ' on' : '') + '" data-theme-pick="' + k + '" style="background:' + t.bg + ';color:' + t.text + ';border-color:' + (k === state.theme ? t.accent : t.line) + '"><span class="sw" style="background:' + t.panel + ';border-color:' + t.line + '"><i style="background:' + t.accent + '"></i><i style="background:' + t.accent2 + '"></i><i style="background:' + t.bad + '"></i></span><b>' + t.emoji + ' ' + t.name + '</b></button>'; }).join('') + '</div>');
+  }
+  $('modalBody').addEventListener('click', function (e) { var b = e.target.closest('[data-theme-pick]'); if (!b) return; state.theme = b.getAttribute('data-theme-pick'); save(); applyTheme(); refreshMap(); openThemePicker(); });
   var TILE_SOURCES = [
     { url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', att: '© contributeurs OpenStreetMap' },
     { url: 'https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png', att: '© contributeurs OpenStreetMap · OSM France', sub: 'abc' },
@@ -293,7 +303,7 @@
   }
   applyTheme();
 
-  function colorFor(t) { t = Math.max(0, Math.min(1, t)); return 'hsl(' + Math.round(140 - 140 * t) + ',78%,' + (state.theme === 'dark' ? 48 : 40) + '%)'; }
+  function colorFor(t) { t = Math.max(0, Math.min(1, t)); return 'hsl(' + Math.round(140 - 140 * t) + ',78%,' + (isDark() ? 48 : 40) + '%)'; }
 
   // Couche canvas maison : un seul <canvas>, redessiné à chaque fin de déplacement. 10 000 stations ≈ quelques ms.
   var StationLayer = L.Layer.extend({
@@ -356,7 +366,7 @@
     }
     var boost = zoom < 8 ? 2.1 : zoom < 10 ? 1.7 : 1.35;
     heatCanvas.width = gw; heatCanvas.height = gh;
-    var hctx = heatCanvas.getContext('2d'), img = hctx.createImageData(gw, gh), px = img.data, maxA = (state.theme === 'dark' ? 175 : 150) * (routeCtx ? 0.5 : 1); // plus discret sous un trajet
+    var hctx = heatCanvas.getContext('2d'), img = hctx.createImageData(gw, gh), px = img.data, maxA = (isDark() ? 175 : 150) * (routeCtx ? 0.5 : 1); // plus discret sous un trajet
     for (i = 0; i < gw * gh; i++) {
       if (sw[i] < 0.03) continue;
       var li = Math.max(0, Math.min(255, Math.round((0.5 + (swt[i] / sw[i] - 0.5) * boost) * 255))) * 3; // contraste renforcé : la moyenne écrase les écarts
@@ -404,7 +414,7 @@
     ctx.clearRect(0, 0, full.x, full.y);
 
     if (zoom >= 10) {
-      ctx.strokeStyle = state.theme === 'dark' ? 'rgba(160,170,185,.7)' : 'rgba(90,100,115,.7)'; ctx.lineWidth = 1.5;
+      ctx.strokeStyle = isDark() ? 'rgba(160,170,185,.7)' : 'rgba(90,100,115,.7)'; ctx.lineWidth = 1.5;
       stale.forEach(function (s) { var p = pt(s); ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, 6.2832); ctx.stroke(); hits.push({ x: p.lx, y: p.ly, s: s }); });
     }
     if (zoom >= 9) { // ⊘ rouge : rupture déclarée sur le carburant (toujours visible : c'est l'info qui compte quand ça manque)
@@ -428,7 +438,7 @@
       dots.push(p);
     });
     drawHeat(ctx, heatPts, full, zoom); syncFresh(good, fis, zoom);
-    var dark = state.theme === 'dark';
+    var dark = isDark();
     if (zoom >= 8) { // points discrets : la couleur est portée par la heatmap
       var r = zoom < 9.5 ? 2 : zoom < 10.5 ? 3 : 4;
       for (i = dots.length - 1; i >= 0; i--) {
@@ -541,7 +551,7 @@
     refreshMap(); if (nearActive()) renderNear();
   });
   $('vehicleBtn').addEventListener('click', function () { showTab('cars'); });
-  $('themeBtn').addEventListener('click', function () { state.theme = state.theme === 'dark' ? 'light' : 'dark'; save(); applyTheme(); refreshMap(); });
+  $('themeBtn').addEventListener('click', openThemePicker);
 
   // ------------------------------------------------------------------ géolocalisation
   var meMarker = null, mePos = null;
@@ -622,7 +632,7 @@
     applyLayout(); map.invalidateSize(); if (routeCtx && routeCtx.bounds) setTimeout(fitRoute, 100);
   }
   $('hud').addEventListener('click', function (e) { var b = e.target.closest('[data-hudshow]'); if (!b) return; var s = stations.filter(function (x) { return String(x.id) === b.getAttribute('data-hudshow'); })[0]; if (s) { setFollow(false); openStation(s, true); } });
-  $('carBtn').addEventListener('click', function () { if (carMode) { state.carMode = false; save(); setCarMode(false); return; } gate('car', function () { state.carMode = true; save(); setCarMode(true); }); });
+  $('carBtn').addEventListener('click', function () { state.carMode = !carMode; save(); setCarMode(!carMode); });
   $('followBtn').addEventListener('click', function () { setFollow(!follow); if (follow && !lastFix) locate().then(function (p) { lastFix = p; setFollow(true); }).catch(function (e) { toast(e.message); }); });
   map.on('dragstart', function () { if (follow) setFollow(false); });
 
@@ -1079,7 +1089,7 @@
     }).catch(function (err) { routeMsg('⚠️ ' + esc(err.message || 'Erreur'), true); })
       .then(function () { btn.disabled = false; btn.textContent = '🚀 Proposer mes arrêts'; });
   }
-  $('goBtn').addEventListener('click', function () { gate('route', computeRoute); });
+  $('goBtn').addEventListener('click', computeRoute);
 
   function cumulative(pts, totalKm) { // km cumulés le long de la géométrie, recalés sur la distance annoncée par le routeur
     var cum = [0]; for (var i = 1; i < pts.length; i++) cum.push(cum[i - 1] + haversine(pts[i - 1][0], pts[i - 1][1], pts[i][0], pts[i][1]));
@@ -1140,7 +1150,7 @@
   function drawRoute() {
     var R = routeCtx; routeLayers.clearLayers();
     if (R.real) {
-      L.polyline(R.pts, { color: state.theme === 'dark' ? '#aab4c4' : '#5b6878', weight: 4, opacity: 0.85, dashArray: '2 9', lineCap: 'round', interactive: false }).addTo(routeLayers); // trajet d'origine, toujours visible
+      L.polyline(R.pts, { color: isDark() ? '#aab4c4' : '#5b6878', weight: 4, opacity: 0.85, dashArray: '2 9', lineCap: 'round', interactive: false }).addTo(routeLayers); // trajet d'origine, toujours visible
       coloredLine(R.real.pts, R.real.cum, realLevel(R), R.car, routeLayers);
     } else coloredLine(R.pts, R.cum, plannedLevel(R), R.car, routeLayers);
     L.marker([R.from.lat, R.from.lon], { icon: L.divIcon({ className: '', html: '<div class="end-marker"></div>', iconSize: [16, 16], iconAnchor: [8, 8] }), interactive: false }).addTo(routeLayers);
@@ -1177,7 +1187,6 @@
     }
     var detours = res.stops.reduce(function (a, s) { return a + s.detourKm; }, 0), consumed = (R.D + detours) * c.cons / 100;
     var saving = R.naive.feasible ? R.naive.fuelCost - res.fuelCost : null, dBest = res.fuelCost - R.best.fuelCost;
-    if (saving > 0.5 && !R.counted) { R.counted = true; var sv = state.savings || (state.savings = { total: 0, n: 0, since: Date.now() }); sv.total += saving; sv.n++; save(); }
     html += '<div class="summary"><div class="big"><div><div class="k">💶 Carburant à acheter</div><div class="v">' + eur(res.fuelCost) + '</div></div>' +
       (R.modified
         ? '<div><div class="k">✏️ Par rapport au conseil</div><div class="v" style="color:' + (dBest > 0.005 ? 'var(--bad)' : 'var(--accent)') + '">' + (Math.abs(dBest) < 0.005 ? '=' : (dBest > 0 ? '+ ' : '− ') + eur(Math.abs(dBest))) + '</div></div>'
@@ -1276,13 +1285,13 @@
   }
   if (FuelAlert) {
     $('alertBox').hidden = false; alertStatus();
-    $('alertOn').addEventListener('click', function () { gate('alert', function () {
+    $('alertOn').addEventListener('click', function () {
       nearOrigin().then(function (o) {
         if (!o) { toast('Choisis une adresse d\'abord'); return; }
         var c = car(), a = { lat: +o.lat.toFixed(5), lon: +o.lon.toFixed(5), radiusKm: +$('alertRadius').value, fuel: c.fuel, fuels: fuelsFor(c.fuel).map(function (i) { return FUELS[i].key; }), label: o.label, since: Date.now() };
         return window.Capacitor.Plugins.Preferences.set({ key: 'alert', value: JSON.stringify(a) }).then(function () { return FuelAlert.enable(); }).then(function () { state.alert = a; save(); alertStatus(); toast('Alerte activée : tu seras prévenu dès qu\'une station à moins de ' + a.radiusKm + ' km met son prix à jour'); });
       }).catch(function (e) { toast(e && e.message ? e.message : 'Activation impossible'); });
-    }); });
+    });
     $('alertOff').addEventListener('click', function () { FuelAlert.disable().then(function () { state.alert = null; save(); alertStatus(); toast('Alerte désactivée'); }); });
     $('alertTest').addEventListener('click', function () { if (!state.alert) { toast('Active d\'abord l\'alerte'); return; } FuelAlert.test().then(function () { toast('Vérification lancée : notification dans quelques secondes s\'il y a eu une mise à jour dans les 6 dernières heures'); }); });
   }
@@ -1359,7 +1368,6 @@
   }
 
   window.__fuelmapLayoutChanged = function (wide) { showTab(wide ? 'route' : 'map'); setTimeout(function () { map.invalidateSize(); }, 50); };
-  window.__fuelmapSavings = function () { return state.savings || null; };
   function openFromUrl(url) { // notification d'alerte → fiche de la station
     var m = /fuelmap:\/\/station\/(\d+)/.exec(url || ''); if (!m) return;
     var tryOpen = function (n) { var s = stations.filter(function (x) { return String(x.id) === m[1]; })[0]; if (s) { showTab('map'); openStation(s, true); } else if (n < 40) setTimeout(function () { tryOpen(n + 1); }, 500); };

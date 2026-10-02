@@ -5,11 +5,7 @@
   --tabs-h: 58px; --top-h: 52px;
   --safe-b: env(safe-area-inset-bottom, 0px); --safe-t: env(safe-area-inset-top, 0px); --safe-l: 0px; --safe-r: 0px; --col: 400px;
 }
-:root[data-theme="light"] {
-  --bg: #f3f5f8; --panel: #ffffff; --panel2: #f0f3f7; --line: #d9dfe7;
-  --text: #15202b; --muted: #5b6878; --accent: #0f9d58; --accent-ink: #ffffff;
-  --warn: #b26a00; --bad: #d23434; --shadow: 0 8px 30px rgba(20,30,50,.18);
-}
+:root { --accent2: #1fb8a0; --map-bg: #232a29; --tile-filter: invert(1) hue-rotate(180deg) brightness(.9) contrast(.88) saturate(.35); } /* valeurs par défaut = thème Nuit ; les thèmes (js/themes.js) les remplacent */
 * { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; }
 body {
@@ -23,14 +19,12 @@ h2 { font-size: 17px; margin: 2px 0 12px; }
 h2.mt { margin-top: 22px; }
 
 #map { position: fixed; inset: 0; background: var(--bg); z-index: 0; }
-.leaflet-container { font: inherit; background: #232a29; } /* proche du ton des tuiles : masque les micro-joints entre tuiles */
-:root[data-theme="light"] .leaflet-container { background: #f0eee8; }
+.leaflet-container { font: inherit; background: var(--map-bg); } /* proche du ton des tuiles : masque les micro-joints entre tuiles */
 .leaflet-control-attribution { font-size: 10px; background: var(--panel); background: color-mix(in srgb, var(--panel) 75%, transparent) !important; color: var(--muted) !important; }
 .leaflet-control-attribution a { color: var(--muted) !important; }
 .leaflet-bottom { bottom: calc(var(--tabs-h) + 38px + var(--safe-b)); }
 .wide-only { display: none; }
-:root[data-theme="dark"] .base-tiles { filter: invert(1) hue-rotate(180deg) brightness(.9) contrast(.88) saturate(.35); }
-:root[data-theme="light"] .base-tiles { filter: saturate(.75); }
+.base-tiles { filter: var(--tile-filter); }
 .leaflet-bar { border: 1px solid var(--line) !important; box-shadow: var(--shadow); }
 .leaflet-bar a { background: var(--panel) !important; color: var(--text) !important; border-bottom-color: var(--line) !important; }
 .station-canvas { position: absolute; left: 0; top: 0; pointer-events: none; }
@@ -125,7 +119,7 @@ details summary { cursor: pointer; font-weight: 600; font-size: 13px; color: var
 details[open] summary { margin-bottom: 10px; }
 
 .primary, .secondary { border-radius: 12px; padding: 12px 14px; font-weight: 700; border: 1px solid transparent; width: 100%; }
-.primary { background: var(--accent); color: var(--accent-ink); }
+.primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: var(--accent-ink); box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 35%, transparent); }
 .primary:disabled { opacity: .55; }
 .secondary { background: var(--panel2); border-color: var(--line); }
 .row .primary, .row .secondary { width: auto; flex: 1; }
@@ -250,7 +244,7 @@ html.wide #tabs { grid-template-columns: repeat(3, 1fr); }
 .pulse.min { color: #39ff14; } .pulse.max { color: #ff1e1e; }
 @keyframes pulse { from { transform: scale(1); opacity: .9; } to { transform: scale(3.2); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .pulse::after { animation: none; opacity: .5; transform: scale(1.8); } }
-.stat.min b { color: #39ff14; } :root[data-theme="light"] .stat.min b { color: var(--accent); }
+.stat.min b { color: var(--accent); } :root[data-dark="1"] .stat.min b { color: #39ff14; }
 
 /* jauge en huitièmes, comme au tableau de bord */
 .bars { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; touch-action: none; user-select: none; }
@@ -351,15 +345,13 @@ html.wide[data-aa] #map { left: calc(var(--safe-l) + var(--col)); }
 html[data-aa] .leaflet-top { top: var(--safe-t); }
 
 
-/* FuelMap Plus (appli Android) : abonnement et mise à jour obligatoire — par-dessus tout, non fermables */
-#plus, #update { position: fixed; inset: 0; z-index: 3000; background: rgba(0,0,0,.72); display: flex; align-items: flex-end; justify-content: center; }
-#plus[hidden], #update[hidden] { display: none; }
-html.wide #plus, html.wide #update { align-items: center; }
-#plus .sheet, #update .sheet { width: min(560px, 100%); max-height: 92vh; overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 18px 18px 0 0; padding: 18px 16px calc(18px + var(--safe-b)); box-shadow: var(--shadow); }
-html.wide #plus .sheet, html.wide #update .sheet { border-radius: 18px; }
-#plus h2, #update h2 { margin: 0 0 8px; } #plus p { margin: 8px 0; line-height: 1.45; } #plus .sheet { position: relative; } #plusClose { position: absolute; top: 10px; right: 10px; width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel2); color: var(--text); font-size: 15px; } #plusWhy { font-weight: 700; } #plusSavings { color: var(--accent); font-weight: 600; }
-#plusOffers { display: grid; gap: 8px; margin: 12px 0; } .plus-offer { width: 100%; text-align: left; } .plus-offer small { font-weight: 500; opacity: .8; }
-#update .primary { width: 100%; margin-top: 10px; } #plus a { color: var(--accent); }
+/* mise à jour obligatoire (appli Android) : par-dessus tout, non fermable */
+#update { position: fixed; inset: 0; z-index: 3000; background: rgba(0,0,0,.72); display: flex; align-items: flex-end; justify-content: center; }
+#update[hidden] { display: none; }
+html.wide #update { align-items: center; }
+#update .sheet { width: min(560px, 100%); max-height: 92vh; overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 18px 18px 0 0; padding: 18px 16px calc(18px + var(--safe-b)); box-shadow: var(--shadow); }
+html.wide #update .sheet { border-radius: 18px; }
+#update h2 { margin: 0 0 8px; } #update .primary { width: 100%; margin-top: 10px; }
 
 /* prix tout frais (≤ 2 h) : halo animé sur la carte, carte Proximité surlignée */
 .fresh-ring { width: 40px; height: 40px; border-radius: 50%; border: 2px solid #39ff14; opacity: 0; animation: freshring 2.2s ease-out infinite; }
@@ -373,3 +365,10 @@ html.wide #plus .sheet, html.wide #update .sheet { border-radius: 18px; }
 #alertBox { border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin: 10px 0 14px; background: var(--panel2); }
 #alertBox h3 { margin: 0 0 6px; font-size: 15px; } #alertBox .links { margin-top: 6px; } #alertBox[hidden] { display: none; }
 #alertStatus.on { color: var(--accent); font-weight: 700; }
+
+/* sélecteur de thème */
+.themes { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-top: 10px; }
+.theme-card { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; padding: 10px; border-radius: 14px; border: 2px solid; text-align: left; }
+.theme-card.on { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent); }
+.theme-card .sw { display: flex; gap: 5px; padding: 6px; border-radius: 9px; border: 1px solid; } .theme-card .sw i { width: 16px; height: 16px; border-radius: 50%; display: block; }
+.theme-card b { font-size: 14px; }

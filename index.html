@@ -36,9 +36,7 @@
     <button id="followBtn" class="round-btn" title="Suivre ma position" aria-label="Suivre ma position" hidden>
       <svg viewBox="0 0 24 24" width="20" height="20"><path d="M12 2 4 20l8-4 8 4z" fill="currentColor"/></svg>
     </button>
-    <button id="themeBtn" class="round-btn" title="Thème clair / sombre" aria-label="Thème">
-      <svg viewBox="0 0 24 24" width="20" height="20"><path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9z" fill="currentColor"/></svg>
-    </button>
+    <button id="themeBtn" class="round-btn" title="Thème" aria-label="Thème" style="font-size:20px">🎨</button>
   </div>
 
   <section id="panel" class="collapsed" aria-label="Panneau">
@@ -190,23 +188,13 @@
   <div id="toast" role="status" hidden></div>
   <div id="loader"><div class="spin" id="loaderSpin"></div><span id="loaderText">⏳ Chargement des prix…</span><button id="loaderRetry" hidden>Réessayer</button></div>
 
-  <div id="plus" hidden><div class="sheet" role="dialog" aria-modal="true"><button id="plusClose" aria-label="Fermer">✕</button>
-    <h2>⛽ FuelMap Plus</h2>
-    <p id="plusWhy"></p>
-    <p>La carte, les prix, les ruptures et Proximité restent gratuits. <b>FuelMap Plus</b> ajoute le <b>trajet optimisé</b> (où s'arrêter et combien de litres mettre),
-      le <b>mode voiture</b>, <b>Android Auto</b> et l'<b>alerte « il y a de l'essence »</b> : <b>7 jours d'essai gratuit</b>, puis <b>4,99 €/an</b> ou 0,99 €/mois, sans engagement.</p>
-    <p id="plusSavings" class="hint" hidden></p>
-    <div id="plusOffers"></div>
-    <div class="links"><button id="plusRestore">↻ Restaurer mon abonnement</button><button id="plusManage">Gérer</button><button id="plusLater">Plus tard</button></div>
-    <p class="hint">Facturé par Google Play sur ton compte Google à la fin de l'essai, puis à chaque période ; résiliable à tout moment dans Play Store → Abonnements
-      (l'accès reste jusqu'à la fin de la période payée). <a href="privacy.html" target="_blank">Confidentialité</a></p>
-  </div></div>
   <div id="update" hidden><div class="sheet" role="dialog" aria-modal="true"><h2>🔄 Mise à jour nécessaire</h2><p id="updateText"></p><button class="primary" id="updateBtn">Mettre à jour dans le Play Store</button></div></div>
   <script src="vendor/leaflet/leaflet.js"></script>
   <script src="js/config.js"></script>
+  <script src="js/themes.js"></script>
   <script src="js/optimizer.js"></script>
   <script src="js/sources.js"></script>
   <script src="js/app.js"></script>
-  <script src="js/plus.js"></script>
+  <script src="js/update.js"></script>
 </body>
 </html>

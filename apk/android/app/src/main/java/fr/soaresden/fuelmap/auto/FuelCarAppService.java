@@ -28,7 +28,6 @@ public class FuelCarAppService extends CarAppService {
             @NonNull
             @Override
             public Screen onCreateScreen(@NonNull Intent intent) {
-                if (!FuelData.licensed(getCarContext())) return new PlusScreen(getCarContext());
                 if (getCarContext().getCarAppApiLevel() < 7) return new StationsScreen(getCarContext());
                 // Le rappel de surface est enregistré une fois pour la session, avant le premier modèle :
                 // l'hôte ne renvoie pas onSurfaceAvailable si le rappel change en cours de route.
