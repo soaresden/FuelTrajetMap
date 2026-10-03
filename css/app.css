@@ -469,7 +469,19 @@ html[data-carui] .leaflet-popup-close-button { display: none; }
 .cpop .b button.go { flex: 2; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: var(--accent-ink); border-color: transparent; font-size: 17px; }
 #carGuide { position: fixed; z-index: 705; left: calc(var(--stable-l) + var(--rail) + 10px); top: calc(var(--stable-t) + 8px); background: var(--panel); border: 1px solid var(--accent); border-radius: 14px; box-shadow: 0 8px 24px rgba(0,0,0,.4); padding: 8px 10px 8px 12px; display: flex; align-items: center; gap: 12px; max-width: calc(100vw - var(--rail) - 440px); }
 #carGuide[hidden] { display: none; } html.carpane-open #carGuide { left: calc(var(--stable-l) + var(--rail) + var(--carpane) + 10px); }
-#carGuide .d { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; } #carGuide .d small { font-size: 14px; color: var(--muted); font-weight: 600; margin-left: 6px; }
-#carGuide .n { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px; }
+#carGuide .gi { font-size: 38px; line-height: 1; flex: 0 0 auto; } #carGuide .gt { min-width: 0; }
+#carGuide .d { font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; } #carGuide .d small { font-size: 13px; color: var(--warn); font-weight: 700; margin-left: 6px; }
+#carGuide .n { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 300px; }
+#carGuide .e { font-size: 13px; color: var(--muted); white-space: nowrap; }
 #carGuide button { flex: 0 0 auto; width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); font-size: 18px; }
 .cguide-line { stroke: var(--accent); }
+
+/* ---- vue navigation (guidage) : carte orientée dans le sens de la marche, légèrement inclinée, la voiture au tiers bas */
+html[data-carui].carnav #map { left: var(--nav-x) !important; top: var(--nav-y) !important; right: auto !important; bottom: auto !important; width: var(--nav-s); height: var(--nav-s); transform-origin: 50% 50%; transform: perspective(1200px) rotateX(var(--nav-tilt, 32deg)) rotate(var(--nav-rot, 0deg)); transition: transform .5s linear; will-change: transform; }
+html[data-carui].carnav .leaflet-control-container { display: none; }
+#carArrow { position: fixed; z-index: 702; width: 0; height: 0; pointer-events: none; }
+#carArrow[hidden] { display: none; }
+#carArrow::before { content: ''; position: absolute; left: -16px; top: -22px; border-left: 16px solid transparent; border-right: 16px solid transparent; border-bottom: 34px solid var(--accent); filter: drop-shadow(0 0 4px rgba(0,0,0,.8)); }
+#carArrow::after { content: ''; position: absolute; left: -9px; top: 4px; border-left: 9px solid transparent; border-right: 9px solid transparent; border-bottom: 12px solid var(--panel); }
+html[data-carui].carnav #carGuide { left: calc(var(--stable-l) + var(--rail) + 10px); }
+html[data-carui].carnav #carRail { padding-top: calc(8px + var(--safe-t)); } /* pendant le guidage, la fiche de manœuvre de l'hôte occupe le haut à gauche */

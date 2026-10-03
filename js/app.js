@@ -494,12 +494,15 @@
       good.concat(stale, rupt).forEach(function (s) { if (!isFav(s)) return; var p = pt(s); ctx.strokeStyle = 'rgba(0,0,0,.75)'; ctx.strokeText('★', p.x, p.y - 17); ctx.fillStyle = '#ffd60a'; ctx.fillText('★', p.x, p.y - 17); });
     }
     ctx.font = '700 12px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    var rot = window.__mapRotation || 0; // carte tournée (guidage voiture) : les pastilles restent lisibles
     for (i = pills.length - 1; i >= 0; i--) {
-      var q = pills[i], w = 48, h = 21, x = q.x - w / 2, y = q.y - h / 2;
-      ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(x, y, w, h, 10.5); else ctx.rect(x, y, w, h);
+      var q = pills[i], w = 48, h = 21;
+      ctx.save(); ctx.translate(q.x, q.y); if (rot) ctx.rotate(rot);
+      ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(-w / 2, -h / 2, w, h, 10.5); else ctx.rect(-w / 2, -h / 2, w, h);
       ctx.fillStyle = dark ? 'rgba(12,15,20,.92)' : 'rgba(255,255,255,.96)'; ctx.fill();
       ctx.strokeStyle = lutColor(q.t); ctx.lineWidth = 2.2; ctx.stroke();
-      ctx.fillStyle = dark ? '#fff' : '#15202b'; ctx.fillText(shortage ? shortAge(ageHours(q.s, pick(q.s, fis))) : price3(q.s._p), q.x, q.y + 0.5);
+      ctx.fillStyle = dark ? '#fff' : '#15202b'; ctx.fillText(shortage ? shortAge(ageHours(q.s, pick(q.s, fis))) : price3(q.s._p), 0, 0.5);
+      ctx.restore();
     }
     return hits;
   }
@@ -626,7 +629,7 @@
   function startWatch() {
     if (watchId != null || !navigator.geolocation) return;
     watchId = navigator.geolocation.watchPosition(function (p) {
-      lastFix = mePos = { lat: p.coords.latitude, lon: p.coords.longitude, speed: p.coords.speed };
+      lastFix = mePos = { lat: p.coords.latitude, lon: p.coords.longitude, speed: p.coords.speed, heading: p.coords.heading };
       if (!meMarker) meMarker = L.marker([mePos.lat, mePos.lon], { icon: L.divIcon({ className: '', html: '<div class="me-marker"></div>', iconSize: [16, 16], iconAnchor: [8, 8] }), interactive: false }).addTo(map);
       else meMarker.setLatLng([mePos.lat, mePos.lon]);
       if (follow) map.panTo([mePos.lat, mePos.lon], { animate: true });
@@ -1041,8 +1044,8 @@
     }
     return out;
   }
-  function osrmRoute(points, full) {
-    var url = OSRM + points.map(function (p) { return p.lon.toFixed(5) + ',' + p.lat.toFixed(5); }).join(';') + '?overview=' + (full ? 'full' : 'false') + '&geometries=polyline';
+  function osrmRoute(points, full, steps) {
+    var url = OSRM + points.map(function (p) { return p.lon.toFixed(5) + ',' + p.lat.toFixed(5); }).join(';') + '?overview=' + (full ? 'full' : 'false') + '&geometries=polyline' + (steps ? '&steps=true' : '');
     return fetch(url).then(function (r) { if (!r.ok) throw new Error('itinéraire HTTP ' + r.status); return r.json(); })
       .then(function (j) { if (j.code !== 'Ok' || !j.routes.length) throw new Error('aucun itinéraire trouvé'); return j.routes[0]; });
   }
