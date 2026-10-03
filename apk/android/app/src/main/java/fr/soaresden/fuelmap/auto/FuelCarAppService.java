@@ -73,6 +73,11 @@ public class FuelCarAppService extends CarAppService {
                 // l'hôte ne renvoie pas onSurfaceAvailable si le rappel change en cours de route.
                 map = new MapScreen(getCarContext());
                 getCarContext().getCarService(AppManager.class).setSurfaceCallback(map.surface);
+                // L'hôte peut arrêter le guidage (voix « arrête la navigation », bouton système) : on suit.
+                getCarContext().getCarService(androidx.car.app.navigation.NavigationManager.class).setNavigationManagerCallback(new androidx.car.app.navigation.NavigationManagerCallback() {
+                    @Override public void onStopNavigation() { Diag.i("FuelMapCar", "l'hôte demande l'arrêt du guidage"); map.surface.run("window.__fuelmapCar&&window.__fuelmapCar.stopGuide()"); map.stopRouting(); }
+                    @Override public void onAutoDriveEnabled() { }
+                });
                 return map;
             }
         };

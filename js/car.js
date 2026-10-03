@@ -23,7 +23,7 @@
   }
   function setOpen(o, m) {
     if (m && m !== mode) { mode = m; selected = null; scrollKeep = 0; }
-    open = o; remember(); renderRail(); if (open) render();
+    open = o; remember(); renderRail(); if (open) render(); if (nav.on) { navGeometry(); followCar(true); }
     try { window.FM && window.FM.log('voiture : panneau ' + (open ? 'ouvert ' + mode : 'replié')); } catch (e) { }
   }
 
@@ -175,36 +175,151 @@
     if (fly) { A.setFollow(false); A.map.setView(shifted([s.lat, s.lon], Math.max(A.map.getZoom(), 13)), Math.max(A.map.getZoom(), 13), { animate: false }); card(s); }
   }
 
-  // ---- guidage FuelMap : itinéraire jusqu'à la station dessiné sur la carte, distance et temps restants, la carte suit la voiture
+  // ---- guidage FuelMap : itinéraire + instructions (OSRM), temps restant, voix ; la carte suit la voiture, façon navigation.
+  // Dans Android Auto, la fiche de manœuvre et l'arrivée sont dessinées par l'hôte (pont AndroidAuto.setRouting) ; ailleurs, par la page.
   var guide = null, guideLayer = null, guideBox = document.createElement('div'); guideBox.id = 'carGuide'; guideBox.hidden = true; document.body.appendChild(guideBox);
   guideBox.addEventListener('click', function (e) { if (e.target.closest('[data-stopguide]')) stopGuide(); });
+  var ARROWS = { 'depart': '🚗', 'straight': '⬆', 'slight-left': '↖', 'slight-right': '↗', 'left': '⬅', 'right': '➡', 'sharp-left': '↙', 'sharp-right': '↘', 'uturn-left': '⤺', 'uturn-right': '⤻', 'roundabout': '🔄', 'exit-roundabout': '🔄', 'merge-left': '↰', 'merge-right': '↱', 'merge': '⤴', 'on-ramp-left': '↰', 'on-ramp-right': '↱', 'off-ramp-left': '↰', 'off-ramp-right': '↱', 'fork-left': '↖', 'fork-right': '↗', 'arrive': '🏁', 'arrive-left': '🏁', 'arrive-right': '🏁' };
+  function side(mod) { return /left|gauche/.test(mod || '') ? 'left' : /right|droite/.test(mod || '') ? 'right' : ''; }
+  function kind(m) { // code de manœuvre (commun page / Android) à partir d'OSRM
+    var t = m.type, mod = m.modifier || '', sd = side(mod);
+    if (t === 'depart') return 'depart';
+    if (t === 'arrive') return sd ? 'arrive-' + sd : 'arrive';
+    if (t === 'roundabout' || t === 'rotary' || t === 'roundabout turn') return 'roundabout';
+    if (t === 'exit roundabout' || t === 'exit rotary') return 'exit-roundabout';
+    if (t === 'merge') return sd ? 'merge-' + sd : 'merge';
+    if (t === 'on ramp') return 'on-ramp-' + (sd || 'right');
+    if (t === 'off ramp') return 'off-ramp-' + (sd || 'right');
+    if (t === 'fork') return 'fork-' + (sd || 'right');
+    if (/uturn/.test(mod)) return 'uturn-' + (sd || 'left');
+    if (/sharp/.test(mod)) return 'sharp-' + sd;
+    if (/slight/.test(mod)) return 'slight-' + sd;
+    if (sd) return sd;
+    return 'straight';
+  }
+  function cueText(k, m, road) {
+    var r = road ? ' sur ' + road : '', ex = m.exit ? (m.exit === 1 ? '1re' : m.exit + 'e') + ' sortie' : '';
+    switch (k) {
+      case 'depart': return 'C\'est parti' + r;
+      case 'straight': return 'Continuez tout droit' + r;
+      case 'left': return 'Tournez à gauche' + r; case 'right': return 'Tournez à droite' + r;
+      case 'slight-left': return 'Serrez à gauche' + r; case 'slight-right': return 'Serrez à droite' + r;
+      case 'sharp-left': return 'Tournez franchement à gauche' + r; case 'sharp-right': return 'Tournez franchement à droite' + r;
+      case 'uturn-left': case 'uturn-right': return 'Faites demi-tour';
+      case 'roundabout': return 'Au rond-point, ' + (ex || 'sortez') + r;
+      case 'exit-roundabout': return 'Sortez du rond-point' + r;
+      case 'merge': case 'merge-left': case 'merge-right': return 'Rejoignez la voie' + r;
+      case 'on-ramp-left': case 'on-ramp-right': return 'Prenez la bretelle' + (k.slice(-4) === 'left' ? ' à gauche' : ' à droite') + r;
+      case 'off-ramp-left': case 'off-ramp-right': return 'Prenez la sortie' + (k.slice(-4) === 'left' ? ' à gauche' : ' à droite') + r;
+      case 'fork-left': return 'Restez à gauche' + r; case 'fork-right': return 'Restez à droite' + r;
+      case 'arrive-left': return 'Vous êtes arrivé, à gauche'; case 'arrive-right': return 'Vous êtes arrivé, à droite'; case 'arrive': return 'Vous êtes arrivé';
+    }
+    return 'Continuez' + r;
+  }
+  function lower(t) { return t.charAt(0).toLowerCase() + t.slice(1); }
+  function distText(m) { return m < 1000 ? Math.max(10, Math.round(m / 10) * 10) + ' m' : A.num(m / 1000, m < 10000 ? 1 : 0) + ' km'; }
+  function distSpeech(m) { return m < 1000 ? Math.max(10, Math.round(m / 10) * 10) + ' mètres' : (m < 10000 ? A.num(m / 1000, 1) : A.num(m / 1000, 0)).replace(',', ' virgule ') + ' kilomètres'; }
+  function speak(text) { try { if (window.AndroidAuto && window.AndroidAuto.speak) { window.AndroidAuto.speak(text); return; } if (window.speechSynthesis) { var u = new SpeechSynthesisUtterance(text); u.lang = 'fr-FR'; speechSynthesis.speak(u); } } catch (e) { } }
+  function hostRouting() { return !!(window.AndroidAuto && window.AndroidAuto.setRouting); }
+
   function go(s) {
     var f = A.fix; if (!f) { A.toast('📍 Pas de position GPS'); return; }
     try { window.FM && window.FM.log('voiture : Y aller ' + s.id + ' ' + s.ville); } catch (e) { }
-    var k = A.pick(s, A.fuelsFor(A.car().fuel)), label = name(s) + (k >= 0 ? ' · ' + A.price3(s.p[k]) + ' €' : '');
-    stopGuide(); try { A.map.closePopup(); } catch (e) { }
-    guide = { s: s, label: label, pts: null, cum: null, D: 0, min: 0 }; guideBox.hidden = false; guideBox.innerHTML = '<div><div class="d">⏳ Itinéraire…</div><div class="n">' + label + '</div></div><button data-stopguide>✕</button>';
-    A.osrmRoute([{ lat: f.lat, lon: f.lon }, { lat: s.lat, lon: s.lon }], true).then(function (r) {
+    var k = A.pick(s, A.fuelsFor(A.car().fuel)), label = name(s) + (k >= 0 ? ' · ' + A.price3(s.p[k]) + ' €' : ''), plain = (s.brand ? s.brand + ' ' : '') + (s.id === 'dest' || s.id === 'ext' ? s.ville : A.titleCase(s.ville));
+    var keepSpoken = guide && guide.s === s ? guide.spoken : {};
+    stopGuide(true); try { A.map.closePopup(); } catch (e) { }
+    guide = { s: s, label: label, plain: plain, pts: null, cum: null, D: 0, min: 0, steps: [], stepCum: [], spoken: keepSpoken, lastKey: '' };
+    if (!hostRouting()) { guideBox.hidden = false; guideBox.innerHTML = '<div class="gi">⏳</div><div class="gt"><div class="d">Itinéraire…</div><div class="n">' + label + '</div></div><button data-stopguide>✕</button>'; }
+    A.osrmRoute([{ lat: f.lat, lon: f.lon }, { lat: s.lat, lon: s.lon }], true, true).then(function (r) {
       if (!guide || guide.s !== s) return;
       var pts = A.decodePolyline(r.geometry), cum = [0];
       for (var i = 1; i < pts.length; i++) cum.push(cum[i - 1] + A.haversine(pts[i - 1][0], pts[i - 1][1], pts[i][0], pts[i][1]));
-      guide.pts = pts; guide.cum = cum; guide.D = r.distance / 1000; guide.min = r.duration / 60;
-      guideLayer = L.layerGroup([L.polyline(pts, { color: '#061a12', weight: 11, opacity: .55, lineCap: 'round' }), L.polyline(pts, { className: 'cguide-line', weight: 6, opacity: .95, lineCap: 'round' })]).addTo(A.map);
-      setOpen(false); A.setFollow(true); A.map.setView([f.lat, f.lon], 15, { animate: false }); updateGuide();
+      var scale = cum[cum.length - 1] > 0 ? (r.distance / 1000) / cum[cum.length - 1] : 1; cum = cum.map(function (v) { return v * scale; });
+      guide.pts = pts; guide.cum = cum; guide.D = r.distance / 1000; guide.min = r.duration / 60; guide.t0 = Date.now();
+      var steps = (r.legs && r.legs[0] && r.legs[0].steps) || [], acc = 0;
+      guide.steps = steps.map(function (st) { var o = { kind: kind(st.maneuver), m: st.maneuver, road: st.name || '', at: acc, dist: st.distance, dur: st.duration }; o.cue = cueText(o.kind, st.maneuver, o.road); acc += st.distance; return o; });
+      guideLayer = L.layerGroup([L.polyline(pts, { color: '#061a12', weight: 11, opacity: .55, lineCap: 'round' }), L.polyline(pts, { color: (getComputedStyle(document.documentElement).getPropertyValue('--accent') || '#2fd27a').trim(), weight: 6, opacity: .95, lineCap: 'round' })]).addTo(A.map);
+      setOpen(false); A.setFollow(false); followCar(true);
+      if (!guide.spoken.start) { guide.spoken.start = 1; var nx = nextStep(0); if (nx) { guide.spoken['a' + nx.at] = 1; guide.spoken['b' + nx.at] = 1; } speak(nx ? 'Itinéraire calculé, ' + distSpeech(guide.D * 1000) + '. ' + (nx.at > 120 ? 'Dans ' + distSpeech(nx.at) + ', ' + lower(nx.cue) : nx.cue) : 'Itinéraire calculé.'); }
+      updateGuide(true);
     }).catch(function (err) { A.toast('⚠️ ' + (err.message || 'itinéraire impossible')); stopGuide(); });
   }
-  function updateGuide() {
+  function nextStep(progM) { for (var i = 0; i < guide.steps.length; i++) if (guide.steps[i].kind !== 'depart' && guide.steps[i].at > progM - 15) return guide.steps[i]; return null; }
+  // ---- vue navigation : la carte devient un grand carré centré sur la voiture, tourné dans le sens de la marche et incliné (CSS) ;
+  // la voiture est dessinée par une flèche fixe au tiers bas de l'écran. Le carré déborde de l'écran : rien ne manque quand il tourne.
+  var arrow = document.createElement('div'); arrow.id = 'carArrow'; arrow.hidden = true; document.body.appendChild(arrow);
+  var nav = { on: false, heading: 0, freeUntil: 0 };
+  function navGeometry() {
+    var html = document.documentElement, st = html.style, rail = document.getElementById('carRail').getBoundingClientRect();
+    var left = rail.right, w = innerWidth - left, h = innerHeight, S = Math.ceil(Math.sqrt(w * w + h * h) * 1.45);
+    var cover = open ? pane.getBoundingClientRect().width : 0, cx = left + cover + (w - cover) / 2, cy = h * 0.66;
+    st.setProperty('--nav-s', S + 'px'); st.setProperty('--nav-x', Math.round(cx - S / 2) + 'px'); st.setProperty('--nav-y', Math.round(cy - S / 2) + 'px');
+    arrow.style.left = cx + 'px'; arrow.style.top = cy + 'px';
+  }
+  function navOn() {
+    if (nav.on) return; nav.on = true; nav.freeUntil = 0;
+    document.documentElement.classList.add('carnav'); navGeometry(); arrow.hidden = false;
+    A.map.invalidateSize({ animate: false }); window.addEventListener('resize', navGeometry);
+  }
+  function navOff() {
+    if (!nav.on) return; nav.on = false; window.__mapRotation = 0;
+    document.documentElement.classList.remove('carnav'); arrow.hidden = true; window.removeEventListener('resize', navGeometry);
+    var st = document.documentElement.style; st.removeProperty('--nav-rot');
+    var f = A.fix; A.map.invalidateSize({ animate: false }); if (f) A.map.setView(shifted([f.lat, f.lon], 14), 14, { animate: false });
+  }
+  function routeBearing(f) { // cap de la route au niveau de la voiture (quand le GPS n'en donne pas : arrêt, vitesse faible)
+    if (!guide || !guide.pts) return null;
+    var best = Infinity, bi = 0; for (var i = 0; i < guide.pts.length; i++) { var d = A.haversine(f.lat, f.lon, guide.pts[i][0], guide.pts[i][1]); if (d < best) { best = d; bi = i; } }
+    var a = guide.pts[bi], b = guide.pts[Math.min(guide.pts.length - 1, bi + 3)]; if (a === b) { if (bi === 0) return null; a = guide.pts[bi - 1]; b = guide.pts[bi]; }
+    var toR = Math.PI / 180, dLon = (b[1] - a[1]) * toR, y = Math.sin(dLon) * Math.cos(b[0] * toR), x = Math.cos(a[0] * toR) * Math.sin(b[0] * toR) - Math.sin(a[0] * toR) * Math.cos(b[0] * toR) * Math.cos(dLon);
+    return (Math.atan2(y, x) / toR + 360) % 360;
+  }
+  function setHeading(h) {
+    if (h == null || isNaN(h)) return;
+    var cur = nav.heading, delta = ((h - cur) % 360 + 540) % 360 - 180; // plus court chemin, pour que la transition CSS ne fasse pas un tour complet
+    nav.heading = cur + delta; window.__mapRotation = nav.heading * Math.PI / 180;
+    document.documentElement.style.setProperty('--nav-rot', (-nav.heading) + 'deg');
+  }
+  function followCar(force) {
+    var f = A.fix; if (!f || !guide) return;
+    if (!nav.on) navOn();
+    var kmh = f.speed != null ? f.speed * 3.6 : 0, hd = f.heading != null && !isNaN(f.heading) && kmh > 6 ? f.heading : routeBearing(f);
+    setHeading(hd);
+    if (Date.now() < nav.freeUntil) return; // l'utilisateur a déplacé la carte : on la lui laisse quelques secondes
+    var m = A.map, z = kmh > 80 ? 14 : kmh > 45 ? 15 : 16, c = L.latLng(f.lat, f.lon);
+    if (force || m.getZoom() !== z) m.setView(c, z, { animate: false }); else m.panTo(c, { animate: true, duration: 0.5, easeLinearity: 1 });
+  }
+  function recenter() { nav.freeUntil = 0; if (guide) followCar(true); else { A.setFollow(true); A.locate().catch(function () { }); } }
+  function updateGuide(force) {
     if (!guide || !guide.pts) return;
     var f = A.fix, best = Infinity, km = 0; if (!f) return;
     for (var i = 0; i < guide.pts.length; i += 2) { var d = A.haversine(f.lat, f.lon, guide.pts[i][0], guide.pts[i][1]); if (d < best) { best = d; km = guide.cum[i]; } }
-    var left = Math.max(0, guide.D - km), mins = guide.min * (guide.D > 0 ? left / guide.D : 1), direct = A.haversine(f.lat, f.lon, guide.s.lat, guide.s.lon);
-    if (direct < 0.08) { guideBox.innerHTML = '<div><div class="d">🏁 Tu y es</div><div class="n">' + guide.label + '</div></div><button data-stopguide>✕</button>'; return; }
-    guideBox.innerHTML = '<div><div class="d">' + (left < 1 ? Math.round(left * 1000) + ' m' : A.num(left, 1) + ' km') + '<small>' + (mins < 1 ? '< 1 min' : Math.round(mins) + ' min') + (best > 0.3 ? ' · hors itinéraire' : '') + '</small></div><div class="n">➡ ' + guide.label + '</div></div><button data-stopguide>✕</button>';
-    if (best > 0.5) reroute();
+    var progM = km * 1000, leftKm = Math.max(0, guide.D - km), mins = guide.min * (guide.D > 0 ? leftKm / guide.D : 1), direct = A.haversine(f.lat, f.lon, guide.s.lat, guide.s.lon);
+    var nx = nextStep(progM), toNext = nx ? Math.max(0, nx.at - progM) : direct * 1000, off = best > 0.3;
+    var arrived = direct < 0.08 || (nx && /^arrive/.test(nx.kind) && toNext < 40);
+    var info = { kind: arrived ? 'arrive' : nx ? nx.kind : 'straight', cue: arrived ? 'Vous êtes arrivé' : nx ? nx.cue : 'Continuez', road: nx ? nx.road : '', exit: nx && nx.m.exit || 0, distM: Math.round(toNext), remainKm: leftKm, remainMin: mins, etaMs: Date.now() + mins * 60000, label: guide.plain, off: off };
+    // voix : annonce à ~400 m puis à ~60 m de chaque manœuvre, une seule fois chacune
+    if (nx && !arrived) { var key = nx.at; if (toNext < 450 && !guide.spoken['a' + key]) { guide.spoken['a' + key] = 1; if (toNext > 120) speak('Dans ' + distSpeech(toNext) + ', ' + lower(nx.cue)); } if (toNext < 70 && !guide.spoken['b' + key]) { guide.spoken['b' + key] = 1; speak(nx.cue); } }
+    if (arrived && !guide.spoken.end) { guide.spoken.end = 1; speak('Vous êtes arrivé à ' + guide.plain + '.'); }
+    var sig = info.kind + '|' + Math.round(info.distM / 10) + '|' + Math.round(info.remainMin) + '|' + (off ? 1 : 0);
+    if (force || sig !== guide.lastKey) {
+      guide.lastKey = sig;
+      try { if (hostRouting()) window.AndroidAuto.setRouting(JSON.stringify(info)); } catch (e) { }
+      if (!hostRouting()) {
+        guideBox.hidden = false;
+        guideBox.innerHTML = '<div class="gi">' + (ARROWS[info.kind] || '⬆') + '</div><div class="gt"><div class="d">' + (arrived ? 'Tu y es' : distText(info.distM)) + (off ? ' <small>hors itinéraire</small>' : '') + '</div><div class="n">' + A.esc(info.cue) + '</div><div class="e">' + (leftKm < 1 ? Math.round(leftKm * 1000) + ' m' : A.num(leftKm, 1) + ' km') + ' · ' + (mins < 1 ? '< 1 min' : Math.round(mins) + ' min') + ' · arrivée ' + new Date(info.etaMs).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) + '</div></div><button data-stopguide>✕</button>';
+      }
+    }
+    followCar(false);
+    if (best > 0.5 && !arrived) reroute();
   }
   var rerouteAt = 0;
-  function reroute() { if (Date.now() - rerouteAt < 20000 || !guide) return; rerouteAt = Date.now(); var s = guide.s; try { window.FM && window.FM.log('voiture : recalcul de l\'itinéraire'); } catch (e) { } go(s); }
-  function stopGuide() { guide = null; guideBox.hidden = true; if (guideLayer) { try { guideLayer.remove(); } catch (e) { } guideLayer = null; } }
+  function reroute() { if (Date.now() - rerouteAt < 20000 || !guide) return; rerouteAt = Date.now(); var s = guide.s; try { window.FM && window.FM.log('voiture : recalcul de l\'itinéraire'); } catch (e) { } speak('Recalcul de l\'itinéraire'); go(s); }
+  function stopGuide(silent) {
+    var had = !!guide; guide = null; guideBox.hidden = true; if (guideLayer) { try { guideLayer.remove(); } catch (e) { } guideLayer = null; }
+    if (!silent) navOff();
+    if (had && !silent) { try { if (window.AndroidAuto && window.AndroidAuto.stopRouting) window.AndroidAuto.stopRouting(); } catch (e) { } try { window.FM && window.FM.log('voiture : guidage arrêté'); } catch (e) { } }
+  }
   function phoneMaps(s) { try { if (window.AndroidAuto && window.AndroidAuto.openMaps) { window.AndroidAuto.openMaps(s.lat, s.lon, name(s).replace(/<[^>]+>/g, '')); return; } } catch (e) { } location.href = 'geo:' + s.lat + ',' + s.lon + '?q=' + s.lat + ',' + s.lon; }
   document.addEventListener('click', function (e) {
     var t; if ((t = e.target.closest('[data-go]'))) { var s = A.stations.filter(function (x) { return String(x.id) === t.getAttribute('data-go'); })[0]; if (s) go(s); }
@@ -246,6 +361,7 @@
   // panneau ouvert → le geste fait défiler la liste ; panneau replié → il déplace la carte. Jamais les deux.
   var pdx = 0, pdy = 0, panRaf = 0, panEnd = null;
   function panMap(dx, dy) {
+    if (nav.on) { var a = nav.heading * Math.PI / 180, rx = dx * Math.cos(a) - dy * Math.sin(a), ry = dx * Math.sin(a) + dy * Math.cos(a); dx = rx; dy = ry; nav.freeUntil = Date.now() + 8000; }
     pdx += dx; pdy += dy;
     if (!panRaf) panRaf = requestAnimationFrame(function () {
       panRaf = 0; var m = A.map, off = L.point(pdx, pdy); pdx = pdy = 0;
@@ -289,7 +405,7 @@
     var lr = A.state.lastRoute; if (lr && lr.to && Date.now() - lr.ts < 12 * 3600 * 1000) { dest = { label: lr.to.label, lat: +lr.to.lat, lon: +lr.to.lon }; setOpen(true, 'route'); compute(); }
   }
   start();
-  function state() { return { guide: guide ? guide.label : null, open: open, mode: mode, dest: dest, selected: selected ? { id: selected.id, ville: selected.ville } : null, computing: computing, routeErr: routeErr, sortAsc: sortAsc, lastX: lastX, pane: pane.getBoundingClientRect().width, listScroll: listEl ? listEl.scrollTop : null, rows: pane.querySelectorAll('.crow').length }; }
+  function state() { return { guide: guide ? guide.plain : null, nav: nav.on ? Math.round(nav.heading) + '°' : null, open: open, mode: mode, dest: dest, selected: selected ? { id: selected.id, ville: selected.ville } : null, computing: computing, routeErr: routeErr, sortAsc: sortAsc, lastX: lastX, pane: pane.getBoundingClientRect().width, listScroll: listEl ? listEl.scrollTop : null, rows: pane.querySelectorAll('.crow').length }; }
   function dump() { try { window.FM && window.FM.log('écran voiture : ' + JSON.stringify(state()) + ' | carte zoom ' + A.map.getZoom() + ' centre ' + JSON.stringify(A.map.getCenter()) + ' | GPS ' + JSON.stringify(A.fix)); } catch (e) { } }
   function goTarget() { // bouton « Y aller » de l'hôte
     if (selected) { go(selected); return true; }
@@ -301,5 +417,5 @@
     if (dest) return { lat: dest.lat, lon: dest.lon, label: String(dest.label).split(',')[0] };
     return null;
   }
-  window.__fuelmapCar = { render: render, select: select, setDest: setDest, scroll: scroll, fling: fling, zoom: zoom, state: state, dump: dump, setOpen: setOpen, target: target, go: goTarget, goTo: function (lat, lon, label) { go({ id: 'ext', lat: +lat, lon: +lon, ville: label || 'Destination', adr: '', p: [], brand: '' }); }, stopGuide: stopGuide };
+  window.__fuelmapCar = { render: render, select: select, setDest: setDest, scroll: scroll, fling: fling, zoom: zoom, state: state, dump: dump, setOpen: setOpen, target: target, go: goTarget, goTo: function (lat, lon, label) { go({ id: 'ext', lat: +lat, lon: +lon, ville: label || 'Destination', adr: '', p: [], brand: '' }); }, recenter: recenter, stopGuide: stopGuide, __pts: function () { return guide && guide.pts; } };
 })();

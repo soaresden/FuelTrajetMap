@@ -48,7 +48,7 @@ import java.util.Locale;
  */
 public class CarWebSurface implements SurfaceCallback {
     static final String TAG = "FuelMapCar";
-    public interface TargetListener { void onTarget(double lat, double lon, String label); void onNavigate(double lat, double lon, String label); void onSearch(); void onOpenMaps(double lat, double lon, String label); }
+    public interface TargetListener { void onTarget(double lat, double lon, String label); void onNavigate(double lat, double lon, String label); void onSearch(); void onOpenMaps(double lat, double lon, String label); void onRouting(String json); void onStopRouting(); void onSpeak(String text); }
 
     private final Context ctx;
     private final TargetListener listener;
@@ -114,6 +114,9 @@ public class CarWebSurface implements SurfaceCallback {
                 @JavascriptInterface public void setTarget(double lat, double lon, String label) { Diag.i(TAG, "cible ← page : " + label + " (" + lat + "," + lon + ")"); main.post(() -> listener.onTarget(lat, lon, label)); }
                 @JavascriptInterface public void search() { main.post(listener::onSearch); }
                 @JavascriptInterface public void openMaps(double lat, double lon, String label) { main.post(() -> listener.onOpenMaps(lat, lon, label)); }
+                @JavascriptInterface public void setRouting(String json) { main.post(() -> listener.onRouting(json)); }
+                @JavascriptInterface public void stopRouting() { main.post(listener::onStopRouting); }
+                @JavascriptInterface public void speak(String text) { main.post(() -> listener.onSpeak(text)); }
             }, "AndroidAuto");
             presentation.setContentView(web, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
             presentation.show();
