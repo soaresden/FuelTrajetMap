@@ -115,6 +115,39 @@ public class FuelData {
         return brandsCache;
     }
 
+    /** Habitudes de mise à jour (data/fr-habits.json) : id → [n sur 90 j, "HH:MM" la plus fréquente, part %, profil]. Gardé 7 jours. */
+    static JSONObject habitsCache;
+    public static JSONObject habits(Context ctx) {
+        if (habitsCache != null) return habitsCache;
+        File f = new File(ctx.getFilesDir(), "fr-habits.json");
+        try {
+            if (!f.exists() || System.currentTimeMillis() - f.lastModified() > 7L * 86400000) Files.write(f.toPath(), fetch(SITE + "data/fr-habits.json").getBytes(StandardCharsets.UTF_8));
+        } catch (Exception ignored) { }
+        try { if (f.exists()) habitsCache = new JSONObject(new String(Files.readAllBytes(f.toPath()), StandardCharsets.UTF_8)).getJSONObject("map"); } catch (Exception ignored) { }
+        return habitsCache;
+    }
+    /** Vrai si cette heure de mise à jour « HH:MM » est le passage automatique habituel de la station (≥ 60 % des mises à jour, ≥ 10). */
+    public static boolean isAutoUpdate(JSONObject habits, String id, String hm) {
+        try { org.json.JSONArray h = habits == null ? null : habits.optJSONArray(id); return h != null && h.getInt(0) >= 10 && h.getInt(2) >= 60 && hm.equals(h.getString(1)); } catch (Exception e) { return false; }
+    }
+
+    /** Ouverte maintenant ? d'après « horaires_jour » (« Lundi07.00-21.00, Mardi07.00-12.00, 14.00-19.00, … ») ; automate 24/24 = oui ; inconnu = null. */
+    public static Boolean openNow(String horairesJour, boolean auto24) {
+        if (auto24) return Boolean.TRUE;
+        if (horairesJour == null || horairesJour.isEmpty()) return null;
+        String[] days = {"lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"};
+        java.util.Calendar c = java.util.Calendar.getInstance(TimeZone.getTimeZone("Europe/Paris"));
+        int today = (c.get(java.util.Calendar.DAY_OF_WEEK) + 5) % 7, now = c.get(java.util.Calendar.HOUR_OF_DAY) * 60 + c.get(java.util.Calendar.MINUTE), cur = -1;
+        boolean any = false;
+        for (String part : horairesJour.split(",")) {
+            part = part.trim(); java.util.regex.Matcher d = java.util.regex.Pattern.compile("^([A-Za-zéû]+)\\s*(.*)$").matcher(part); String range = part;
+            if (d.find()) { int i = java.util.Arrays.asList(days).indexOf(d.group(1).toLowerCase(Locale.ROOT)); if (i >= 0) { cur = i; range = d.group(2); } }
+            java.util.regex.Matcher r = java.util.regex.Pattern.compile("(\\d{1,2})[.:h](\\d{2})\\s*-\\s*(\\d{1,2})[.:h](\\d{2})").matcher(range);
+            if (cur == today && r.find()) { any = true; int a = Integer.parseInt(r.group(1)) * 60 + Integer.parseInt(r.group(2)), b = Integer.parseInt(r.group(3)) * 60 + Integer.parseInt(r.group(4)); if (b <= a) b += 1440; if (now >= a && now < b) return Boolean.TRUE; }
+        }
+        return any ? Boolean.FALSE : Boolean.FALSE; // pas d'horaire aujourd'hui = fermée ce jour
+    }
+
     static String enc(String s) throws Exception { return URLEncoder.encode(s, "UTF-8"); }
 
     public static double haversine(double aLat, double aLon, double bLat, double bLon) {

@@ -23,7 +23,7 @@ public class MainActivity extends BridgeActivity {
     private AppUpdateManager updates;
 
     @Override
-    public void onCreate(Bundle savedInstanceState) { registerPlugin(FuelAlertPlugin.class); super.onCreate(savedInstanceState); }
+    public void onCreate(Bundle savedInstanceState) { fr.soaresden.fuelmap.diag.Diag.init(this); registerPlugin(FuelAlertPlugin.class); registerPlugin(fr.soaresden.fuelmap.diag.DiagPlugin.class); super.onCreate(savedInstanceState); }
 
     @Override
     public void onResume() {

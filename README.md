@@ -87,6 +87,17 @@ Les pays voisins ne sont chargés que si la carte (zoom ≥ 7) ou un trajet les 
   stats, listée « ⊘ rupture déclarée » dans Proximité, datée dans sa fiche, et n'est jamais proposée sur un trajet ni sur
   Android Auto. Rupture « définitive » = la station ne vend plus ce carburant, son ancien prix est ignoré. L'information
   vient des gérants : en période de pénurie, une station non barrée peut quand même être à sec.
+- **Horaires d'ouverture** (champ `horaires_jour` de l'État, 8 500 stations) : la fiche affiche « 🕒 ouverte jusqu'à 21:00 »
+  ou « 🔒 fermée · ouvre demain à 07:00 », les stations fermées passent en fin de liste dans Proximité, l'encart voiture ne
+  propose jamais une station fermée, et l'alerte « il y a de l'essence » ignore les stations fermées à ce moment-là.
+  Automate 24/24 = toujours ouverte pour le paiement par carte.
+- **Habitudes de mise à jour** (`data/fr-habits.json`, 90 jours d'archive) : par station, nombre de mises à jour, heure la
+  plus fréquente et sa part, profil horaire. Environ 1 700 stations poussent leur prix **automatiquement à heure fixe,
+  même inchangé** (TotalEnergies à 00:01 pour plus de la moitié de ses stations, Shell 09:30, Dyneff 14:00, Eni 06:00,
+  Avia 00:00/06:00) : ce passage est repéré 🤖, ne compte ni comme preuve de carburant (confiance plafonnée à
+  « probable », fraîcheur plafonnée dans la note, pas de halo, pas d'alerte), et la fiche affiche l'habitude de la
+  station (« manuelle, surtout entre 8 h et 10 h, 24 fois par mois »). Les heures publiées par l'État sont en heure de
+  Paris (l'API open data leur colle « +00:00 » à tort) : l'appli les lit telles quelles.
 - **Indice de confiance « il y a du carburant ? »** : faute de donnée officielle sur les cuves, l'appli se sert de
   l'heure du dernier prix déclaré par le gérant (un gérant qui vient de saisir un prix vend du carburant) : 🟢 mis à
   jour il y a moins de 6 h (très probable), 🟡 aujourd'hui (probable), 🟠 1 à 3 jours (incertain), ⚪ plus (inconnu),
