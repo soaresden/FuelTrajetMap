@@ -110,7 +110,12 @@
   ];
   function confidence(s, fi) {
     if (s.r & (1 << fi)) return { level: -1, label: 'rupture déclarée', short: '⊘ rupture déclarée par la station', t: 1 };
-    var h = ageHours(s, fi); for (var i = 0; i < CONF.length; i++) if (h <= CONF[i].h) return { level: 3 - i, label: CONF[i].label, short: CONF[i].short, t: CONF[i].t, hours: h };
+    var h = ageHours(s, fi), auto = isAutoUpdate(s, fi);
+    for (var i = 0; i < CONF.length; i++) if (h <= CONF[i].h) {
+      var c = { level: 3 - i, label: CONF[i].label, short: CONF[i].short, t: CONF[i].t, hours: h, auto: auto };
+      if (auto && c.level >= 2) { c.level = 2; c.label = 'probable (màj automatique)'; c.short = '🤖 prix poussé automatiquement à heure fixe'; c.t = Math.max(c.t, 0.35); }
+      return c;
+    }
   }
   // Boutons « Y aller ». Android (appli ou navigateur) : un seul bouton, un lien geo: — le téléphone propose lui-même
   // Waze / Google Maps / autre (ou ouvre celle par défaut). Android Auto : idem, via l'appli de navigation de la voiture.
@@ -130,6 +135,20 @@
     var day = sameDay ? (long ? "aujourd'hui" : 'auj.') : yest ? 'hier' : (long ? 'le ' : '') + d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
     return day + (long ? ' à ' : ' ') + hm;
   }
+  // Ouverture : { open, text } d'après les horaires déclarés (s.oh, lundi → dimanche) ; automate 24/24 = toujours ouvert pour le paiement CB
+  function opening(s, when) {
+    if (s.a24) return { open: true, text: '24h/24 (automate)', a24: true };
+    if (!s.oh) return null;
+    var d = when || new Date(), day = (d.getDay() + 6) % 7, now = d.getHours() * 60 + d.getMinutes();
+    var toMin = function (t) { return +t.slice(0, 2) * 60 + +t.slice(3, 5); };
+    var ranges = (s.oh[day] || '').split('|').filter(Boolean).map(function (r) { return r.split('-'); });
+    for (var i = 0; i < ranges.length; i++) { var a = toMin(ranges[i][0]), b = toMin(ranges[i][1]); if (b <= a) b += 1440; if (now >= a && now < b) return { open: true, text: 'ouverte jusqu\'à ' + ranges[i][1], until: ranges[i][1] }; }
+    // prochaine ouverture : aujourd'hui plus tard, sinon les jours suivants
+    for (var k = 0; k < 7; k++) { var rs = (s.oh[(day + k) % 7] || '').split('|').filter(Boolean); for (var j = 0; j < rs.length; j++) { var o = rs[j].split('-')[0]; if (k > 0 || toMin(o) > now) return { open: false, text: 'fermée · ouvre ' + (k === 0 ? 'à ' : k === 1 ? 'demain à ' : DAY_NAMES[(day + k) % 7] + ' à ') + o, opens: o }; } }
+    return { open: false, text: 'fermée (horaires non renseignés)' };
+  }
+  var DAY_NAMES = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
+  function openingBadge(s) { var o = opening(s); return !o ? '' : o.a24 ? '<span class="badge">24/24</span>' : o.open ? '<span class="badge ok">🕒 ' + esc(o.text) + '</span>' : '<span class="badge bad">🔒 ' + esc(o.text) + '</span>'; }
   function shortAge(h) { return h < 1 ? '<1 h' : h < 24 ? Math.round(h) + ' h' : h < 48 ? 'hier' : Math.round(h / 24) + ' j'; }
   function agoText(h) { return h < 1 ? "il y a moins d'une heure" : h < 24 ? 'il y a ' + Math.round(h) + ' h' : h < 48 ? 'hier' : 'il y a ' + Math.round(h / 24) + ' j'; }
   function ageDays(s, fi) { return s.m[fi] ? Math.max(0, Math.floor(Date.now() / DAY) - s.m[fi]) : 9999; }
@@ -167,6 +186,29 @@
       return tryBase(0).then(function (j) { brandMap = j.map; idb.set('brands', { map: j.map, saved: Date.now() }); if (byCountry.fr) setStations(byCountry.fr, dataTs); });
     }).catch(function () { });
   }
+  // Habitudes de mise à jour (data/fr-habits.json, construit depuis l'archive annuelle) : [n sur 90 j, 'HH:MM' la plus fréquente, part %, profil 24 h]
+  var habitMap = null;
+  function loadHabits() {
+    var bases = [(window.FUELMAP_CONFIG || {}).dataBase, ''].filter(function (b, i) { return b || i === 1; });
+    var tryBase = function (i) { return fetch(bases[i] + 'data/fr-habits.json').then(function (r) { if (!r.ok) throw new Error('absent'); return r.json(); }).catch(function (e) { if (i + 1 < bases.length) return tryBase(i + 1); throw e; }); };
+    return idb.get('habits').then(function (c) {
+      if (c && c.map) { habitMap = c.map; if (Date.now() - c.saved < 7 * DAY) return; }
+      return tryBase(0).then(function (j) { habitMap = j.map; idb.set('habits', { map: j.map, saved: Date.now() }); refreshMap(); });
+    }).catch(function () { });
+  }
+  function habit(s) { // { n, time, share, auto, hours[24] (0..35) }
+    var h = habitMap && habitMap[s.id]; if (!h) return null;
+    return { n: h[0], time: h[1], share: h[2], auto: h[0] >= 10 && h[2] >= 60, hours: h[3].split('').map(function (c) { return parseInt(c, 36); }), perMonth: Math.round(h[0] / 3) };
+  }
+  function habitText(hb) {
+    if (!hb) return '';
+    if (hb.auto) return '🤖 Mise à jour automatique à ' + hb.time + ' (' + hb.share + ' % des ' + hb.n + ' mises à jour sur 90 j)' + (hb.n >= 80 ? ', chaque jour' : '') + ' : elle ne prouve pas qu\'il y a du carburant.';
+    var best = 0, bi = 0; for (var i = 0; i < 24; i++) { var w = hb.hours[i] + (hb.hours[(i + 1) % 24] || 0); if (w > best) { best = w; bi = i; } }
+    return '🙋 Mise à jour manuelle, surtout entre ' + bi + ' h et ' + ((bi + 2) % 24) + ' h, environ ' + hb.perMonth + ' fois par mois.';
+  }
+  function habitBars(hb) { return hb ? '<span class="hbars" title="Répartition des mises à jour par heure (0 h → 23 h)">' + hb.hours.map(function (v, i) { return '<i style="height:' + Math.max(2, Math.round(v / 35 * 16)) + 'px" title="' + i + ' h"></i>'; }).join('') + '</span>' : ''; }
+  // La dernière mise à jour est-elle le passage automatique habituel ? (même minute que l'habitude à heure fixe)
+  function isAutoUpdate(s, fi) { var hb = habit(s); if (!hb || !hb.auto || !(s.t && s.t[fi])) return false; var d = new Date(s.t[fi] * 60000); return (d.getHours() < 10 ? '0' : '') + d.getHours() + ':' + (d.getMinutes() < 10 ? '0' : '') + d.getMinutes() === hb.time; }
   function setStations(frList, ts) { frList.forEach(function (x) { x.cc = 'fr'; x.brand = (brandMap && brandMap[x.id]) || ''; }); byCountry.fr = frList; dataTs = ts; rebuild(); }
   function rebuild() {
     var list = []; Object.keys(byCountry).forEach(function (cc) { if (cc === 'fr' || state.neighbours) list = list.concat(byCountry[cc]); });
@@ -175,7 +217,7 @@
       var k = cellKey(list[i].lat, list[i].lon), c = grid.get(k);
       if (c) c.push(list[i]); else grid.set(k, [list[i]]);
     }
-    updateDataInfo(); refreshMap(); if (typeof updateHud === 'function') updateHud();
+    updateDataInfo(); refreshMap(); if (typeof updateHud === 'function') updateHud(); document.dispatchEvent(new CustomEvent('fuelmap:stations'));
   }
   function stationsInBounds(s, w, n, e) {
     var out = [], cells = (Math.floor(n * 10) - Math.floor(s * 10) + 1) * (Math.floor(e * 10) - Math.floor(w * 10) + 1), i;
@@ -264,7 +306,7 @@
     if (!dataTs) return;
     var fi = FUEL_INDEX[state.fuel], n = 0; stations.forEach(function (s) { if (s.p[fi] > 0) n++; });
     var abroad = Object.keys(byCountry).filter(function (cc) { return cc !== 'fr'; }).map(function (cc) { return FuelSources[cc].name + ' ' + num(byCountry[cc].length); }).join(', ');
-    $('dataInfo').textContent = (abroad ? 'Pays voisins chargés : ' + abroad + '. ' : '') + num(stations.length) + ' stations, dont ' + num(n) + ' en ' + FUELS[fi].label + '. Dernière actualisation : ' + new Date(dataTs).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) + '.';
+    $('dataInfo').textContent = 'FuelMap ' + ((window.FUELMAP_CONFIG || {}).version || '') + ' · ' + (abroad ? 'Pays voisins chargés : ' + abroad + '. ' : '') + num(stations.length) + ' stations, dont ' + num(n) + ' en ' + FUELS[fi].label + '. Dernière actualisation : ' + new Date(dataTs).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) + '.';
   }
 
   // ------------------------------------------------------------------ carte
@@ -464,7 +506,7 @@
 
   var freshLayer = L.layerGroup().addTo(map), freshShown = '';
   function syncFresh(list, fis, zoom) { // halo animé sur les prix tout frais (≤ 2 h) : visibles d'un coup d'œil
-    var vb = map.getBounds(), c = map.getCenter(), fresh = zoom >= 9 ? list.filter(function (s) { var k = pick(s, fis); return k >= 0 && ageHours(s, k) <= 2 && vb.contains([s.lat, s.lon]); }) : [];
+    var vb = map.getBounds(), c = map.getCenter(), fresh = zoom >= 9 ? list.filter(function (s) { var k = pick(s, fis); return k >= 0 && ageHours(s, k) <= 2 && !isAutoUpdate(s, k) && vb.contains([s.lat, s.lon]); }) : [];
     fresh.sort(function (a, b) { return Math.hypot(a.lat - c.lat, a.lon - c.lng) - Math.hypot(b.lat - c.lat, b.lon - c.lng); }); fresh = fresh.slice(0, 80);
     var key = fresh.map(function (s) { return s.id; }).join(','); if (key === freshShown) return; freshShown = key;
     freshLayer.clearLayers();
@@ -508,6 +550,7 @@
     return { liters: liters, cost: liters * s.p[fi] };
   }
   function openStation(s, fly) {
+    if (document.documentElement.hasAttribute('data-carui') && window.__fuelmapCar) { window.__fuelmapCar.select(s, false); window.__fuelmapCar.render(); return; } // écran voiture : pas de bulle, la colonne de gauche
     var cfi = pick(s, displayFuels()), rows = ''; if (cfi < 0) cfi = FUEL_INDEX[state.fuel];
     var order = FUELS.map(function (f, i) { return i; }).sort(function (a, b) { return (s.t && s.t[b] || s.m[b] * 1440 || 0) - (s.t && s.t[a] || s.m[a] * 1440 || 0); }); // prix le plus récent en premier
     order.forEach(function (i) { var f = FUELS[i];
@@ -518,13 +561,14 @@
       rows += '<tr class="' + (i === cfi || (s.e5 && cfi === FUEL_INDEX.e10 && i === FUEL_INDEX.sp95) ? 'sel' : '') + (rupt ? ' rupt' : '') + '"><td>' + f.label + (rupt ? ' <span class="badge bad">⊘ rupture' + (rd >= 0 ? (rd === 0 ? " depuis auj." : rd === 1 ? ' depuis hier' : ' depuis ' + rd + ' j') : '') + '</span>' : '') + '</td><td>' + (s.p[i] > 0 ? price3(s.p[i]) + ' €' : '—') + '</td><td' + (a > 14 ? ' style="color:var(--warn)"' : '') + '>' + (s.p[i] > 0 ? whenText(s, i) : ageLabel(a)) + '</td></tr>';
     });
     var sc = score(s, displayFuels(), mePos ? haversine(mePos.lat, mePos.lon, s.lat, s.lon) : null), conf = cfi >= 0 && s.p[cfi] > 0 ? confidence(s, cfi) : null;
-    var html = '<div class="pop"><h3>' + brandName(s) + esc(titleCase(s.ville)) + (s.hw ? '<span class="badge">Autoroute</span>' : '') + (s.a24 ? '<span class="badge">24/24</span>' : '') + '</h3>' +
+    var html = '<div class="pop"><h3>' + brandName(s) + esc(titleCase(s.ville)) + (s.hw ? '<span class="badge">Autoroute</span>' : '') + openingBadge(s) + '</h3>' +
       '<div class="addr">' + esc(titleCase(s.adr)) + ', ' + esc(s.cp) + (s.cc !== 'fr' ? ' · ' + FuelSources[s.cc].name : '') + '</div>' +
       (sc ? '<div class="scoreline">' + scoreBadge(sc) + '<span>' + scoreDetail(sc) + '</span></div>' : '') +
-      (conf ? '<div class="conf c' + conf.level + '">' + (conf.hours != null ? conf.short.slice(0, 2) + ' ' + FUELS[cfi].label + ' mis à jour <b>' + whenText(s, cfi, true) + '</b> (' + agoText(conf.hours) + (conf.level === 3 ? ', moins de 6 h' : '') + ')' : conf.short) + ' · carburant <b>' + conf.label + '</b></div>' : '') + '<table>' + rows + '</table>';
+      (conf ? '<div class="conf c' + conf.level + '">' + (conf.hours != null ? conf.short.slice(0, 2) + ' ' + FUELS[cfi].label + ' mis à jour <b>' + whenText(s, cfi, true) + '</b> (' + agoText(conf.hours) + (conf.level === 3 ? ', moins de 6 h' : conf.auto ? ', passage automatique' : '') + ')' : conf.short) + ' · carburant <b>' + conf.label + '</b></div>' : '') +
+      (habit(s) ? '<div class="habit">' + habitText(habit(s)) + ' ' + habitBars(habit(s)) + '</div>' : '') + '<table>' + rows + '</table>';
     var carFi = FUEL_INDEX[car().fuel];
     if (s.p[carFi] > 0) { var fi2 = fillInfo(s, carFi); html += '<div class="fill">' + esc(car().name) + ' : ' + num(fi2.liters) + ' L de ' + FUELS[carFi].label + ' pour faire le plein ≈ <b>' + eur(fi2.cost) + '</b></div>'; }
-    html += '<div class="links"><button data-fav="' + s.id + '">' + (isFav(s) ? '★ Favori' : '☆ Favori') + '</button>' + (s.cc === 'fr' ? '<button data-hist="' + s.id + '">📈 Historique</button>' : '') + navLinks(s, '') +
+    html += '<div class="links"><button data-fav="' + s.id + '">' + (isFav(s) ? '★ Favori' : '☆ Favori') + '</button><button data-fill="' + s.id + '">📒 J\'ai fait le plein ici</button>' + (s.cc === 'fr' ? '<button data-hist="' + s.id + '">📈 Historique</button>' : '') + navLinks(s, '') +
       (routeCtx && routeCtx.plan
         ? (routeCtx.plan.stops.some(function (st) { return st.station.s === s; }) ? '<button data-stop="' + s.id + '">🗑️ Ne plus m\'arrêter ici</button>'
           : routeCtx.cands.some(function (cd) { return cd.s === s; }) ? '<button data-stop="' + s.id + '">➕ M\'arrêter ici</button>' : '')
@@ -562,6 +606,7 @@
         mePos = { lat: p.coords.latitude, lon: p.coords.longitude };
         if (!meMarker) meMarker = L.marker([mePos.lat, mePos.lon], { icon: L.divIcon({ className: '', html: '<div class="me-marker"></div>', iconSize: [16, 16], iconAnchor: [8, 8] }), interactive: false }).addTo(map);
         else meMarker.setLatLng([mePos.lat, mePos.lon]);
+        if (!lastFix) document.dispatchEvent(new CustomEvent('fuelmap:fix'));
         res(mePos);
       }, function (err) { rej(new Error(err.code === 1 ? 'Position refusée par le navigateur' : 'Position introuvable')); }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
     });
@@ -585,7 +630,7 @@
       if (!meMarker) meMarker = L.marker([mePos.lat, mePos.lon], { icon: L.divIcon({ className: '', html: '<div class="me-marker"></div>', iconSize: [16, 16], iconAnchor: [8, 8] }), interactive: false }).addTo(map);
       else meMarker.setLatLng([mePos.lat, mePos.lon]);
       if (follow) map.panTo([mePos.lat, mePos.lon], { animate: true });
-      clearTimeout(hudTimer); hudTimer = setTimeout(updateHud, 300);
+      clearTimeout(hudTimer); hudTimer = setTimeout(updateHud, 300); document.dispatchEvent(new CustomEvent('fuelmap:fix'));
     }, function () { }, { enableHighAccuracy: true, maximumAge: 5000 });
   }
   function stopWatch() { if (watchId != null && navigator.geolocation) navigator.geolocation.clearWatch(watchId); watchId = null; }
@@ -608,7 +653,7 @@
     if (!s) {
       var liters = Math.max(5, c.tank * (1 - startPct() / 100)), d = 15 / 111, dl = d / Math.cos(lastFix.lat * Math.PI / 180), best = null;
       stationsInBounds(lastFix.lat - d, lastFix.lon - dl, lastFix.lat + d, lastFix.lon + dl).forEach(function (x) {
-        var kk = pick(x, fis); if (kk < 0) return; var dd = haversine(lastFix.lat, lastFix.lon, x.lat, x.lon); if (dd > 15) return;
+        var kk = pick(x, fis); if (kk < 0) return; var oo = opening(x); if (oo && !oo.open) return; var dd = haversine(lastFix.lat, lastFix.lon, x.lat, x.lon); if (dd > 15) return;
         var real = (liters + 2 * dd * DETOUR_FACTOR * c.cons / 100) * x.p[kk]; if (!best || real < best.real) best = { s: x, k: kk, d: dd, real: real };
       });
       if (best) { s = best.s; k = best.k; dist = best.d * DETOUR_FACTOR; why = why || '💰 Meilleur plein à moins de 15 km (' + num(liters) + ' L)'; }
@@ -616,7 +661,7 @@
     if (!s) { el.innerHTML = '<div class="k">' + (why || '⛽ Aucune station ' + FUELS[fi].label + ' à moins de 15 km') + '</div>'; return; }
     html = '<div class="k">' + why + '</div><div class="t">' + brandName(s) + esc(titleCase(s.ville)) + '</div>' +
       '<div class="p">' + price3(s.p[k]) + ' <small>€/L ' + FUELS[k].label + ' · ' + whenText(s, k) + '</small></div>' +
-      '<div class="d conf c' + confidence(s, k).level + '">' + confidence(s, k).short + '</div>' +
+      '<div class="d conf c' + confidence(s, k).level + '">' + confidence(s, k).short + (opening(s) ? ' · ' + (opening(s).open ? '🕒 ' : '🔒 ') + opening(s).text : '') + '</div>' +
       '<div class="d">📍 ' + esc(titleCase(s.adr)) + ' · ≈ ' + num(dist) + ' km' + (lastFix.speed > 1 ? ' · ' + num(lastFix.speed * 3.6) + ' km/h' : '') + '</div>' +
       '<div class="row">' + navLinks(s, 'primary') +
       '<button class="secondary" data-hudshow="' + s.id + '">🗺️</button></div>';
@@ -626,6 +671,9 @@
   // Gestes relayés par Android Auto (écran de la voiture) et zone visible hors bandeaux de l'hôte
   function carPan(dx, dy) { setFollow(false); map.panBy([dx, dy], { animate: false }); }
   function carZoom(scale, fx, fy) { setFollow(false); map.setZoomAround(L.point(fx, fy), map.getZoom() + Math.log(scale) / Math.LN2, { animate: false }); }
+  function carStable(t, r, b, l) { // zone JAMAIS couverte par l'hôte : la colonne de gauche s'y cale, sans bouger quand les boutons de l'hôte apparaissent
+    var st = document.documentElement.style; st.setProperty('--stable-t', t + 'px'); st.setProperty('--stable-b', b + 'px'); st.setProperty('--stable-l', l + 'px'); st.setProperty('--stable-r', r + 'px');
+  }
   function carInsets(t, r, b, l) { // zone de la page non couverte par l'hôte Android Auto (sa carte d'infos, ses boutons)
     safe = { t: t, r: r, b: b, l: l }; var st = document.documentElement.style;
     st.setProperty('--safe-t', t + 'px'); st.setProperty('--safe-b', b + 'px'); st.setProperty('--safe-l', l + 'px'); st.setProperty('--safe-r', r + 'px');
@@ -639,7 +687,7 @@
   // ------------------------------------------------------------------ onglets / panneau
   var currentTab = 'map';
   function showTab(name) {
-    currentTab = name;
+    currentTab = name; document.dispatchEvent(new CustomEvent('fuelmap:tab', { detail: name }));
     document.querySelectorAll('#tabs button').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-tab') === name); });
     var p = $('panel');
     if (name === 'map') { p.classList.add('hidden'); p.classList.remove('collapsed'); if (isWide()) { showTab('route'); } return; }
@@ -718,6 +766,7 @@
     var price = n >= 4 ? 3 * (cheaper + 0.5 * (same - 1)) / Math.max(1, n - 1) : 1.5;          // part des voisines plus chères
     var h = ageHours(s, k), fresh = h < 1 ? 5 : h <= 6 ? 4.5 : h <= 12 ? 3.5 : h <= 24 ? 2.5 : h <= 48 ? 1.5 : h <= 72 ? 0.8 : Math.max(0, 0.5 * (1 - h / 24 / 10));
     var mask = 0; fis.forEach(function (f) { if (s.p[f] > 0) mask |= (1 << f); }); if (s.r & mask) fresh = Math.min(fresh, 1); // rupture déclarée sur un carburant compatible
+    if (isAutoUpdate(s, k)) fresh = Math.min(fresh, 3); // passage automatique à heure fixe : ne prouve rien sur la cuve
     var near = distKm == null ? null : 2 * Math.max(0, 1 - Math.max(0, distKm - 1) / 14);       // 2 pts à moins d'1 km, 0 à 15 km
     var total = near == null ? (fresh + price) * 10 / 8 : fresh + price + near;
     return { total: Math.max(0, Math.min(10, total)), price: price, fresh: fresh, near: near, hours: h, n: n, k: k };
@@ -825,7 +874,7 @@
       '<li><b>E85</b>' + pr('e85') + ' — 65 à 85 % d\'éthanol. Seulement pour les voitures flexfuel ou équipées d\'un boîtier homologué. Consomme ≈ 20 à 25 % de plus, mais reste nettement moins cher au kilomètre.</li>' +
       '<li><b>Gazole</b> (B7)' + pr('gazole') + ' — moteurs diesel uniquement.</li><li><b>GPLc</b>' + pr('gplc') + ' — voitures équipées GPL uniquement.</li></ul>' +
       '<p><b>Dans l\'appli :</b> choisis le carburant le plus « bas » que ta voiture accepte. Si tu choisis SP95-E10, les trajets te proposeront aussi du SP95 ou du SP98 quand ils sont moins chers ou les seuls disponibles (à l\'étranger par exemple) ; l\'inverse n\'est jamais fait.</p>' +
-      '<p><b>⊘ Ruptures :</b> une station qui déclare ne plus avoir ton carburant apparaît barrée en rouge sur la carte et dans les listes, et n\'est jamais proposée sur un trajet. Cette information vient des gérants eux-mêmes (prix-carburants.gouv.fr) : en période de pénurie, tous ne la mettent pas à jour, une station non barrée peut donc quand même être à sec. Un prix mis à jour aujourd\'hui est le meilleur indice qu\'il y a du carburant.</p>');
+      '<p><b>⊘ Ruptures :</b> une station qui déclare ne plus avoir ton carburant apparaît barrée en rouge sur la carte et dans les listes, et n\'est jamais proposée sur un trajet. Cette information vient des gérants eux-mêmes (prix-carburants.gouv.fr) : en période de pénurie, tous ne la mettent pas à jour, une station non barrée peut donc quand même être à sec. Un prix mis à jour aujourd\'hui est le meilleur indice qu\'il y a du carburant — sauf quand c\'est un <b>passage automatique</b> : certaines enseignes (TotalEnergies à 00:01, Shell à 09:30, Dyneff à 14:00…) renvoient leur prix chaque jour à heure fixe, même inchangé ; l\'appli le repère (🤖) et ne le compte pas comme une preuve. La fiche de chaque station montre son habitude : automatique ou manuelle, et à quelles heures.</p>');
   }
 
   // ------------------------------------------------------------------ véhicules
@@ -1086,7 +1135,7 @@
       if (ps) { var chosen = ps.map(function (id) { return cands.filter(function (cd) { return String(cd.id) === id; })[0]; }).filter(Boolean); if (chosen.length === ps.length && setPlan(chosen, false).feasible) return; }
       if (result.feasible) setPlan(result.stops.map(function (st) { return st.station; }), true);
       else { drawRoute(); renderRoute(); }
-    }).catch(function (err) { routeMsg('⚠️ ' + esc(err.message || 'Erreur'), true); })
+    }).catch(function (err) { routeMsg('⚠️ ' + esc(err.message || 'Erreur'), true); document.dispatchEvent(new CustomEvent('fuelmap:route', { detail: { error: err.message || 'Erreur' } })); })
       .then(function () { btn.disabled = false; btn.textContent = '🚀 Proposer mes arrêts'; });
   }
   $('goBtn').addEventListener('click', computeRoute);
@@ -1179,6 +1228,7 @@
   function stationTitle(s) { return brandName(s) + esc(titleCase(s.ville)) + (s.cc !== 'fr' ? '<span class="badge">' + s.cc.toUpperCase() + '</span>' : '') + (s.hw ? '<span class="badge">Autoroute</span>' : '') + (s.a24 ? '<span class="badge">24/24</span>' : ''); }
 
   function renderRoute() {
+    document.dispatchEvent(new CustomEvent('fuelmap:route'));
     var R = routeCtx, res = R.plan, c = R.car, fuelLabel = FUELS[R.fi].label + (fuelsFor(c.fuel).length > 1 ? ' ou compatible' : ''), html = '', keepScroll = $('panelBody').scrollTop;
     routeMsg(R.notes.length ? R.notes.map(esc).join('<br>') : null);
     if (!R.best.feasible) {
@@ -1321,12 +1371,14 @@
       if (sort === 'score' || items.length <= 80) items.forEach(function (x) { x.sc = x.k >= 0 ? score(x.s, fis, x.d) : null; });
       if (state.shortage && sort === 'real') sort = 'reliable'; // en pénurie, ce qui compte c'est d'en trouver
       var lvl = function (x) { return x.k >= 0 ? confidence(x.s, x.k).level : -1; };
-      items.sort(sort === 'reliable' ? function (a, b) { return lvl(b) - lvl(a) || a.real - b.real; } : sort === 'price' ? function (a, b) { return a.p - b.p; } : sort === 'dist' ? function (a, b) { return a.d - b.d; } : sort === 'fresh' ? function (a, b) { return ageHours(a.s, a.k) - ageHours(b.s, b.k) || a.p - b.p; } :
-        sort === 'score' ? function (a, b) { return (b.sc ? b.sc.total : -1) - (a.sc ? a.sc.total : -1); } : function (a, b) { return a.real - b.real; });
+      items.forEach(function (x) { var o = opening(x.s); x.closed = !!(o && !o.open); });
+      var cmp = sort === 'reliable' ? function (a, b) { return lvl(b) - lvl(a) || a.real - b.real; } : sort === 'price' ? function (a, b) { return a.p - b.p; } : sort === 'dist' ? function (a, b) { return a.d - b.d; } : sort === 'fresh' ? function (a, b) { return ageHours(a.s, a.k) - ageHours(b.s, b.k) || a.p - b.p; } :
+        sort === 'score' ? function (a, b) { return (b.sc ? b.sc.total : -1) - (a.sc ? a.sc.total : -1); } : function (a, b) { return a.real - b.real; };
+      items.sort(function (a, b) { return (a.closed ? 1 : 0) - (b.closed ? 1 : 0) || cmp(a, b); }); // les stations fermées à cette heure-ci en dernier
       var bestReal = priced.slice().sort(function (a, b) { return a.real - b.real; })[0];
       listEl.innerHTML = items.slice(0, 30).map(function (x) {
-        var diff = nearest && x.k >= 0 ? nearest.real - x.real : 0, sc = x.sc === undefined && x.k >= 0 ? score(x.s, fis, x.d) : x.sc, fresh = x.k >= 0 && ageHours(x.s, x.k) <= 2;
-        return '<div class="card' + (x === bestReal ? ' best' : '') + (fresh ? ' fresh' : '') + '" data-sid="' + x.s.id + '"><div><b>' + (isFav(x.s) ? '★ ' : '') + brandName(x.s) + esc(titleCase(x.s.ville)) + '</b>' + (x.s.a24 ? '<span class="badge">24/24</span>' : '') + '</div><div class="price">' + (x.k >= 0 ? price3(x.p) : '—') + '</div>' +
+        var diff = nearest && x.k >= 0 ? nearest.real - x.real : 0, sc = x.sc === undefined && x.k >= 0 ? score(x.s, fis, x.d) : x.sc, fresh = x.k >= 0 && ageHours(x.s, x.k) <= 2 && !isAutoUpdate(x.s, x.k);
+        return '<div class="card' + (x === bestReal ? ' best' : '') + (fresh ? ' fresh' : '') + '" data-sid="' + x.s.id + '"><div><b>' + (isFav(x.s) ? '★ ' : '') + brandName(x.s) + esc(titleCase(x.s.ville)) + '</b>' + openingBadge(x.s) + '</div><div class="price">' + (x.k >= 0 ? price3(x.p) : '—') + '</div>' +
           '<div class="sub">' + esc(titleCase(x.s.adr)) + ' · ' + num(x.d, 1) + ' km · ' + (x.k < 0 ? (x.rupt ? '<span style="color:var(--bad)">⊘ rupture déclarée</span>' : 'pas de prix récent') : (x.k !== fi ? FUELS[x.k].label + ' <small>(compatible, moins cher ici)</small> · ' : '') + '<span class="when' + (fresh ? ' fresh' : '') + '"' + (x.age > 3 ? ' style="color:var(--warn)"' : '') + '>🕒 ' + whenText(x.s, x.k) + '</span>' + (state.shortage || sort === 'reliable' || minConf ? ' · <b class="c' + confidence(x.s, x.k).level + '">' + confidence(x.s, x.k).label + '</b>' : '')) + '</div>' +
           '<div class="real">' + scoreBadge(sc) + (x.k >= 0 ? ' ' + eur(x.real) + (x !== nearest && diff > 0.3 ? ' · <span style="color:var(--accent)">−' + eur(diff) + '</span>' : '') : '') + '</div></div>';
       }).join('');
@@ -1344,16 +1396,22 @@
   $('neighbours').addEventListener('change', function () { state.neighbours = this.checked; save(); rebuild(); if (this.checked) map.fire('moveend'); });
   $('refreshData').addEventListener('click', function () { fetchData(false).then(function () { toast('Prix actualisés'); }); });
   $('brandBtn2').textContent = state.brand ? '🏷️ ' + state.brand + ' uniquement' : 'Toutes les enseignes';
-  loadBrands();
+  loadBrands(); loadHabits();
   renderFuelChips(); updateSliders(); renderPlaceChips(); showTab(isWide() ? 'route' : 'map');
+  $('ver').textContent = 'v' + ((window.FUELMAP_CONFIG || {}).version || '');
   if (/[?&]car=1/.test(location.search) || state.carMode) setCarMode(true, true);
   var onAA = /[?&]aa=1/.test(location.search);
   if (onAA) { // écran Android Auto : pas de clavier, on reprend le trajet préparé sur le téléphone
     document.documentElement.setAttribute('data-aa', '');
-    var onceLoaded = function () { if (stations.length) { if (state.cars.length) restoreLastRoute(); } else setTimeout(onceLoaded, 500); }; setTimeout(onceLoaded, 800);
+    // le trajet est repris par l'écran voiture (js/car.js), depuis la position de la voiture
     if (!state.cars.length) toast('Renseigne ton véhicule dans FuelMap sur le téléphone');
     console.log('FuelMap Android Auto : ' + innerWidth + 'x' + innerHeight + ', ' + state.cars.length + ' véhicule(s)');
   } else if (!state.cars.length) showOnboarding();
+  if (!onAA) { // téléphone : position silencieuse si déjà autorisée (carnet de pleins : « tu viens de faire le plein ? »)
+    var silentFix = function () { try { if (navigator.permissions) navigator.permissions.query({ name: 'geolocation' }).then(function (r) { if (r.state === 'granted' || (r.state === 'prompt' && window.Capacitor && state.cars.length)) locate().catch(function () { }); }); else if (window.Capacitor) locate().catch(function () { }); } catch (e) { } }; // dans l'appli Android : demande la permission dès le départ (l'écran voiture en a besoin)
+    setTimeout(silentFix, 1500);
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) silentFix(); });
+  }
 
   idb.get('stations').then(function (cached) {
     if (cached && cached.list && cached.list.length) {
@@ -1374,5 +1432,10 @@
     tryOpen(0);
   }
   try { var AppP = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App; if (AppP) { AppP.addListener('appUrlOpen', function (e) { openFromUrl(e.url); }); AppP.getLaunchUrl().then(function (r) { if (r && r.url) openFromUrl(r.url); }); } } catch (e) { }
-  window.__fuelmap = { carPan: carPan, carZoom: carZoom, carInsets: carInsets, restoreLastRoute: restoreLastRoute, setCarMode: setCarMode, updateHud: updateHud, get fix() { return lastFix; }, set fix(p) { lastFix = mePos = p; updateHud(); }, setPlan: setPlan, alternativesFor: alternativesFor, tryPlan: tryPlan, state: state, compute: computeRoute, setPlace: setPlace, get route() { return routeCtx; }, get count() { return stations.length; }, get stations() { return stations; }, map: map, openStation: openStation }; // pour les tests
+  window.__fuelmapAPI = { // utilisé par js/car.js (écran Android Auto) — fonctions internes, lecture seule sauf sélection
+    get stations() { return stations; }, stationsInBounds: stationsInBounds, pick: pick, confidence: confidence, opening: opening, score: score, isAutoUpdate: isAutoUpdate,
+    get route() { return routeCtx; }, get fix() { return lastFix || mePos; }, map: map, openStation: openStation, brandName: brandName, price3: price3, whenText: whenText, shortAge: shortAge, ageHours: ageHours,
+    haversine: haversine, fuelsFor: fuelsFor, car: car, FUELS: FUELS, FUEL_INDEX: FUEL_INDEX, state: state, setFollow: setFollow, locate: locate, titleCase: titleCase, esc: esc, num: num, progressKm: progressKm, DETOUR_FACTOR: DETOUR_FACTOR, colorFor: colorFor, save: save, eighths: eighths, toast: toast, osrmRoute: osrmRoute, decodePolyline: decodePolyline, agoText: agoText, price3: price3
+  };
+  window.__fuelmap = { carPan: carPan, carZoom: carZoom, carInsets: carInsets, carStable: carStable, restoreLastRoute: restoreLastRoute, setCarMode: setCarMode, updateHud: updateHud, get fix() { return lastFix; }, set fix(p) { lastFix = mePos = p; updateHud(); }, setPlan: setPlan, alternativesFor: alternativesFor, tryPlan: tryPlan, state: state, compute: computeRoute, setPlace: setPlace, get route() { return routeCtx; }, get count() { return stations.length; }, get stations() { return stations; }, map: map, openStation: openStation }; // pour les tests
 })();

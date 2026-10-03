@@ -1,5 +1,6 @@
 package fr.soaresden.fuelmap.alert;
 
+import fr.soaresden.fuelmap.diag.Diag;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -44,6 +45,7 @@ public class AlertWorker extends Worker {
     @NonNull
     @Override
     public Result doWork() {
+        Diag.init(getApplicationContext());
         Context ctx = getApplicationContext();
         try {
             JSONObject a = config(ctx); if (a == null) return Result.success();
@@ -55,13 +57,13 @@ public class AlertWorker extends Worker {
             JSONObject seen = new JSONObject(st.getString("seen", "{}"));
             List<Hit> fresh = new ArrayList<>();
             for (Hit h : hits) if (test || !h.maj.equals(seen.optString(h.id))) fresh.add(h);
-            if (fresh.isEmpty()) { Log.i(TAG, "rien de neuf (" + hits.size() + " à jour, déjà annoncées)"); return Result.success(); }
+            if (fresh.isEmpty()) { Diag.i(TAG, "rien de neuf (" + hits.size() + " à jour, déjà annoncées)"); return Result.success(); }
             for (Hit h : fresh) seen.put(h.id, h.maj);
             st.edit().putString("seen", seen.toString()).apply();
             notifyUser(ctx, a, fresh);
             return Result.success();
         } catch (Exception e) {
-            Log.w(TAG, "échec : " + e.getMessage());
+            Diag.w(TAG, "échec : " + e.getMessage());
             return Result.retry();
         }
     }
@@ -71,14 +73,14 @@ public class AlertWorker extends Worker {
         catch (Exception e) { return null; }
     }
 
-    static class Hit { String id, fuel, maj, ville, adresse, brand; double price, lat, lon, distKm; }
+    static class Hit { String id, fuel, maj, ville, adresse, brand; double price, lat, lon, distKm; Boolean open; }
 
     /** Stations de la zone avec un prix compatible mis à jour depuis `sinceMs` et sans rupture, la moins chère d'abord. */
     static List<Hit> query(Context ctx, JSONObject a, long sinceMs) throws Exception {
-        SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US); df.setTimeZone(TimeZone.getTimeZone("UTC"));
+        SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US); df.setTimeZone(TimeZone.getTimeZone("Europe/Paris")); // heures publiées = heure de Paris
         String since = df.format(new Date(sinceMs));
         JSONArray fuels = a.getJSONArray("fuels"); double lat = a.getDouble("lat"), lon = a.getDouble("lon"), radius = a.optDouble("radiusKm", 2);
-        StringBuilder or = new StringBuilder(), sel = new StringBuilder("id,latitude,longitude,adresse,ville");
+        StringBuilder or = new StringBuilder(), sel = new StringBuilder("id,latitude,longitude,adresse,ville,horaires_jour,horaires_automate_24_24");
         for (int i = 0; i < fuels.length(); i++) {
             String f = fuels.getString(i);
             or.append(i > 0 ? " OR " : "").append("(").append(f).append("_maj >= '").append(since).append("' AND ").append(f).append("_prix IS NOT NULL AND ").append(f).append("_rupture_type IS NULL)");
@@ -87,7 +89,7 @@ public class AlertWorker extends Worker {
         String where = "within_distance(geom, geom'POINT(" + lon + " " + lat + ")', " + radius + "km) AND (" + or + ")";
         String url = FuelData.ODS + "?select=" + URLEncoder.encode(sel.toString(), "UTF-8") + "&where=" + URLEncoder.encode(where, "UTF-8") + "&limit=50";
         JSONArray rows = new JSONObject(FuelData.fetch(url)).getJSONArray("results");
-        JSONObject brands = FuelData.brands(ctx);
+        JSONObject brands = FuelData.brands(ctx), habits = FuelData.habits(ctx);
         List<Hit> out = new ArrayList<>();
         for (int i = 0; i < rows.length(); i++) {
             JSONObject r = rows.getJSONObject(i); Hit best = null;
@@ -97,7 +99,12 @@ public class AlertWorker extends Worker {
                 if (best == null || p < best.price) { best = new Hit(); best.fuel = f; best.price = p; best.maj = maj; }
             }
             if (best == null) continue;
-            best.id = String.valueOf(r.optLong("id")); best.ville = FuelData.title(r.optString("ville")); best.adresse = FuelData.title(r.optString("adresse"));
+            best.id = String.valueOf(r.optLong("id"));
+            if (FuelData.isAutoUpdate(habits, best.id, best.maj.length() >= 16 ? best.maj.substring(11, 16) : "")) { Diag.i(TAG, "passage automatique ignoré : " + best.id + " " + best.maj); continue; } // TotalEnergies 00:01 & co : ne prouve rien
+            Boolean open = FuelData.openNow(r.optString("horaires_jour", ""), "Oui".equals(r.optString("horaires_automate_24_24")));
+            if (Boolean.FALSE.equals(open)) { Diag.i(TAG, "fermée à cette heure, ignorée : " + best.id); continue; } // inutile d'y aller
+            best.open = open;
+            best.ville = FuelData.title(r.optString("ville")); best.adresse = FuelData.title(r.optString("adresse"));
             best.lat = r.optDouble("latitude") / 1e5; best.lon = r.optDouble("longitude") / 1e5; best.distKm = FuelData.haversine(lat, lon, best.lat, best.lon);
             best.brand = brands != null ? brands.optString(best.id, "") : "";
             out.add(best);
@@ -115,7 +122,7 @@ public class AlertWorker extends Worker {
         Hit h = fresh.get(0);
         String label = FuelData.fuelLabel(h.fuel), price = String.format(Locale.FRANCE, "%.3f", h.price), hm = h.maj.length() >= 16 ? localTime(h.maj) : "";
         String title = "⛽ " + label + " à " + price + " € à " + h.ville + " — gogogo !";
-        String text = (h.brand.isEmpty() ? "" : h.brand + " · ") + h.adresse + " · " + String.format(Locale.FRANCE, "%.1f", h.distKm) + " km · prix mis à jour à " + hm
+        String text = (h.brand.isEmpty() ? "" : h.brand + " · ") + h.adresse + " · " + String.format(Locale.FRANCE, "%.1f", h.distKm) + " km · prix mis à jour à " + hm + (Boolean.TRUE.equals(h.open) ? " · ouverte" : " · horaires inconnus")
             + (fresh.size() > 1 ? " · +" + (fresh.size() - 1) + " autre" + (fresh.size() > 2 ? "s" : "") + " station" + (fresh.size() > 2 ? "s" : "") + " à jour" : "");
         Intent open = new Intent(Intent.ACTION_VIEW, Uri.parse("fuelmap://station/" + h.id)).setPackage(ctx.getPackageName()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         Intent nav = new Intent(Intent.ACTION_VIEW, Uri.parse("geo:" + h.lat + "," + h.lon + "?q=" + h.lat + "," + h.lon + "(" + Uri.encode((h.brand.isEmpty() ? "" : h.brand + " ") + h.ville) + ")")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -128,13 +135,8 @@ public class AlertWorker extends Worker {
             .addAction(0, "🧭 Y aller", PendingIntent.getActivity(ctx, 2, nav, flags))
             .build();
         nm.notify(4210, n);
-        Log.i(TAG, "notification : " + title);
+        Diag.i(TAG, "notification : " + title);
     }
 
-    static String localTime(String isoUtc) {
-        try {
-            SimpleDateFormat in = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US); in.setTimeZone(TimeZone.getTimeZone("UTC"));
-            return new SimpleDateFormat("HH:mm", Locale.FRANCE).format(in.parse(isoUtc.substring(0, 19)));
-        } catch (Exception e) { return ""; }
-    }
+    static String localTime(String iso) { return iso.length() >= 16 ? iso.substring(11, 16) : ""; } // déjà en heure de Paris
 }

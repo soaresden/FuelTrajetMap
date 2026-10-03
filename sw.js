@@ -1,7 +1,7 @@
 /* Service worker FuelMap : coquille de l'appli en cache (démarrage instantané, hors-ligne),
    tuiles de carte en cache plafonné. Les prix sont gérés par l'appli elle-même (IndexedDB). */
-var VERSION = 'fuelmap-v30';
-var SHELL = ['./', 'index.html', 'css/app.css', 'js/app.js', 'js/config.js', 'js/optimizer.js', 'js/sources.js', 'vendor/leaflet/leaflet.js', 'vendor/leaflet/leaflet.css', 'icons/icon.svg', 'icons/icon-192.png', 'manifest.webmanifest'];
+var VERSION = 'fuelmap-v47';
+var SHELL = ['./', 'index.html', 'css/app.css', 'js/app.js', 'js/config.js', 'js/diag.js', 'js/themes.js', 'js/optimizer.js', 'js/sources.js', 'js/car.js', 'js/fillup.js', 'js/update.js', 'vendor/leaflet/leaflet.js', 'vendor/leaflet/leaflet.css', 'icons/icon.svg', 'icons/icon-192.png', 'manifest.webmanifest'];
 var TILES = 'fuelmap-tiles', TILE_MAX = 600;
 
 self.addEventListener('install', function (e) { e.waitUntil(caches.open(VERSION).then(function (c) { return c.addAll(SHELL); }).then(function () { return self.skipWaiting(); })); });

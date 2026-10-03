@@ -87,7 +87,22 @@
   // France : export complet du flux instantané (data.economie.gouv.fr)
   var FR_KEYS = ['gazole', 'sp95', 'e10', 'sp98', 'e85', 'gplc'];
   var FR_URL = 'https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/prix-des-carburants-en-france-flux-instantane-v2/exports/json?select=' +
-    ['id', 'latitude', 'longitude', 'cp', 'pop', 'adresse', 'ville', 'horaires_automate_24_24'].concat(FR_KEYS.map(function (k) { return k + '_prix'; }), FR_KEYS.map(function (k) { return k + '_maj'; }), FR_KEYS.map(function (k) { return k + '_rupture_type'; }), FR_KEYS.map(function (k) { return k + '_rupture_debut'; })).join(',');
+    ['id', 'latitude', 'longitude', 'cp', 'pop', 'adresse', 'ville', 'horaires_automate_24_24', 'horaires_jour'].concat(FR_KEYS.map(function (k) { return k + '_prix'; }), FR_KEYS.map(function (k) { return k + '_maj'; }), FR_KEYS.map(function (k) { return k + '_rupture_type'; }), FR_KEYS.map(function (k) { return k + '_rupture_debut'; })).join(',');
+  // Les heures de prix-carburants.gouv.fr sont en heure française ; l'API open data leur colle « +00:00 » à tort.
+  // On garde donc les chiffres tels quels, interprétés dans le fuseau de l'appareil (celui des utilisateurs : la France).
+  function localMs(iso) { return Date.parse(String(iso).slice(0, 19)); }
+  // « Lundi07.00-21.00, Mardi07.00-12.00, 14.00-19.00, … » → 7 chaînes (lundi → dimanche) « 07:00-21:00|14:00-19:00 », '' = fermé ce jour-là
+  var DAYS_FR = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
+  function parseHours(str) {
+    var out = ['', '', '', '', '', '', ''], cur = -1;
+    String(str).split(',').forEach(function (part) {
+      part = part.trim(); var m = /^([A-Za-zéû]+)\s*(.*)$/.exec(part), range;
+      if (m && DAYS_FR.indexOf(m[1].toLowerCase()) >= 0) { cur = DAYS_FR.indexOf(m[1].toLowerCase()); range = m[2]; } else range = part;
+      var r = /(\d{1,2})[.:h](\d{2})\s*-\s*(\d{1,2})[.:h](\d{2})/.exec(range || '');
+      if (cur >= 0 && r) out[cur] += (out[cur] ? '|' : '') + r[1].padStart(2, '0') + ':' + r[2] + '-' + r[3].padStart(2, '0') + ':' + r[4];
+    });
+    return out.some(Boolean) ? out : null;
+  }
   function parseFR(rows) {
     var out = [];
     for (var i = 0; i < rows.length; i++) {
@@ -95,11 +110,12 @@
       if (!(lat > 41 && lat < 51.5 && lon > -5.5 && lon < 10)) continue;
       var s = station('fr', '', lat, lon, { cp: r.cp, adr: r.adresse, ville: r.ville, a24: r.horaires_automate_24_24 === 'Oui', hw: r.pop === 'A' });
       s.id = r.id;
+      if (r.horaires_jour) s.oh = parseHours(r.horaires_jour); // horaires d'ouverture par jour (lundi → dimanche)
       for (var f = 0; f < 6; f++) {
         var k = FR_KEYS[f], v = okPrice(+r[k + '_prix'] || 0), d = r[k + '_maj'], rt = r[k + '_rupture_type'];
         if (rt === 'definitive') continue;                                   // la station ne vend plus ce carburant : on ignore son ancien prix
-        if (v) { s.p[f] = v; var ms = d ? Date.parse(d) : NaN; s.m[f] = day(ms); if (isFinite(ms)) (s.t = s.t || {})[f] = Math.floor(ms / 60000); } // t : minute de mise à jour (indice de confiance)
-        if (rt === 'temporaire') { s.r |= (1 << f); var rd = r[k + '_rupture_debut']; if (rd) (s.rd = s.rd || {})[f] = day(Date.parse(rd)); } // rupture déclarée par le gérant
+        if (v) { s.p[f] = v; var ms = d ? localMs(d) : NaN; s.m[f] = day(ms); if (isFinite(ms)) (s.t = s.t || {})[f] = Math.floor(ms / 60000); } // t : minute de mise à jour (indice de confiance)
+        if (rt === 'temporaire') { s.r |= (1 << f); var rd = r[k + '_rupture_debut']; if (rd) (s.rd = s.rd || {})[f] = day(localMs(rd)); } // rupture déclarée par le gérant
       }
       out.push(s);
     }

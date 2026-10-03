@@ -36,6 +36,7 @@ h2.mt { margin-top: 22px; }
   background: var(--panel); background: color-mix(in srgb, var(--panel) 92%, transparent); backdrop-filter: blur(10px);
   border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow);
 }
+.ver { flex: 0 0 auto; margin-left: auto; font-size: 11px; color: var(--muted); opacity: .75; font-variant-numeric: tabular-nums; letter-spacing: .2px; align-self: flex-start; margin-top: 2px; }
 .brand { display: flex; align-items: center; gap: 6px; font-weight: 700; letter-spacing: .2px; }
 .brand span { display: none; }
 .chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; flex: 1; min-width: 0; }
@@ -163,9 +164,13 @@ details[open] summary { margin-bottom: 10px; }
 .badge { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 1px 6px; border-radius: 6px; border: 1px solid var(--line); color: var(--muted); margin-left: 4px; vertical-align: 1px; }
 .badge.old { color: var(--warn); border-color: var(--warn); }
 .badge.bad { color: var(--bad); border-color: var(--bad); }
+.badge.ok { color: var(--accent); border-color: var(--accent); }
+.card .badge.bad { display: inline-block; margin-top: 2px; }
 .pop tr.rupt td { color: var(--muted); text-decoration: line-through; } .pop tr.rupt td:first-child { text-decoration: none; }
 .stat.rupt { border-color: var(--bad); } .stat.rupt b { color: var(--bad); }
 .stat.mode { cursor: pointer; } #statbar .stat.mode.on { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 15%, var(--panel)); }
+.habit { font-size: 12px; color: var(--muted); margin: -2px 0 8px; display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap; }
+.hbars { display: inline-flex; align-items: flex-end; gap: 1px; height: 16px; } .hbars i { display: block; width: 4px; background: var(--accent); opacity: .7; border-radius: 1px; }
 .conf { font-size: 12.5px; font-weight: 600; margin: 6px 0 8px; padding: 6px 9px; border-radius: 8px; background: var(--panel2); border-left: 3px solid var(--muted); }
 .conf.c3, .c3 { border-left-color: var(--accent); } .conf.c2, .c2 { border-left-color: #ffd60a; } .conf.c1, .c1 { border-left-color: #ff8c42; } .conf.c0, .c0 { border-left-color: var(--muted); } .conf.c-1, .c-1 { border-left-color: var(--bad); color: var(--bad); }
 b.c3 { color: var(--accent); } b.c2 { color: #ffd60a; } b.c1 { color: #ff8c42; } b.c0 { color: var(--muted); } b.c-1 { color: var(--bad); }
@@ -372,3 +377,99 @@ html.wide #update .sheet { border-radius: 18px; }
 .theme-card.on { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent); }
 .theme-card .sw { display: flex; gap: 5px; padding: 6px; border-radius: 9px; border: 1px solid; } .theme-card .sw i { width: 16px; height: 16px; border-radius: 50%; display: block; }
 .theme-card b { font-size: 14px; }
+
+
+/* ===== Écran Android Auto (js/car.js) : colonne fixe à gauche, carte à droite, rien d'autre ===== */
+:root { --carpane: clamp(270px, 32vw, 380px); --rail: 72px; --stable-t: var(--safe-t); --stable-b: var(--safe-b); --stable-l: var(--safe-l); }
+html[data-carui] #topbar, html[data-carui] #statbar, html[data-carui] #tabs, html[data-carui] #panel, html[data-carui] #hud, html[data-carui] #loader, html[data-carui] .leaflet-control-attribution { display: none !important; }
+html[data-carui] #map { left: calc(var(--stable-l) + var(--rail)) !important; top: 0; bottom: 0; right: 0; }
+html[data-carui] #mapButtons { display: none !important; }
+html[data-carui] .leaflet-left { left: 0; } html[data-carui] .leaflet-bottom { bottom: calc(14px + var(--safe-b)); }
+html[data-carui] .leaflet-bar a { width: 52px; height: 52px; line-height: 52px; font-size: 26px; }
+html[data-carui] #mapButtons { bottom: calc(14px + var(--safe-b)); right: calc(14px + var(--safe-r)); gap: 12px; } html[data-carui] .round-btn { width: 60px; height: 60px; }
+html[data-carui] #carBtn, html[data-carui] #themeBtn { display: none; }
+#carRail { position: fixed; z-index: 720; left: var(--stable-l); top: 0; bottom: 0; width: var(--rail); background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; align-items: stretch; gap: 6px; padding: calc(8px + var(--stable-t)) 6px calc(8px + var(--stable-b)); }
+#carRail[hidden] { display: none; }
+#carRail button { height: 64px; border-radius: 14px; border: 1px solid var(--line); background: var(--panel2); color: var(--muted); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; padding: 0; }
+#carRail button span { font-size: 24px; line-height: 1; } #carRail button small { font-size: 11px; font-weight: 700; margin-top: 3px; }
+#carRail button.on { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: var(--accent-ink); border-color: transparent; }
+#carRail .cclose { margin-top: auto; height: 48px; font-size: 26px; font-weight: 800; color: var(--text); }
+#carPane { position: fixed; z-index: 710; left: calc(var(--stable-l) + var(--rail)); top: 0; bottom: 0; width: var(--carpane); background: var(--panel); border-right: 1px solid var(--line); box-shadow: 8px 0 24px rgba(0,0,0,.35); display: flex; flex-direction: column; padding: calc(8px + var(--stable-t)) 8px calc(8px + var(--stable-b)); gap: 6px; transform: translateX(calc(-100% - 8px)); transition: transform .22s ease; visibility: hidden; }
+#carPane.open { transform: none; visibility: visible; }
+#carPane[hidden] { display: none; }
+.ctabs { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; height: 56px; }
+.ctabs button { border-radius: 14px; border: 1px solid var(--line); background: var(--panel2); color: var(--muted); font-size: 17px; font-weight: 700; padding: 0 4px; white-space: nowrap; overflow: hidden; }
+.csc { color: var(--text); }
+.ctabs button.on { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: var(--accent-ink); border-color: transparent; }
+.clist { flex: 1; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; padding-right: 2px; } .clist::-webkit-scrollbar { display: none; }
+.crow { height: 58px; flex: 0 0 58px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); text-align: left; padding: 5px 10px; display: flex; flex-direction: column; justify-content: center; gap: 2px; }
+.chead { flex: 0 0 38px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 15px; font-weight: 700; padding: 0 4px; white-space: nowrap; overflow: hidden; } .chead small { color: var(--muted); font-weight: 500; font-size: 15px; }
+.csort { flex: 0 0 auto; height: 34px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); font-size: 14px; font-weight: 700; }
+.crow.tinted { border-left: 8px solid var(--pc); } .crow.tinted .pr { color: var(--pc); }
+.cfrom { flex: 0 0 40px; display: flex; align-items: center; gap: 8px; font-size: 16px; padding: 0 4px; white-space: nowrap; overflow: hidden; } .cfrom b { overflow: hidden; text-overflow: ellipsis; } .cfrom .muted { color: var(--muted); }
+.cx { margin-left: auto; flex: 0 0 auto; width: 44px; height: 40px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); font-size: 18px; }
+.cbars { flex: 0 0 40px; display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); padding: 0 4px; } .cbars .lb { flex: 0 0 auto; } .cbars .val { flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+.cbars .cb { flex: 1; display: grid; grid-template-columns: repeat(8, 1fr); gap: 3px; height: 34px; }
+.cbars .cb button { border-radius: 6px; border: 1px solid var(--line); background: var(--panel2); } .cbars .cb button.on { background: var(--accent); border-color: var(--accent); } .cbars .cb button.on.low { background: var(--warn); border-color: var(--warn); }
+.ctrip { flex: 0 0 auto; font-size: 14px; font-weight: 700; padding: 4px 4px 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cchoice .l1 .nm { font-size: 17px; }
+.crow.on { border-color: var(--accent); box-shadow: inset 0 0 0 2px var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--panel2)); }
+.csel-marker { width: 34px; height: 34px; border-radius: 50%; border: 4px solid var(--accent); box-shadow: 0 0 0 3px rgba(0,0,0,.45), 0 0 18px var(--accent); animation: cselPulse 1.6s ease-in-out infinite; }
+@keyframes cselPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.18); } }
+.crow .l1 { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 16px; font-weight: 700; white-space: nowrap; overflow: hidden; }
+.crow .l1 .nm { overflow: hidden; text-overflow: ellipsis; } .crow .l1 .pr { color: var(--accent); font-size: 20px; font-variant-numeric: tabular-nums; }
+.crow .l2 { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; } .crow .l2 span { min-width: 0; overflow: hidden; text-overflow: ellipsis; } .crow .l2 span:first-child { flex: 0 0 auto; }
+.cdot { display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin: 0 6px 0 0; vertical-align: -1px; background: var(--muted); }
+.cdot.c3 { background: var(--accent); } .cdot.c2 { background: #ffd60a; } .cdot.c1 { background: #ff8c42; } .cdot.c0 { background: var(--muted); } .cdot.c-1 { background: var(--bad); }
+.cmsg { margin: 8px 4px; font-size: 16px; line-height: 1.35; color: var(--muted); } .cmsg small { font-size: 13px; }
+.csel { height: 84px; flex: 0 0 84px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px; border-radius: 14px; background: var(--panel2); border: 1px solid var(--line); font-size: 17px; }
+.csel > div { min-width: 0; flex: 1; } .csel b { font-size: 18px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .csel small { color: var(--muted); font-size: 14px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cgo { flex: 0 0 auto; padding: 14px 18px; border-radius: 14px; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: var(--accent-ink); font-weight: 800; font-size: 19px; text-decoration: none; white-space: nowrap; }
+
+/* ---- Carnet de pleins : « tu viens de faire le plein ? » (feuille en bas sur le téléphone, colonne de gauche dans la voiture) */
+#fillSheet { position: fixed; inset: 0; z-index: 3200; background: rgba(0,0,0,.6); display: flex; align-items: flex-end; justify-content: center; }
+#fillSheet[hidden] { display: none; }
+html.wide #fillSheet { align-items: center; }
+.fs-card { width: 100%; max-width: 480px; background: var(--panel); border: 1px solid var(--line); border-radius: 22px 22px 0 0; padding: 14px 16px calc(16px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 10px; }
+html.wide .fs-card { border-radius: 22px; }
+.fs-head { display: flex; align-items: center; justify-content: space-between; font-size: 19px; font-weight: 800; }
+.fs-x { width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); font-size: 18px; }
+.fs-station { padding: 10px 12px; border-radius: 14px; background: var(--panel2); font-size: 16px; line-height: 1.3; } .fs-station small { color: var(--muted); }
+.fs-q { margin: 2px 0; font-size: 18px; line-height: 1.35; } .fs-q small { display: block; color: var(--muted); font-size: 14px; }
+.fs-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.fs-btn { min-height: 56px; border-radius: 14px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); font-size: 18px; font-weight: 700; padding: 8px 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+.fs-btn small { font-size: 13px; color: var(--muted); font-weight: 500; }
+.fs-btn.yes { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: var(--accent-ink); border-color: transparent; } .fs-btn.yes small { color: inherit; opacity: .8; }
+.fs-btn.ghost { background: transparent; color: var(--muted); min-height: 44px; font-weight: 600; }
+.fs-btn.big { min-height: 60px; font-size: 20px; } .fs-btn[disabled] { opacity: .4; }
+.fs-fuels { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.fs-amount { display: flex; align-items: baseline; justify-content: space-between; padding: 8px 14px; border-radius: 14px; background: var(--panel2); font-variant-numeric: tabular-nums; }
+.fs-amount b { font-size: 32px; } .fs-amount small { font-size: 16px; color: var(--muted); }
+.fs-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.fs-pad button { height: 56px; border-radius: 14px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); font-size: 24px; font-weight: 700; }
+.fs-pad button:active { background: var(--accent); color: var(--accent-ink); }
+html[data-carui] #fillSheet { left: calc(var(--stable-l) + var(--rail)); right: auto; width: var(--carpane); top: 0; bottom: 0; background: var(--panel); align-items: stretch; }
+html[data-carui] .fs-card { max-width: none; border: 0; border-radius: 0; padding: calc(8px + var(--stable-t)) 10px calc(8px + var(--stable-b)); overflow-y: auto; }
+html[data-carui] .fs-pad { gap: 4px; } html[data-carui] .fs-pad button { height: 36px; font-size: 18px; } html[data-carui] .fs-amount { padding: 4px 10px; } html[data-carui] .fs-amount b { font-size: 22px; } html[data-carui] .fs-btn { min-height: 40px; font-size: 15px; } html[data-carui] .fs-btn.big { min-height: 42px; font-size: 16px; } html[data-carui] .fs-btn.ghost { min-height: 32px; } html[data-carui] .fs-station { font-size: 14px; padding: 5px 10px; } html[data-carui] .fs-station small, html[data-carui] .fs-q small { display: none; } html[data-carui] .fs-q { font-size: 15px; margin: 0; } html[data-carui] .fs-head { font-size: 15px; } html[data-carui] .fs-x { width: 34px; height: 34px; } html[data-carui] .fs-card { gap: 4px; } html[data-carui] .fs-row { gap: 6px; }
+/* carnet */
+.fl-stats { display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 10px 12px; border-radius: 14px; background: var(--panel2); margin-bottom: 8px; font-size: 14px; color: var(--muted); } .fl-stats b { color: var(--text); font-size: 16px; }
+.fl-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 12px; border: 1px solid var(--line); margin-bottom: 6px; font-size: 14px; }
+.fl-row .fl-l { flex: 1; min-width: 0; } .fl-row .fl-r { text-align: right; flex: 0 0 auto; }
+.fl-row b { display: block; font-size: 15px; } .fl-row small { display: block; color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fl-del { flex: 0 0 auto; width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel2); font-size: 15px; }
+
+/* ---- écran voiture : carte de station sur la carte, bandeau de guidage */
+html[data-carui] .leaflet-popup-content-wrapper { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 8px 24px rgba(0,0,0,.4); }
+html[data-carui] .leaflet-popup-tip { background: var(--panel); }
+html[data-carui] .leaflet-popup-content { margin: 10px 12px; font-size: 14px; line-height: 1.3; min-width: 230px; }
+html[data-carui] .leaflet-popup-close-button { display: none; }
+.cpop .t { display: flex; justify-content: space-between; gap: 10px; font-size: 16px; font-weight: 800; } .cpop .t .pr { color: var(--accent); font-size: 20px; font-variant-numeric: tabular-nums; }
+.cpop .s { color: var(--muted); font-size: 13px; margin: 2px 0 8px; }
+.cpop .b { display: flex; gap: 6px; } .cpop .b button { flex: 1; height: 44px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); font-size: 15px; font-weight: 700; }
+.cpop .b button.go { flex: 2; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: var(--accent-ink); border-color: transparent; font-size: 17px; }
+#carGuide { position: fixed; z-index: 705; left: calc(var(--stable-l) + var(--rail) + 10px); top: calc(var(--stable-t) + 8px); background: var(--panel); border: 1px solid var(--accent); border-radius: 14px; box-shadow: 0 8px 24px rgba(0,0,0,.4); padding: 8px 10px 8px 12px; display: flex; align-items: center; gap: 12px; max-width: calc(100vw - var(--rail) - 440px); }
+#carGuide[hidden] { display: none; } html.carpane-open #carGuide { left: calc(var(--stable-l) + var(--rail) + var(--carpane) + 10px); }
+#carGuide .d { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; } #carGuide .d small { font-size: 14px; color: var(--muted); font-weight: 600; margin-left: 6px; }
+#carGuide .n { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px; }
+#carGuide button { flex: 0 0 auto; width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); font-size: 18px; }
+.cguide-line { stroke: var(--accent); }

@@ -4,7 +4,9 @@
  *   fr es pt ad it   prix par station → data/<pays>.json   (indispensable pour l'Italie : pas de CORS)
  *   brands           enseignes des stations françaises (absentes des données de l'État) → data/fr-brands.json
  *                    Source : OpenStreetMap (ODbL), dont les stations portent l'identifiant officiel « ref:FR:prix-carburants ».
- *   hist             historique des prix France, 180 jours → data/hist/<département>.json
+ *   hist             historique des prix France, 180 jours → data/hist/<département>.json, et habitudes de mise à jour
+ *                    (90 jours) → data/fr-habits.json : par station, nombre de mises à jour, heure la plus fréquente et sa
+ *                    part (≥ 60 % = mise à jour automatique à heure fixe, ex. TotalEnergies 00:01), répartition par heure.
  *                    Source : archive annuelle de prix-carburants.gouv.fr (≈ 30 Mo zippés ; nécessite la commande `unzip`).
  * Usage : node tools/build-data.mjs [cibles…]      (Node >= 18, aucune dépendance ; sans argument : tout)
  * Tourne dans .github/workflows/pages.yml. Une cible qui échoue garde son fichier précédent.
@@ -71,17 +73,25 @@ async function hist() {
   const DAYS = 180, since = Math.floor(Date.now() / DAY) - DAYS, now = new Date(), years = [now.getUTCFullYear()];
   if ((Date.now() - Date.UTC(years[0], 0, 1)) / DAY < DAYS) years.unshift(years[0] - 1);
   const stations = new Map(); // id → { dep, f: { fuelIdx: [jour, millièmes, jour, millièmes…] } }
+  const HABIT_DAYS = 90, habitSince = Math.floor(Date.now() / DAY) - HABIT_DAYS, habits = new Map(); // id → { n, hm: Map('HH:MM' → n), h: [24] }
   for (const y of years) {
     const zip = join(tmpdir(), `fuelmap-${y}.zip`), r = await fetch(`https://donnees.roulez-eco.fr/opendata/annee/${y}`, { headers: UA });
     if (!r.ok) throw new Error(`archive ${y} → HTTP ${r.status}`);
     await pipeline(r.body, createWriteStream(zip));
-    const unzip = spawn('unzip', ['-p', zip]); let cur = null;
+    const unzip = spawn('unzip', ['-p', zip]); let cur = null, curId = null;
     unzip.on('error', e => { throw new Error('commande unzip introuvable : ' + e.message); });
     for await (const line of createInterface({ input: unzip.stdout.setEncoding('latin1'), crlfDelay: Infinity })) {
       let m = /<pdv id="(\d+)"[^>]* cp="(\w{2})/.exec(line);
-      if (m) { cur = stations.get(m[1]); if (!cur) stations.set(m[1], cur = { dep: m[2], f: {} }); continue; }
+      if (m) { curId = m[1]; cur = stations.get(m[1]); if (!cur) stations.set(m[1], cur = { dep: m[2], f: {} }); continue; }
       if (!cur || !(m = /<prix [^>]*id="(\d)" maj="([^"]+)" valeur="([\d.]+)"/.exec(line))) continue;
       const fi = FUEL_BY_GOV_ID[m[1]], d = Math.floor(Date.parse(m[2] + 'Z') / DAY), v = Math.round(+m[3] * 1000);
+      if (d >= habitSince) { // habitudes de mise à jour (heures locales telles que publiées)
+        const id = curId, hm = m[2].slice(11, 16);
+        if (id) { // une mise à jour = un instant (plusieurs carburants saisis ensemble ne comptent qu'une fois)
+          let hb = habits.get(id); if (!hb) habits.set(id, hb = { n: 0, hm: new Map(), h: new Array(24).fill(0), seen: new Set() });
+          if (!hb.seen.has(m[2])) { hb.seen.add(m[2]); hb.n++; hb.hm.set(hm, (hb.hm.get(hm) || 0) + 1); hb.h[+hm.slice(0, 2)]++; }
+        }
+      }
       if (fi == null || !(v > 300 && v < 5000) || !Number.isFinite(d)) continue;
       const a = cur.f[fi] || (cur.f[fi] = []), n = a.length;
       if (n && a[n - 1] === v) continue;                                 // prix inchangé : on ne garde que les changements
@@ -99,7 +109,15 @@ async function hist() {
   if (kept < 3000) throw new Error(`seulement ${kept} stations avec historique`);
   await rm(new URL('hist/', DATA), { recursive: true, force: true }); await mkdir(new URL('hist/', DATA), { recursive: true });
   for (const dep in shards) await writeFile(new URL(`hist/${dep}.json`, DATA), JSON.stringify({ ts: Date.now(), days: DAYS, s: shards[dep] }));
-  return `${kept} stations, ${Object.keys(shards).length} départements`;
+  const hab = {}; let nAuto = 0;
+  for (const [id, hb] of habits) {
+    if (hb.n < 3) continue;
+    let top = '', topN = 0; for (const [k, n] of hb.hm) if (n > topN) { top = k; topN = n; }
+    const share = Math.round(100 * topN / hb.n), auto = hb.n >= 10 && share >= 60; if (auto) nAuto++;
+    hab[id] = [hb.n, top, share, hb.h.map(x => Math.min(35, Math.round(x * 35 / Math.max(1, Math.max(...hb.h)))).toString(36)).join('')]; // 24 chiffres base 36 : profil horaire normalisé
+  }
+  await writeFile(new URL('fr-habits.json', DATA), JSON.stringify({ ts: Date.now(), days: HABIT_DAYS, map: hab }));
+  return `${kept} stations, ${Object.keys(shards).length} départements ; habitudes : ${Object.keys(hab).length} stations dont ${nAuto} à heure fixe`;
 }
 
 const TARGETS = { ...Object.fromEntries(Object.keys(SOURCES).filter(k => SOURCES[k].urls).map(cc => [cc, () => country(cc)])), brands, hist };
