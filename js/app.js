@@ -1153,18 +1153,32 @@
   // Styles d'affichage des notes (au choix, mémorisé) : simple, bloc-notes ligné, post-it de couleurs, carnet à carreaux
   var NOTE_STYLES = [['plain', '📄 Simple'], ['lined', '📒 Bloc-notes'], ['postit', '🟨 Post-it'], ['seyes', '📓 Cahier 24×32'], ['grid', '📐 Petits carreaux']];
   var POSTIT = ['#fff59d', '#ffcdd2', '#bbdefb', '#c8e6c9', '#ffe0b2'];
+  var noteStyleOpen = 0; // note dont le choix de style est ouvert
   function renderNotes() {
     var el = $('notesList'); if (!el) return;
     var list = (state.notes || []).slice().sort(function (a, b) { return b.ts - a.ts; }), ns = state.noteStyle || 'plain';
-    var bar = '<div class="nstyles">' + NOTE_STYLES.map(function (x) { return '<button class="chip' + (x[0] === ns ? ' on' : '') + '" data-nstyle="' + x[0] + '">' + x[1] + '</button>'; }).join('') + '</div>';
-    el.innerHTML = bar + (list.length ? '<div class="notes ns-' + ns + '">' + list.map(function (n, i) {
-      var d = new Date(n.ts), when = d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }) + ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-      var look = ns === 'postit' ? ' style="--pi:' + POSTIT[Math.floor(n.ts / 1000) % POSTIT.length] + ';--rot:' + (i % 2 ? 1.4 : -1.2) + 'deg"' : '';
-      return '<div class="nnote"' + look + '><div class="nwhen">' + esc(when) + (n.place ? ' · 📍 ' + esc(n.place) : '') + '</div><div class="nt">' + esc(n.text) + '</div><button class="ndel" data-note-del="' + n.ts + '" title="Supprimer">🗑️</button></div>';
+    var chips = function (cur, attr, ts) { return NOTE_STYLES.map(function (x) { return '<button class="chip' + (x[0] === cur ? ' on' : '') + '" ' + attr + '="' + x[0] + '"' + (ts ? ' data-ts="' + ts + '"' : '') + '>' + x[1] + '</button>'; }).join(''); };
+    var bar = '<div class="nstyles"><span class="nlbl">Style par défaut :</span>' + chips(ns, 'data-nstyle') + '</div>';
+    el.innerHTML = bar + (list.length ? '<div class="notes nl-' + ns + '">' + list.map(function (n, i) {
+      var d = new Date(n.ts), when = d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }) + ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }), st = n.style || ns;
+      var look = st === 'postit' ? ' style="--pi:' + POSTIT[Math.floor(n.ts / 1000) % POSTIT.length] + ';--rot:' + (i % 2 ? 1.4 : -1.2) + 'deg"' : '';
+      return '<div class="nnote ns-' + st + '"' + look + '><div class="nwhen">' + esc(when) + (n.place ? ' · 📍 ' + esc(n.place) : '') + '</div><div class="nt">' + esc(n.text) + '</div>' +
+        '<div class="nbtns"><button class="nbtn" data-note-look="' + n.ts + '" title="Style de cette note">🎨</button><button class="nbtn" data-note-del="' + n.ts + '" title="Supprimer">🗑️</button></div>' +
+        (noteStyleOpen === n.ts ? '<div class="nstyles one">' + chips(st, 'data-note-setstyle', n.ts) + '</div>' : '') + '</div>';
     }).join('') + '</div>' : '<p class="hint">Aucune note. Dans la voiture, le bouton 📝 en haut permet d’en dicter une (clavier à l’arrêt).</p>');
+    // cahiers et bloc-notes : le texte doit poser SUR les lignes. Le pied des lettres dépend de la police (différente selon le
+    // téléphone) : on le mesure dans chaque note et on cale ses lignes dessus (--bl, depuis le haut de la note).
+    el.querySelectorAll('.nnote.ns-seyes, .nnote.ns-grid, .nnote.ns-lined').forEach(function (nn) {
+      var nt = nn.querySelector('.nt'), mk = document.createElement('span'); mk.style.cssText = 'display:inline-block;width:0;height:0;vertical-align:baseline'; nt.insertBefore(mk, nt.firstChild);
+      nn.style.setProperty('--bl', Math.round(mk.getBoundingClientRect().top - nn.getBoundingClientRect().top) + 'px'); mk.remove();
+    });
   }
   $('noteAdd').addEventListener('click', function () { if (addNote($('noteText').value)) { $('noteText').value = ''; toast('📝 Note enregistrée'); } });
-  $('notesList').addEventListener('click', function (e) { var st = e.target.closest('[data-nstyle]'); if (st) { state.noteStyle = st.getAttribute('data-nstyle'); save(); renderNotes(); return; } var b = e.target.closest('[data-note-del]'); if (!b) return; var ts = +b.getAttribute('data-note-del'); state.notes = (state.notes || []).filter(function (n) { return n.ts !== ts; }); save(); renderNotes(); });
+  $('notesList').addEventListener('click', function (e) {
+    var st = e.target.closest('[data-nstyle]'); if (st) { state.noteStyle = st.getAttribute('data-nstyle'); save(); renderNotes(); return; }
+    var lk = e.target.closest('[data-note-look]'); if (lk) { var t0 = +lk.getAttribute('data-note-look'); noteStyleOpen = noteStyleOpen === t0 ? 0 : t0; renderNotes(); return; }
+    var ss = e.target.closest('[data-note-setstyle]'); if (ss) { var t1 = +ss.getAttribute('data-ts'), n1 = (state.notes || []).filter(function (n) { return n.ts === t1; })[0]; if (n1) { n1.style = ss.getAttribute('data-note-setstyle'); noteStyleOpen = 0; save(); renderNotes(); } return; }
+    var b = e.target.closest('[data-note-del]'); if (!b) return; var ts = +b.getAttribute('data-note-del'); state.notes = (state.notes || []).filter(function (n) { return n.ts !== ts; }); save(); renderNotes(); });
   renderNotes();
 
   // ------------------------------------------------------------------ sauvegarde gérée par l'utilisateur (jamais chez Google)
