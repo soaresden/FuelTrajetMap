@@ -232,7 +232,8 @@ Le README décrit la publication.
 1d. FAIT en 1.6.3 (à valider sur le téléphone / dans la voiture) : carnet dans 🚗 Ma voiture (3 derniers pleins, « ➕ J'ai fait le plein » =
    station la plus proche < 2 km) ; dossier de sauvegarde (Véhicules › 💾 : « FuelMap-sauvegarde.json », remis à jour 4 s après chaque
    changement et quand l'appli passe en arrière-plan ; restaurer depuis le dossier ou un fichier ; « J'ai déjà FuelMap : restaurer » à
-   l'accueil ; navigateur = exporter / importer) ; bloc-notes (`state.notes`, bouton 📝 de l'hôte, liste dans Véhicules) :
+   l'accueil ; navigateur = exporter / importer) ; bloc-notes (`state.notes`, bouton 📝 de l'hôte, liste dans Véhicules ; 5 styles `state.noteStyle` : simple, bloc-notes ligné,
+   post-it, cahier 24×32 Seyès (marge rose, lignes bleues), petits carreaux) :
    à la voix toujours ; au clavier SEULEMENT à l'arrêt dans la voiture (règles Android Auto : pas de saisie en roulant, risque de refus
    au Store) — en roulant « Gare-toi pour écrire, ou dicte » ; sans limite sur le téléphone.
    Découpage futur gratuit / Plus : voir `.plus-archive/NOTES.md` (trajet optimisé et mode voiture du téléphone restent gratuits).

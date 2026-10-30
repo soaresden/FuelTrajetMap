@@ -675,3 +675,26 @@ html[data-carui] .fs-fchip { padding: 4px 8px; font-size: 13px; }
 #obRestore { width: 100%; margin-top: 8px; }
 .cfl { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; padding: 3px 4px; border-bottom: 1px solid var(--line); } .cfl span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .cfl b { white-space: nowrap; } .cfl small { color: var(--muted); }
 .copt.cfillnow { width: 100%; margin-top: 6px; }
+/* notes : 4 styles. Les styles « papier » gardent une encre sombre sur papier clair, quel que soit le thème */
+.nstyles { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 10px; }
+.notes { display: flex; flex-direction: column; gap: 8px; }
+.nnote { position: relative; padding: 10px 40px 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel2); }
+.nnote .nwhen { font-size: 12px; color: var(--muted); } .nnote .nt { white-space: pre-wrap; font-size: 15px; margin-top: 3px; line-height: 1.45; }
+.nnote .ndel { position: absolute; top: 6px; right: 6px; width: 30px; height: 30px; border-radius: 8px; border: 0; background: transparent; font-size: 14px; opacity: .7; }
+.ns-lined .nnote, .ns-grid .nnote, .ns-postit .nnote { color: #2b2b2b; border-color: transparent; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+.ns-lined .nwhen, .ns-grid .nwhen, .ns-postit .nwhen { color: #6d6d6d; }
+.ns-lined .nt, .ns-grid .nt, .ns-postit .nt { font-family: 'Segoe Print', 'Comic Sans MS', 'Dancing Script', cursive; font-size: 16px; }
+/* bloc-notes : papier ligné, marge rouge */
+.ns-lined .nnote { border-radius: 4px; padding-left: 34px; background-color: #fffef8; background-image: linear-gradient(90deg, transparent 24px, #f28b82 24px, #f28b82 26px, transparent 26px), repeating-linear-gradient(#fffef8 0 22px, #a8c7fa 22px 23px); background-position: 0 0, 0 8px; }
+.ns-lined .nt { line-height: 23px; }
+/* cahier 24×32 petits carreaux (5 mm) : carreaux bleus réguliers, marge rouge */
+.ns-grid .nnote, .ns-seyes .nnote { border-radius: 3px; padding-left: 40px; color: #2b2b2b; border-color: transparent; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+.ns-grid .nnote { background-color: #fdfdfb; background-image: linear-gradient(90deg, transparent 30px, #e53935 30px, #e53935 32px, transparent 32px), linear-gradient(#c9d8f0 1px, transparent 1px), linear-gradient(90deg, #c9d8f0 1px, transparent 1px); background-size: 100% 100%, 16px 16px, 16px 16px; }
+.ns-grid .nt { line-height: 16px; padding-top: 2px; }
+/* cahier 24×32 grands carreaux (Seyès) : marge rose, lignes fines bleu clair tous les 2 mm, ligne bleu-violet tous les 8 mm, colonnes */
+.ns-seyes .nnote { background-color: #fffefb; background-image: linear-gradient(90deg, transparent 30px, #ef6f9a 30px, #ef6f9a 32px, transparent 32px), repeating-linear-gradient(#7d86d8 0 1px, transparent 1px 32px), repeating-linear-gradient(#c7d2f2 0 1px, transparent 1px 8px), repeating-linear-gradient(90deg, #a3acdf 0 1px, transparent 1px 32px); background-position: 0 0, 0 6px, 0 6px, 32px 0; }
+.ns-seyes .nwhen, .ns-grid .nwhen { color: #6d6d6d; } .ns-seyes .nt { line-height: 32px; font-family: 'Segoe Print', 'Comic Sans MS', 'Dancing Script', cursive; font-size: 16px; }
+/* post-it : carrés de couleur, un peu de travers, deux colonnes */
+.ns-postit { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; padding: 4px 2px 8px; }
+.ns-postit .nnote { min-height: 130px; border-radius: 2px 2px 14px 2px; background: var(--pi, #fff59d); transform: rotate(var(--rot, 0deg)); box-shadow: 0 6px 12px rgba(0,0,0,.28); }
+.ns-postit .nnote::before { content: ''; position: absolute; top: -7px; left: 50%; width: 46px; height: 14px; margin-left: -23px; background: rgba(255,255,255,.55); transform: rotate(-3deg); box-shadow: 0 1px 2px rgba(0,0,0,.15); } /* bout de scotch */

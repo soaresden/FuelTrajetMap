@@ -1150,16 +1150,21 @@
     state.notes.push({ ts: Date.now(), text: text.slice(0, 2000), lat: f ? +f.lat.toFixed(5) : null, lon: f ? +f.lon.toFixed(5) : null, place: place || (f ? nearTown(f.lat, f.lon) : '') });
     save(); renderNotes(); return true;
   }
+  // Styles d'affichage des notes (au choix, mémorisé) : simple, bloc-notes ligné, post-it de couleurs, carnet à carreaux
+  var NOTE_STYLES = [['plain', '📄 Simple'], ['lined', '📒 Bloc-notes'], ['postit', '🟨 Post-it'], ['seyes', '📓 Cahier 24×32'], ['grid', '📐 Petits carreaux']];
+  var POSTIT = ['#fff59d', '#ffcdd2', '#bbdefb', '#c8e6c9', '#ffe0b2'];
   function renderNotes() {
     var el = $('notesList'); if (!el) return;
-    var list = (state.notes || []).slice().sort(function (a, b) { return b.ts - a.ts; });
-    el.innerHTML = list.length ? list.map(function (n) {
+    var list = (state.notes || []).slice().sort(function (a, b) { return b.ts - a.ts; }), ns = state.noteStyle || 'plain';
+    var bar = '<div class="nstyles">' + NOTE_STYLES.map(function (x) { return '<button class="chip' + (x[0] === ns ? ' on' : '') + '" data-nstyle="' + x[0] + '">' + x[1] + '</button>'; }).join('') + '</div>';
+    el.innerHTML = bar + (list.length ? '<div class="notes ns-' + ns + '">' + list.map(function (n, i) {
       var d = new Date(n.ts), when = d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }) + ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-      return '<div class="fl-row note"><div class="fl-l"><small>' + esc(when) + (n.place ? ' · 📍 ' + esc(n.place) : '') + '</small><div class="nt">' + esc(n.text) + '</div></div><button class="fl-del" data-note-del="' + n.ts + '" title="Supprimer">🗑️</button></div>';
-    }).join('') : '<p class="hint">Aucune note. Dans la voiture, le bouton 📝 en haut permet d’en dicter une (clavier à l’arrêt).</p>';
+      var look = ns === 'postit' ? ' style="--pi:' + POSTIT[Math.floor(n.ts / 1000) % POSTIT.length] + ';--rot:' + (i % 2 ? 1.4 : -1.2) + 'deg"' : '';
+      return '<div class="nnote"' + look + '><div class="nwhen">' + esc(when) + (n.place ? ' · 📍 ' + esc(n.place) : '') + '</div><div class="nt">' + esc(n.text) + '</div><button class="ndel" data-note-del="' + n.ts + '" title="Supprimer">🗑️</button></div>';
+    }).join('') + '</div>' : '<p class="hint">Aucune note. Dans la voiture, le bouton 📝 en haut permet d’en dicter une (clavier à l’arrêt).</p>');
   }
   $('noteAdd').addEventListener('click', function () { if (addNote($('noteText').value)) { $('noteText').value = ''; toast('📝 Note enregistrée'); } });
-  $('notesList').addEventListener('click', function (e) { var b = e.target.closest('[data-note-del]'); if (!b) return; var ts = +b.getAttribute('data-note-del'); state.notes = (state.notes || []).filter(function (n) { return n.ts !== ts; }); save(); renderNotes(); });
+  $('notesList').addEventListener('click', function (e) { var st = e.target.closest('[data-nstyle]'); if (st) { state.noteStyle = st.getAttribute('data-nstyle'); save(); renderNotes(); return; } var b = e.target.closest('[data-note-del]'); if (!b) return; var ts = +b.getAttribute('data-note-del'); state.notes = (state.notes || []).filter(function (n) { return n.ts !== ts; }); save(); renderNotes(); });
   renderNotes();
 
   // ------------------------------------------------------------------ sauvegarde gérée par l'utilisateur (jamais chez Google)
@@ -1776,7 +1781,7 @@
   // Téléphone et écran voiture partagent les réglages (même stockage), mais chacun en garde une copie en mémoire : sans ceci, l'un
   // écraserait à sa prochaine sauvegarde ce que l'autre vient de changer (couleur, carburant, véhicule…). On relit donc les réglages
   // partagés dès que l'autre écran les modifie, et en revenant au premier plan. La vue de la carte reste propre à chaque écran.
-  var SHARED = ['cars', 'activeCar', 'fuel', 'theme', 'places', 'favs', 'brand', 'startE', 'neighbours', 'lastRoute', 'fillups', 'fillLog', 'notes'];
+  var SHARED = ['cars', 'activeCar', 'fuel', 'theme', 'places', 'favs', 'brand', 'startE', 'neighbours', 'lastRoute', 'fillups', 'fillLog', 'notes', 'noteStyle'];
   function syncShared(raw) {
     var n; try { n = JSON.parse(raw || 'null'); } catch (e) { return; } if (!n || typeof n !== 'object') return;
     var changed = SHARED.filter(function (k) { return n[k] !== undefined && JSON.stringify(n[k]) !== JSON.stringify(state[k]); });
