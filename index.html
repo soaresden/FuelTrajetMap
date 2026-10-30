@@ -144,6 +144,12 @@
             <div class="field"><label for="carCons">Conso (L/100 km)</label><input id="carCons" type="number" min="1" max="40" step="0.1" required inputmode="decimal"></div>
           </div>
           <div class="field"><label for="carReserve">Réserve de sécurité (L) — jamais en dessous</label><input id="carReserve" type="number" min="0" max="30" step="0.5" required inputmode="decimal"></div>
+          <div class="field"><label for="carPaint">Couleur de la voiture <span>curseur sur la carte</span></label>
+            <div class="paintrow"><input id="carPaint" type="text" maxlength="40" autocomplete="off" placeholder="ex. Mazda Deep Crystal Blue"><input id="carColor" type="color" value="#3b82f6" title="Choisir la couleur à la main"></div>
+            <div id="paintSug" class="paintsug"></div>
+            <div class="row"><button type="button" id="paintPhoto" class="secondary">📷 Depuis une photo</button><button type="button" id="paintWeb" class="secondary">🔎 Photos du modèle</button></div>
+            <input id="paintFile" type="file" accept="image/*" hidden>
+          </div>
           <p class="hint">Astuce E85 : saisis ta conso réelle à l'éthanol (souvent +20 à +30 % par rapport au SP95).</p>
           <div class="row">
             <button type="submit" class="primary">Enregistrer</button>
@@ -200,6 +206,7 @@
   <script src="js/config.js"></script>
   <script src="js/diag.js"></script>
   <script src="js/themes.js"></script>
+  <script src="js/paints.js"></script>
   <script src="js/optimizer.js"></script>
   <script src="js/sources.js"></script>
   <script src="js/app.js"></script>

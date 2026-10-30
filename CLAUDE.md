@@ -18,6 +18,7 @@ js/fillup.js                           carnet de pleins (question au démarrage 
 js/diag.js                             journal côté page (FM.log), export du zip de diagnostic
 js/sources.js, js/optimizer.js         chargement/normalisation des données ; algorithme d'arrêts (testé : tests/optimizer.test.js)
 js/themes.js, js/update.js             12 thèmes ; mise à jour obligatoire (version-min.json)
+js/paints.js                           teintes constructeur approchées (couleur du curseur de la voiture)
 tools/build-data.mjs                   génère data/<pays>.json, brands, hist, fr-habits.json (habitudes de mise à jour)
 apk/                                   projet Capacitor ; apk/android = projet Gradle (Java) ; apk/dhu = écran de voiture virtuel
 apk/android/app/src/main/java/fr/soaresden/fuelmap/
@@ -33,10 +34,10 @@ apk/android/app/src/main/java/fr/soaresden/fuelmap/
 ## Règles non négociables
 
 - **versionCode jamais réutilisé** : le Play Console grille un code dès qu'un AAB est téléversé, même en brouillon.
-  Dernier utilisé : **46 (1.5.8)**. Chaque livraison = code +1 ET bump de `versionName` dans `apk/android/app/build.gradle`,
+  Dernier utilisé : **47 (1.5.9)**. Chaque livraison = code +1 ET bump de `versionName` dans `apk/android/app/build.gradle`,
   de `version` dans `js/config.js`, et du nom de cache dans `sw.js`. Les trois ensemble, toujours.
-- Chaque livraison fournit : APK **release** (signé avec la clé d'upload, s'installe par-dessus), AAB (Play), et un commit.
-  Les `*.apk`/`*.aab` sont ignorés par git ; ils vivent dans `apk/`.
+- Chaque livraison fournit : l'**AAB** (Play, signé avec la clé d'upload) et un commit. **Plus d'APK** : depuis la 1.5.9 Denis
+  installe uniquement via le Play Store (tests internes). Les `*.apk`/`*.aab` sont ignorés par git ; ils vivent dans `apk/`.
 - `apk/android/keystore/` (clé d'upload + keystore.properties) **ne va jamais dans git**. `.plus-archive/` non plus.
 - Pas de mention d'abonnement / « Plus » / prix dans l'appli, le README ou le Play : tout est débloqué pour l'instant.
   Le découpage futur gratuit / Plus est documenté dans `.plus-archive/NOTES.md` et `NOTES-carnet.md`.
@@ -46,8 +47,13 @@ apk/android/app/src/main/java/fr/soaresden/fuelmap/
 
 ## Construire / tester
 
-- PC : `apk\construire-apk.bat` (Node + SDK Android 36 + JDK 21). Pour un APK release signé : `cd apk\android && gradlew.bat assembleRelease bundleRelease`
-  (le signing release s'active si `keystore/keystore.properties` existe).
+- PC : `apk\construire-apk.bat` (Node + SDK Android 36 + JDK 21) → AAB seul (`gradlew.bat bundleRelease` ; le signing release
+  s'active si `keystore/keystore.properties` existe). Sur le PC de Denis : SDK dans `C:\Android\sdk` (pas de local.properties, le .bat pose
+  ANDROID_HOME) ; seul un JDK 17 est installé dans le PATH, or Capacitor 7 exige le **JDK 21** (le .bat prend `C:\Android\jdk-21` s'il existe).
+- Tests d'écran dans le navigateur intégré : `.claude/launch.json` (« fuelmap », http-server sur le port 8137), page
+  `index.html?car=1&aa=1` en 1193×480, puis dans la console : `__fuelmap.carStable(26,26,13,26); __fuelmap.carInsets(95,26,13,26);
+  __fuelmap.fix={lat:47.394,lon:0.685,speed:0}; document.dispatchEvent(new CustomEvent('fuelmap:fix'))`. Les captures du panneau
+  ont parfois une image de retard : vérifier l'état avec `__fuelmapCar.state()`.
 - À la main : copier `index.html sw.js js css icons vendor manifest.webmanifest privacy.html version-min.json` dans `apk/www/`,
   `npx cap sync android`, puis Gradle. Le dossier `apk/www/` est ignoré par git.
 - Données locales pour tester : `node tools/build-data.mjs` (cibles : fr es pt ad it brands hist).
@@ -84,16 +90,43 @@ apk/android/app/src/main/java/fr/soaresden/fuelmap/
 - `@JavascriptInterface` : le pont page→Android a déjà « perdu » des appels (cible Y aller périmée). Pour ce qui compte, Android
   **interroge la page** au moment voulu (`surface.eval(...)`) plutôt que de mémoriser.
 - Les listes de l'hôte sont limitées (~6 lignes) : c'est pourquoi les listes sont dans la page, pas dans des templates.
+- Pincer : on reproduit le pincer tactile de Leaflet (`map._move(c, z, {pinch:true})` image par image, puis `_resetView` calé au
+  quart de niveau, `zoomSnap = 0.25` en voiture). Le canvas des stations suit via l'événement `zoom` (StationLayer._onZoom).
+- L'hôte montre / cache ses boutons toutes les ~5 s → `carInsets` est rappelé : il ne doit **pas** recadrer le trajet en voiture
+  (la carte sautait sous le doigt).
+- La page peut naître avant que l'écran virtuel ait sa taille : un `ResizeObserver` sur la carte appelle `invalidateSize`, et
+  `drawHeat` ignore une carte de taille nulle (sinon exception qui bloquait tout app.js).
 
-## Écran voiture (js/car.js) — comportement attendu
+## Écran voiture (js/car.js) — comportement attendu (refait en 1.5.9, façon Waze / Google Maps)
 
-Rail de 3 boutons à gauche (⛽ Stations : stations de la zone affichée, vert→rouge, tri prix ; 🧭 Trajet : départ = ma
-position, destination par favoris / dernier trajet / 🔍 hôte, réservoir en 8 barres, arrêts proposés ; 🚨 Pénurie : autour
-de la voiture, note fraîcheur-distance-prix avec les pushs automatiques (Total 00:01) fortement pénalisés). Panneau repliable vers
-la gauche, lignes denses, défilement. Toucher une ligne = carte de station sur la carte (prix, fraîcheur, horaires, 🧭 Y aller).
-Y aller (bouton de l'hôte ou de la carte) = guidage : vue derrière la flèche (carte tournée au cap et inclinée en CSS, flèche
-fixe au tiers bas, zoom selon la vitesse), instructions, voix, recalcul si > 500 m hors itinéraire, ⏹ Arrêter. État et
-journalisation : `__fuelmapCar.state()/dump()`. Plein : question « tu viens de faire le plein ? » (fillup.js) dans la colonne.
+Denis veut un écran **épuré** : la carte d'abord, le reste **par étapes**. Colonne fine (60 px) à gauche, icônes seules :
+⛽ Stations, 🧭 Trajet, 🚨 Pénurie, 🎨 Thème, puis zoom ＋/− en bas (secours si le pincer n'arrive pas). Chaque mode est un parcours
+(`FLOWS`) dont les étapes s'affichent en **bulles** en haut (`#carSteps`, ✓ = étape faite, touchable pour revenir) ; le contenu de
+l'étape est une **carte flottante** à gauche (`#carPane`, 330 px, hauteur selon le contenu).
+- ⛽ Stations : Carte › Liste › Station › Guidage. Étape Carte = rien d'ouvert, prix écrits sur la carte (pastilles plus grosses
+  en voiture), bouton bas « 📋 N stations · dès x,xxx › » (`#carChip`) pour ouvrir la liste. Toucher une pastille = étape Station.
+- 🧭 Trajet : Destination › Réservoir › Arrêts › Guidage. **Le niveau du réservoir est toujours demandé avant le calcul.**
+  Dernier trajet du téléphone (< 3 h) repris d'office à l'étape Réservoir.
+- 🚨 Pénurie : Autour de moi › Station › Guidage (note fraîcheur-distance-prix, pushs automatiques type Total 00:01 pénalisés).
+- 🎨 Thème : les 12 thèmes, appliqués tout de suite (`__fuelmapAPI.setTheme`).
+- Guidage FuelMap **multi-arrêts** : OSRM avec tous les points (arrêts carburant puis destination), instructions de toutes les
+  étapes, « Arrêt carburant, X » à chaque arrêt, bandeau bas « Arrêt 1/2 · station · prix · km [⏭ Passer] » (`#carNext`),
+  avancement sur l'itinéraire sans retour en arrière, recalcul si > 500 m hors route, arrêt auto 20 s après l'arrivée. Vue derrière
+  la flèche inchangée. Plus de bouton 📱 Maps dans la voiture.
+- « Les yeux sur la route » : en roulant (> 8 km/h), plus de 6 touchers/gestes en 10 s → écran bloqué 3 s avec une barre qui se
+  vide (`#carLock`). Test : `__fuelmapCar.lockTest(true)`.
+- Chaque toucher affiche un petit rond (`.ctap`) : on voit que l'écran a réagi.
+- Hors mode Trajet, la carte montre toutes les stations (`window.__carShowAll`), pas seulement les candidates du trajet.
+État et journalisation : `__fuelmapCar.state()/dump()`. Plein : question « tu viens de faire le plein ? » (fillup.js) à gauche.
+
+## Couleur de la voiture (curseur)
+
+Fiche véhicule (téléphone) : champ « Couleur ». Trois sources : table de teintes d'usine approchées (`js/paints.js`, ~140 entrées,
+recherche tolérante FR/EN), **photo de sa voiture** (rien ne sort du téléphone), ou **photos du modèle sur Wikimedia Commons**
+(API gratuite sans clé, images lisibles au pixel ; « mx5 » → « mx-5 », élargissement si trop peu de résultats). Sur la photo :
+couleur dominante proposée au centre, un toucher sur la carrosserie l'ajuste. Stockée dans `car.color` / `car.paint`, appliquée
+via `--car` au point de position et à la flèche du guidage. Google Images écarté : clé payante exposée sans serveur, API fermée aux
+nouveaux comptes, et les sites tiers interdisent la lecture des pixels.
 
 ## Play Store
 
@@ -103,7 +136,11 @@ Le README décrit la publication.
 
 ## Pistes en attente (par priorité ressentie)
 
-1. Valider dans la voiture : fiche de manœuvre acceptée par l'hôte, voix dans les enceintes, vue tournée fluide (sinon alléger la nappe de couleur).
+1. Valider la 1.5.9 dans la voiture : nouvel écran par étapes, pincer, toucher, verrou 3 s, guidage multi-arrêts ; et toujours fiche de
+   manœuvre acceptée par l'hôte, voix dans les enceintes, vue tournée fluide (sinon alléger la nappe de couleur).
+1b. Piste technique proposée : passer la carte de Leaflet à **MapLibre GL** (WebGL, tuiles vectorielles OpenFreeMap gratuites) : rotation et
+   inclinaison natives pour le guidage (au lieu du carré CSS tourné), zoom continu, rendu net. Gros chantier (toute la carte de app.js) :
+   à faire à part, après validation de la 1.5.9.
 2. Remontée utilisateur (« cette station est fermée / plus d'essence ») : nécessite un petit backend (Cloudflare Worker proposé), en attente du compte.
 3. Carnet de pleins : export CSV, rappel kilométrage ; puis découpage gratuit / Plus (voir `.plus-archive`).
 4. Statistiques de conduite (conso réelle déjà calculée entre deux relevés de compteur).

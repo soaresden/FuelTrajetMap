@@ -208,7 +208,7 @@ b.c3 { color: var(--accent); } b.c2 { color: #ffd60a; } b.c1 { color: #ff8c42; }
 .stop-marker { background: var(--accent); color: var(--accent-ink); border: 2px solid #fff; border-radius: 14px; font-weight: 800; font-size: 12px; padding: 2px 7px; white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,.5); transform: translate(-50%, -130%); display: inline-block; }
 .end-marker { width: 16px; height: 16px; border-radius: 50%; border: 3px solid #fff; background: #3b82f6; box-shadow: 0 2px 6px rgba(0,0,0,.5); }
 .end-marker.to { background: #111; }
-.me-marker { width: 16px; height: 16px; border-radius: 50%; background: #3b82f6; border: 3px solid #fff; box-shadow: 0 0 0 6px rgba(59,130,246,.25); }
+.me-marker { width: 16px; height: 16px; border-radius: 50%; background: var(--car, #3b82f6); border: 3px solid #fff; box-shadow: 0 0 0 6px color-mix(in srgb, var(--car, #3b82f6) 30%, transparent), 0 0 0 1px rgba(0,0,0,.5); }
 
 #toast { position: fixed; z-index: 900; left: calc(50% + (var(--safe-l) - var(--safe-r)) / 2); bottom: calc(var(--tabs-h) + 16px + var(--safe-b)); transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 9px 14px; border-radius: 10px; font-size: 13.5px; font-weight: 600; max-width: 90vw; box-shadow: var(--shadow); }
 #loader { position: fixed; z-index: 800; left: calc(50% + (var(--safe-l) - var(--safe-r)) / 2); top: calc(var(--top-h) + 56px + var(--safe-t)); transform: translateX(-50%); display: flex; gap: 8px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 7px 14px; font-size: 13px; box-shadow: var(--shadow); }
@@ -379,52 +379,83 @@ html.wide #update .sheet { border-radius: 18px; }
 .theme-card b { font-size: 14px; }
 
 
-/* ===== Écran Android Auto (js/car.js) : colonne fixe à gauche, carte à droite, rien d'autre ===== */
-:root { --carpane: clamp(270px, 32vw, 380px); --rail: 72px; --stable-t: var(--safe-t); --stable-b: var(--safe-b); --stable-l: var(--safe-l); }
-html[data-carui] #topbar, html[data-carui] #statbar, html[data-carui] #tabs, html[data-carui] #panel, html[data-carui] #hud, html[data-carui] #loader, html[data-carui] .leaflet-control-attribution { display: none !important; }
-html[data-carui] #map { left: calc(var(--stable-l) + var(--rail)) !important; top: 0; bottom: 0; right: 0; }
-html[data-carui] #mapButtons { display: none !important; }
-html[data-carui] .leaflet-left { left: 0; } html[data-carui] .leaflet-bottom { bottom: calc(14px + var(--safe-b)); }
-html[data-carui] .leaflet-bar a { width: 52px; height: 52px; line-height: 52px; font-size: 26px; }
-html[data-carui] #mapButtons { bottom: calc(14px + var(--safe-b)); right: calc(14px + var(--safe-r)); gap: 12px; } html[data-carui] .round-btn { width: 60px; height: 60px; }
-html[data-carui] #carBtn, html[data-carui] #themeBtn { display: none; }
-#carRail { position: fixed; z-index: 720; left: var(--stable-l); top: 0; bottom: 0; width: var(--rail); background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; align-items: stretch; gap: 6px; padding: calc(8px + var(--stable-t)) 6px calc(8px + var(--stable-b)); }
+/* ===== Écran Android Auto (js/car.js) : façon Waze / Google Maps — colonne fine à gauche, la carte partout ailleurs,
+   bulles d'étapes en haut, contenu de l'étape dans une carte flottante ===== */
+:root { --carpane: 330px; --rail: 60px; --stable-t: var(--safe-t); --stable-b: var(--safe-b); --stable-l: var(--safe-l); --cleft: calc(var(--stable-l) + var(--rail) + 8px); }
+html[data-carui] #topbar, html[data-carui] #statbar, html[data-carui] #tabs, html[data-carui] #panel, html[data-carui] #hud, html[data-carui] #loader, html[data-carui] .leaflet-control-container { display: none !important; }
+html[data-carui], html[data-carui] body { background: var(--map-bg); }
+html[data-carui] #map { left: calc(var(--stable-l) + var(--rail)) !important; top: 0; bottom: 0; right: 0; background: var(--map-bg); }
+html[data-carui] #mapButtons, html[data-carui] #carBtn, html[data-carui] #themeBtn { display: none !important; }
+#carRail { position: fixed; z-index: 720; left: var(--stable-l); top: 0; bottom: 0; width: var(--rail); background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; align-items: stretch; gap: 6px; padding: calc(6px + var(--stable-t)) 5px calc(6px + var(--stable-b)); }
 #carRail[hidden] { display: none; }
-#carRail button { height: 64px; border-radius: 14px; border: 1px solid var(--line); background: var(--panel2); color: var(--muted); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; padding: 0; }
-#carRail button span { font-size: 24px; line-height: 1; } #carRail button small { font-size: 11px; font-weight: 700; margin-top: 3px; }
-#carRail button.on { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: var(--accent-ink); border-color: transparent; }
-#carRail .cclose { margin-top: auto; height: 48px; font-size: 26px; font-weight: 800; color: var(--text); }
-#carPane { position: fixed; z-index: 710; left: calc(var(--stable-l) + var(--rail)); top: 0; bottom: 0; width: var(--carpane); background: var(--panel); border-right: 1px solid var(--line); box-shadow: 8px 0 24px rgba(0,0,0,.35); display: flex; flex-direction: column; padding: calc(8px + var(--stable-t)) 8px calc(8px + var(--stable-b)); gap: 6px; transform: translateX(calc(-100% - 8px)); transition: transform .22s ease; visibility: hidden; }
-#carPane.open { transform: none; visibility: visible; }
+#carRail button { flex: 0 0 54px; border-radius: 14px; border: 0; background: transparent; color: var(--text); font-size: 26px; line-height: 1; padding: 0; display: flex; align-items: center; justify-content: center; }
+#carRail button.on { background: linear-gradient(135deg, var(--accent), var(--accent2)); box-shadow: 0 2px 10px rgba(0,0,0,.3); }
+#carRail .sp { flex: 1 1 0; min-height: 4px; }
+#carRail .cz { flex: 0 0 48px; background: var(--panel2); border: 1px solid var(--line); font-size: 28px; font-weight: 700; color: var(--text); }
+/* bulles d'étapes */
+#carSteps { position: fixed; z-index: 715; left: var(--cleft); top: calc(var(--stable-t) + 6px); display: flex; align-items: center; gap: 4px; max-width: calc(100vw - var(--cleft) - 300px); padding: 4px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow); white-space: nowrap; overflow: hidden; }
+#carSteps[hidden] { display: none; }
+#carSteps .cmode { padding: 0 12px 0 10px; font-size: 15px; font-weight: 800; }
+#carSteps i { font-style: normal; color: var(--muted); font-size: 14px; }
+.cstep { height: 34px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel2); color: var(--muted); font-size: 14px; font-weight: 700; }
+.cstep.done { color: var(--text); border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); }
+.cstep.on { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: var(--accent-ink); border-color: transparent; }
+.cstep[disabled] { opacity: .55; }
+.cstx { flex: 0 0 34px; height: 34px; margin-left: 4px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel2); color: var(--text); font-size: 16px; }
+/* carte flottante de l'étape */
+#carPane { position: fixed; z-index: 710; left: var(--cleft); top: calc(var(--stable-t) + 54px); width: var(--carpane); max-height: calc(100vh - var(--stable-t) - 54px - var(--stable-b) - 8px); background: var(--panel); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); display: flex; flex-direction: column; padding: 8px; gap: 6px; transform: translateX(-24px); opacity: 0; visibility: hidden; transition: transform .18s ease, opacity .18s ease, visibility 0s .18s; }
+#carPane.open { transform: none; opacity: 1; visibility: visible; transition: transform .18s ease, opacity .18s ease; }
 #carPane[hidden] { display: none; }
-.ctabs { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; height: 56px; }
-.ctabs button { border-radius: 14px; border: 1px solid var(--line); background: var(--panel2); color: var(--muted); font-size: 17px; font-weight: 700; padding: 0 4px; white-space: nowrap; overflow: hidden; }
-.csc { color: var(--text); }
-.ctabs button.on { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: var(--accent-ink); border-color: transparent; }
-.clist { flex: 1; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; padding-right: 2px; } .clist::-webkit-scrollbar { display: none; }
-.crow { height: 58px; flex: 0 0 58px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); text-align: left; padding: 5px 10px; display: flex; flex-direction: column; justify-content: center; gap: 2px; }
-.chead { flex: 0 0 38px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 15px; font-weight: 700; padding: 0 4px; white-space: nowrap; overflow: hidden; } .chead small { color: var(--muted); font-weight: 500; font-size: 15px; }
-.csort { flex: 0 0 auto; height: 34px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); font-size: 14px; font-weight: 700; }
+.clist { flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; } .clist::-webkit-scrollbar { display: none; }
+.chead { flex: 0 0 auto; min-height: 30px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 15px; font-weight: 700; padding: 0 4px; white-space: nowrap; overflow: hidden; } .chead small { color: var(--muted); font-weight: 500; font-size: 14px; } .chead > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.cfoot { flex: 0 0 auto; }
+.cbig { width: 100%; height: 54px; border-radius: 14px; border: 0; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: var(--accent-ink); font-size: 19px; font-weight: 800; }
+.csort { flex: 0 0 auto; height: 32px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); font-size: 14px; font-weight: 700; }
+.crow { flex: 0 0 56px; height: 56px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); text-align: left; padding: 5px 10px; display: flex; flex-direction: column; justify-content: center; gap: 2px; }
 .crow.tinted { border-left: 8px solid var(--pc); } .crow.tinted .pr { color: var(--pc); }
-.cfrom { flex: 0 0 40px; display: flex; align-items: center; gap: 8px; font-size: 16px; padding: 0 4px; white-space: nowrap; overflow: hidden; } .cfrom b { overflow: hidden; text-overflow: ellipsis; } .cfrom .muted { color: var(--muted); }
-.cx { margin-left: auto; flex: 0 0 auto; width: 44px; height: 40px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); font-size: 18px; }
-.cbars { flex: 0 0 40px; display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); padding: 0 4px; } .cbars .lb { flex: 0 0 auto; } .cbars .val { flex: 0 0 auto; font-variant-numeric: tabular-nums; }
-.cbars .cb { flex: 1; display: grid; grid-template-columns: repeat(8, 1fr); gap: 3px; height: 34px; }
-.cbars .cb button { border-radius: 6px; border: 1px solid var(--line); background: var(--panel2); } .cbars .cb button.on { background: var(--accent); border-color: var(--accent); } .cbars .cb button.on.low { background: var(--warn); border-color: var(--warn); }
-.ctrip { flex: 0 0 auto; font-size: 14px; font-weight: 700; padding: 4px 4px 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cchoice .l1 .nm { font-size: 17px; }
 .crow.on { border-color: var(--accent); box-shadow: inset 0 0 0 2px var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--panel2)); }
-.csel-marker { width: 34px; height: 34px; border-radius: 50%; border: 4px solid var(--accent); box-shadow: 0 0 0 3px rgba(0,0,0,.45), 0 0 18px var(--accent); animation: cselPulse 1.6s ease-in-out infinite; }
-@keyframes cselPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.18); } }
+.crow:active, .cbig:active, .cstep:active, #carRail button:active, #carChip:active { filter: brightness(1.25); }
 .crow .l1 { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 16px; font-weight: 700; white-space: nowrap; overflow: hidden; }
 .crow .l1 .nm { overflow: hidden; text-overflow: ellipsis; } .crow .l1 .pr { color: var(--accent); font-size: 20px; font-variant-numeric: tabular-nums; }
 .crow .l2 { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; } .crow .l2 span { min-width: 0; overflow: hidden; text-overflow: ellipsis; } .crow .l2 span:first-child { flex: 0 0 auto; }
+.cchoice .l1 .nm { font-size: 17px; }
+.csc { color: var(--text); }
+.cfrom { display: block; font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; } .cfrom .muted { color: var(--muted); }
+.cq { margin: 4px 4px 2px; font-size: 17px; font-weight: 700; }
+.cbars { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; height: 72px; padding: 0 2px; flex: 0 0 72px; }
+.cbars button { border-radius: 8px; border: 1px solid var(--line); background: var(--panel2); }
+.cbars button.on { background: var(--accent); border-color: var(--accent); } .cbars button.on.low { background: var(--warn); border-color: var(--warn); }
+.cval { display: flex; justify-content: space-between; align-items: baseline; padding: 2px 4px 6px; color: var(--muted); font-size: 13px; } .cval b { color: var(--text); font-size: 18px; font-variant-numeric: tabular-nums; }
+.ctrip { flex: 0 0 auto; font-size: 14px; font-weight: 700; padding: 2px 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ccard { padding: 2px 4px 6px; } .ccard .big { font-size: 34px; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; line-height: 1.15; } .ccard .big small { font-size: 15px; color: var(--muted); font-weight: 600; }
+.ccard .ln { font-size: 14px; color: var(--muted); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chead .nm { font-size: 17px; }
+.cthemes { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+.cth { height: 52px; border-radius: 12px; border: 2px solid; font-size: 13px; font-weight: 700; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 0 4px; white-space: nowrap; overflow: hidden; }
+.cth i { width: 22px; height: 5px; border-radius: 3px; display: block; } .cth.on { box-shadow: inset 0 0 0 2px currentColor; }
 .cdot { display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin: 0 6px 0 0; vertical-align: -1px; background: var(--muted); }
 .cdot.c3 { background: var(--accent); } .cdot.c2 { background: #ffd60a; } .cdot.c1 { background: #ff8c42; } .cdot.c0 { background: var(--muted); } .cdot.c-1 { background: var(--bad); }
 .cmsg { margin: 8px 4px; font-size: 16px; line-height: 1.35; color: var(--muted); } .cmsg small { font-size: 13px; }
-.csel { height: 84px; flex: 0 0 84px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px; border-radius: 14px; background: var(--panel2); border: 1px solid var(--line); font-size: 17px; }
-.csel > div { min-width: 0; flex: 1; } .csel b { font-size: 18px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .csel small { color: var(--muted); font-size: 14px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cgo { flex: 0 0 auto; padding: 14px 18px; border-radius: 14px; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: var(--accent-ink); font-weight: 800; font-size: 19px; text-decoration: none; white-space: nowrap; }
+.csel-marker { width: 34px; height: 34px; border-radius: 50%; border: 4px solid var(--accent); box-shadow: 0 0 0 3px rgba(0,0,0,.45), 0 0 18px var(--accent); animation: cselPulse 1.6s ease-in-out infinite; }
+@keyframes cselPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.18); } }
+.cstop-marker { width: 30px; height: 30px; border-radius: 50%; background: var(--panel); border: 3px solid var(--accent); display: flex; align-items: center; justify-content: center; font-size: 15px; box-shadow: 0 0 0 2px rgba(0,0,0,.4); }
+/* bouton « N stations » (étape Carte) et bandeau du prochain arrêt (guidage) */
+#carChip, #carNext { position: fixed; z-index: 712; left: var(--cleft); bottom: calc(var(--stable-b) + 10px); height: 52px; padding: 0 18px; border-radius: 999px; background: var(--panel); color: var(--text); border: 1px solid var(--line); box-shadow: var(--shadow); font-size: 17px; font-weight: 700; display: flex; align-items: center; gap: 8px; white-space: nowrap; max-width: calc(100vw - var(--cleft) - 120px); overflow: hidden; }
+#carChip b { color: var(--accent); font-size: 19px; } #carChip .ar { font-size: 22px; color: var(--muted); }
+#carChip[hidden], #carNext[hidden] { display: none; }
+#carNext { left: calc(var(--stable-l) + var(--rail) + (100vw - var(--stable-l) - var(--rail)) / 2); transform: translateX(-50%); font-size: 16px; font-weight: 600; padding-right: 6px; border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); }
+#carNext button { height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); font-size: 15px; font-weight: 700; margin-left: 4px; }
+/* toucher : petit rond qui s'efface, pour voir que l'écran a réagi */
+.ctap { position: fixed; z-index: 3500; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%; background: color-mix(in srgb, var(--accent) 45%, transparent); pointer-events: none; animation: ctap .45s ease-out forwards; }
+@keyframes ctap { from { transform: scale(.4); opacity: 1; } to { transform: scale(1.4); opacity: 0; } }
+/* « les yeux sur la route » : bloque l'écran 3 s, la barre se vide */
+#carLock { position: fixed; inset: 0; z-index: 3400; background: rgba(0,0,0,.55); display: flex; align-items: center; justify-content: center; }
+#carLock[hidden] { display: none; }
+#carLock > div { background: var(--panel); border: 1px solid var(--line); border-radius: 20px; padding: 18px 26px; display: flex; flex-direction: column; align-items: center; gap: 6px; box-shadow: var(--shadow); min-width: 340px; }
+#carLock b { font-size: 22px; } #carLock small { color: var(--muted); font-size: 14px; }
+#carLock .bar { width: 100%; height: 8px; border-radius: 4px; background: var(--panel2); overflow: hidden; margin-top: 8px; }
+#carLock .bar i { display: block; height: 100%; background: var(--accent); transform-origin: left; animation: clock 3s linear forwards; }
+@keyframes clock { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 
 /* ---- Carnet de pleins : « tu viens de faire le plein ? » (feuille en bas sur le téléphone, colonne de gauche dans la voiture) */
 #fillSheet { position: fixed; inset: 0; z-index: 3200; background: rgba(0,0,0,.6); display: flex; align-items: flex-end; justify-content: center; }
@@ -448,7 +479,7 @@ html.wide .fs-card { border-radius: 22px; }
 .fs-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .fs-pad button { height: 56px; border-radius: 14px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); font-size: 24px; font-weight: 700; }
 .fs-pad button:active { background: var(--accent); color: var(--accent-ink); }
-html[data-carui] #fillSheet { left: calc(var(--stable-l) + var(--rail)); right: auto; width: var(--carpane); top: 0; bottom: 0; background: var(--panel); align-items: stretch; }
+html[data-carui] #fillSheet { left: calc(var(--stable-l) + var(--rail)); right: auto; width: 380px; top: 0; bottom: 0; background: var(--panel); align-items: stretch; }
 html[data-carui] .fs-card { max-width: none; border: 0; border-radius: 0; padding: calc(8px + var(--stable-t)) 10px calc(8px + var(--stable-b)); overflow-y: auto; }
 html[data-carui] .fs-pad { gap: 4px; } html[data-carui] .fs-pad button { height: 36px; font-size: 18px; } html[data-carui] .fs-amount { padding: 4px 10px; } html[data-carui] .fs-amount b { font-size: 22px; } html[data-carui] .fs-btn { min-height: 40px; font-size: 15px; } html[data-carui] .fs-btn.big { min-height: 42px; font-size: 16px; } html[data-carui] .fs-btn.ghost { min-height: 32px; } html[data-carui] .fs-station { font-size: 14px; padding: 5px 10px; } html[data-carui] .fs-station small, html[data-carui] .fs-q small { display: none; } html[data-carui] .fs-q { font-size: 15px; margin: 0; } html[data-carui] .fs-head { font-size: 15px; } html[data-carui] .fs-x { width: 34px; height: 34px; } html[data-carui] .fs-card { gap: 4px; } html[data-carui] .fs-row { gap: 6px; }
 /* carnet */
@@ -459,14 +490,6 @@ html[data-carui] .fs-pad { gap: 4px; } html[data-carui] .fs-pad button { height:
 .fl-del { flex: 0 0 auto; width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel2); font-size: 15px; }
 
 /* ---- écran voiture : carte de station sur la carte, bandeau de guidage */
-html[data-carui] .leaflet-popup-content-wrapper { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 8px 24px rgba(0,0,0,.4); }
-html[data-carui] .leaflet-popup-tip { background: var(--panel); }
-html[data-carui] .leaflet-popup-content { margin: 10px 12px; font-size: 14px; line-height: 1.3; min-width: 230px; }
-html[data-carui] .leaflet-popup-close-button { display: none; }
-.cpop .t { display: flex; justify-content: space-between; gap: 10px; font-size: 16px; font-weight: 800; } .cpop .t .pr { color: var(--accent); font-size: 20px; font-variant-numeric: tabular-nums; }
-.cpop .s { color: var(--muted); font-size: 13px; margin: 2px 0 8px; }
-.cpop .b { display: flex; gap: 6px; } .cpop .b button { flex: 1; height: 44px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); font-size: 15px; font-weight: 700; }
-.cpop .b button.go { flex: 2; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: var(--accent-ink); border-color: transparent; font-size: 17px; }
 #carGuide { position: fixed; z-index: 705; left: calc(var(--stable-l) + var(--rail) + 10px); top: calc(var(--stable-t) + 8px); background: var(--panel); border: 1px solid var(--accent); border-radius: 14px; box-shadow: 0 8px 24px rgba(0,0,0,.4); padding: 8px 10px 8px 12px; display: flex; align-items: center; gap: 12px; max-width: calc(100vw - var(--rail) - 440px); }
 #carGuide[hidden] { display: none; } html.carpane-open #carGuide { left: calc(var(--stable-l) + var(--rail) + var(--carpane) + 10px); }
 #carGuide .gi { font-size: 38px; line-height: 1; flex: 0 0 auto; } #carGuide .gt { min-width: 0; }
@@ -481,7 +504,16 @@ html[data-carui].carnav #map { left: var(--nav-x) !important; top: var(--nav-y) 
 html[data-carui].carnav .leaflet-control-container { display: none; }
 #carArrow { position: fixed; z-index: 702; width: 0; height: 0; pointer-events: none; }
 #carArrow[hidden] { display: none; }
-#carArrow::before { content: ''; position: absolute; left: -16px; top: -22px; border-left: 16px solid transparent; border-right: 16px solid transparent; border-bottom: 34px solid var(--accent); filter: drop-shadow(0 0 4px rgba(0,0,0,.8)); }
+#carArrow::before { content: ''; position: absolute; left: -16px; top: -22px; border-left: 16px solid transparent; border-right: 16px solid transparent; border-bottom: 34px solid var(--car, var(--accent)); filter: drop-shadow(0 0 1px #fff) drop-shadow(0 0 1px #fff) drop-shadow(0 0 4px rgba(0,0,0,.8)); }
 #carArrow::after { content: ''; position: absolute; left: -9px; top: 4px; border-left: 9px solid transparent; border-right: 9px solid transparent; border-bottom: 12px solid var(--panel); }
 html[data-carui].carnav #carGuide { left: calc(var(--stable-l) + var(--rail) + 10px); }
 html[data-carui].carnav #carRail { padding-top: calc(8px + var(--safe-t)); } /* pendant le guidage, la fiche de manœuvre de l'hôte occupe le haut à gauche */
+
+/* couleur de la voiture (fiche véhicule) : teintes proposées, photo à toucher */
+.paintrow { display: flex; gap: 8px; } .paintrow input[type=text] { flex: 1; min-width: 0; }
+.paintrow input[type=color] { flex: 0 0 52px; height: 42px; padding: 2px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel2); }
+.paintsug { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; } .paintsug:empty { display: none; }
+.paintsug .chip i, .paintpick i { display: inline-block; width: 14px; height: 14px; border-radius: 50%; margin-right: 6px; vertical-align: -2px; border: 1px solid var(--line); }
+.paintgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; } .paintgrid img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 10px; cursor: pointer; background: var(--panel2); }
+#paintCanvas { width: 100%; height: auto; border-radius: 12px; cursor: crosshair; display: block; }
+.paintpick { display: flex; align-items: center; gap: 10px; margin-top: 10px; } .paintpick i { width: 34px; height: 34px; margin: 0; } .paintpick b { flex: 1; font-variant-numeric: tabular-nums; } .paintpick .primary { width: auto; padding: 0 22px; }

@@ -325,7 +325,9 @@
     document.documentElement.setAttribute('data-theme', state.theme); document.documentElement.setAttribute('data-dark', t.dark ? '1' : '0');
     document.querySelector('meta[name=theme-color]').setAttribute('content', t.bg);
     if (!tiles) useTiles(0);
+    applyCarColor();
   }
+  function applyCarColor() { document.documentElement.style.setProperty('--car', car().color || '#3b82f6'); } // curseur (point de position, flèche du guidage) à la couleur de la voiture
   function openThemePicker() {
     openModal('<h2>🎨 Thème</h2><p class="hint">Couleurs de l\'appli et du fond de carte. Les couleurs des prix (vert = pas cher, rouge = cher) ne changent pas.</p><div class="themes">' +
       Object.keys(THEMES).map(function (k) { var t = THEMES[k]; return '<button class="theme-card' + (k === state.theme ? ' on' : '') + '" data-theme-pick="' + k + '" style="background:' + t.bg + ';color:' + t.text + ';border-color:' + (k === state.theme ? t.accent : t.line) + '"><span class="sw" style="background:' + t.panel + ';border-color:' + t.line + '"><i style="background:' + t.accent + '"></i><i style="background:' + t.accent2 + '"></i><i style="background:' + t.bad + '"></i></span><b>' + t.emoji + ' ' + t.name + '</b></button>'; }).join('') + '</div>');
@@ -345,6 +347,7 @@
   }
   applyTheme();
 
+  function carUi() { return document.documentElement.hasAttribute('data-carui'); }
   function colorFor(t) { t = Math.max(0, Math.min(1, t)); return 'hsl(' + Math.round(140 - 140 * t) + ',78%,' + (isDark() ? 48 : 40) + '%)'; }
 
   // Couche canvas maison : un seul <canvas>, redessiné à chaque fin de déplacement. 10 000 stations ≈ quelques ms.
@@ -352,10 +355,11 @@
     onAdd: function (m) {
       this._canvas = L.DomUtil.create('canvas', 'station-canvas leaflet-zoom-animated');
       m.getPane('overlayPane').appendChild(this._canvas);
-      m.on('moveend resize', this.redraw, this); m.on('zoomanim', this._anim, this);
+      m.on('moveend resize', this.redraw, this); m.on('zoomanim', this._anim, this); m.on('zoom', this._onZoom, this);
       this.redraw();
     },
-    onRemove: function (m) { L.DomUtil.remove(this._canvas); m.off('moveend resize', this.redraw, this); m.off('zoomanim', this._anim, this); },
+    onRemove: function (m) { L.DomUtil.remove(this._canvas); m.off('moveend resize', this.redraw, this); m.off('zoomanim', this._anim, this); m.off('zoom', this._onZoom, this); },
+    _onZoom: function () { var m = this._map; this._anim({ zoom: m.getZoom(), center: m.getCenter() }); }, // pincer continu (écran voiture) : le canvas suit la carte jusqu'au redessin
     _anim: function (e) {
       if (!this._bounds) return;
       var scale = this._map.getZoomScale(e.zoom, this._zoom);
@@ -375,7 +379,7 @@
       this._hits = drawStations(ctx, m, tl, full, this._bounds, this._zoom);
     },
     hit: function (layerPoint) {
-      var best = null, bd = 22 * 22, h = this._hits || [];
+      var r = carUi() ? 34 : 22, best = null, bd = r * r, h = this._hits || []; // écran voiture : doigt moins précis, cible plus large
       for (var i = 0; i < h.length; i++) { var dx = h[i].x - layerPoint.x, dy = h[i].y - layerPoint.y, d = dx * dx + dy * dy; if (d < bd) { bd = d; best = h[i].s; } }
       return best;
     }
@@ -395,6 +399,7 @@
   var heatCanvas = document.createElement('canvas');
   function drawHeat(ctx, pts, full, zoom) {
     var cell = 6, gw = Math.ceil(full.x / cell), gh = Math.ceil(full.y / cell);
+    if (!(gw > 0 && gh > 0)) return; // carte pas encore dimensionnée (écran voiture au démarrage) : rien à dessiner
     var R = Math.max(26, Math.min(120, 22 + (zoom - 5) * 11)), rc = Math.ceil(R / cell), sigma2 = 2 * Math.pow(R / cell / 2.3, 2);
     var size = 2 * rc + 1, kernel = new Float32Array(size * size), x, y;
     for (y = -rc; y <= rc; y++) for (x = -rc; x <= rc; x++) { var d2 = x * x + y * y; kernel[(y + rc) * size + x + rc] = d2 > rc * rc ? 0 : Math.exp(-d2 / sigma2); }
@@ -426,7 +431,7 @@
 
   function drawStations(ctx, m, tl, full, bounds, zoom) {
     var fi = FUEL_INDEX[state.fuel], fis = displayFuels(), hits = [];
-    var list = routeCtx ? routeCtx.candidateStations : stationsInBounds(bounds.getSouth(), bounds.getWest(), bounds.getNorth(), bounds.getEast());
+    var list = routeCtx && !window.__carShowAll ? routeCtx.candidateStations : stationsInBounds(bounds.getSouth(), bounds.getWest(), bounds.getNorth(), bounds.getEast());
     // statistiques sur la zone réellement visible
     var vb = m.getBounds(), good = [], stale = [], rupt = [];
     for (var i = 0; i < list.length; i++) {
@@ -468,13 +473,14 @@
       });
     }
     good.sort(function (a, b) { return a._p - b._p; });
+    var big = carUi(), PW = big ? 60 : 48, PH = big ? 26 : 21; // écran voiture : pastilles de prix plus grosses, lisibles d'un coup d'œil
     var pills = [], dots = [], usePills = zoom >= 10.5, occ = {}, heatPts = [];
     var shortage = state.shortage;
     good.forEach(function (s) {
       var p = pt(s); p.s = s; p.t = shortage ? confidence(s, pick(s, fis)).t : Math.max(0, Math.min(1, tone(s._p))); hits.push({ x: p.lx, y: p.ly, s: s }); heatPts.push(p);
       if (usePills) {
-        var gx = Math.floor(p.x / 50), gy = Math.floor(p.y / 24), free = true, a, b;
-        for (a = -1; a <= 1 && free; a++) for (b = -1; b <= 1; b++) { var o = occ[(gx + a) + ':' + (gy + b)]; if (o && Math.abs(o.x - p.x) < 50 && Math.abs(o.y - p.y) < 22) { free = false; break; } }
+        var gx = Math.floor(p.x / (PW + 2)), gy = Math.floor(p.y / (PH + 3)), free = true, a, b;
+        for (a = -1; a <= 1 && free; a++) for (b = -1; b <= 1; b++) { var o = occ[(gx + a) + ':' + (gy + b)]; if (o && Math.abs(o.x - p.x) < PW + 2 && Math.abs(o.y - p.y) < PH + 1) { free = false; break; } }
         if (free) { occ[gx + ':' + gy] = p; pills.push(p); return; }
       }
       dots.push(p);
@@ -493,12 +499,12 @@
       ctx.font = '700 17px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineWidth = 3;
       good.concat(stale, rupt).forEach(function (s) { if (!isFav(s)) return; var p = pt(s); ctx.strokeStyle = 'rgba(0,0,0,.75)'; ctx.strokeText('★', p.x, p.y - 17); ctx.fillStyle = '#ffd60a'; ctx.fillText('★', p.x, p.y - 17); });
     }
-    ctx.font = '700 12px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = '700 ' + (big ? 15 : 12) + 'px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     var rot = window.__mapRotation || 0; // carte tournée (guidage voiture) : les pastilles restent lisibles
     for (i = pills.length - 1; i >= 0; i--) {
-      var q = pills[i], w = 48, h = 21;
+      var q = pills[i], w = PW, h = PH;
       ctx.save(); ctx.translate(q.x, q.y); if (rot) ctx.rotate(rot);
-      ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(-w / 2, -h / 2, w, h, 10.5); else ctx.rect(-w / 2, -h / 2, w, h);
+      ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(-w / 2, -h / 2, w, h, h / 2); else ctx.rect(-w / 2, -h / 2, w, h);
       ctx.fillStyle = dark ? 'rgba(12,15,20,.92)' : 'rgba(255,255,255,.96)'; ctx.fill();
       ctx.strokeStyle = lutColor(q.t); ctx.lineWidth = 2.2; ctx.stroke();
       ctx.fillStyle = dark ? '#fff' : '#15202b'; ctx.fillText(shortage ? shortAge(ageHours(q.s, pick(q.s, fis))) : price3(q.s._p), 0, 0.5);
@@ -553,7 +559,7 @@
     return { liters: liters, cost: liters * s.p[fi] };
   }
   function openStation(s, fly) {
-    if (document.documentElement.hasAttribute('data-carui') && window.__fuelmapCar) { window.__fuelmapCar.select(s, false); window.__fuelmapCar.render(); return; } // écran voiture : pas de bulle, la colonne de gauche
+    if (carUi() && window.__fuelmapCar) { window.__fuelmapCar.pick(s); return; } // écran voiture : pas de bulle, la carte flottante de gauche
     var cfi = pick(s, displayFuels()), rows = ''; if (cfi < 0) cfi = FUEL_INDEX[state.fuel];
     var order = FUELS.map(function (f, i) { return i; }).sort(function (a, b) { return (s.t && s.t[b] || s.m[b] * 1440 || 0) - (s.t && s.t[a] || s.m[a] * 1440 || 0); }); // prix le plus récent en premier
     order.forEach(function (i) { var f = FUELS[i];
@@ -680,7 +686,7 @@
   function carInsets(t, r, b, l) { // zone de la page non couverte par l'hôte Android Auto (sa carte d'infos, ses boutons)
     safe = { t: t, r: r, b: b, l: l }; var st = document.documentElement.style;
     st.setProperty('--safe-t', t + 'px'); st.setProperty('--safe-b', b + 'px'); st.setProperty('--safe-l', l + 'px'); st.setProperty('--safe-r', r + 'px');
-    applyLayout(); map.invalidateSize(); if (routeCtx && routeCtx.bounds) setTimeout(fitRoute, 100);
+    applyLayout(); map.invalidateSize(); if (routeCtx && routeCtx.bounds && !carUi()) setTimeout(fitRoute, 100); // voiture : l'hôte cache / montre ses boutons toutes les 5 s, la carte ne doit pas sauter
   }
   $('hud').addEventListener('click', function (e) { var b = e.target.closest('[data-hudshow]'); if (!b) return; var s = stations.filter(function (x) { return String(x.id) === b.getAttribute('data-hudshow'); })[0]; if (s) { setFollow(false); openStation(s, true); } });
   $('carBtn').addEventListener('click', function () { state.carMode = !carMode; save(); setCarMode(!carMode); });
@@ -888,11 +894,12 @@
         '<div class="btns">' + (active ? '' : '<button class="use" data-use="' + c.id + '">Utiliser</button>') + '<button data-edit="' + c.id + '">Modifier</button>' + (state.cars.length > 1 ? '<button data-del="' + c.id + '">✕</button>' : '') + '</div></div>';
     }).join('');
   }
-  function useCar(id) { state.activeCar = id; state.fuel = car().fuel; save(); renderFuelChips(); renderCars(); updateSliders(); updateDataInfo(); if (routeCtx) clearRoute(true); refreshMap(); }
+  function useCar(id) { state.activeCar = id; state.fuel = car().fuel; save(); applyCarColor(); renderFuelChips(); renderCars(); updateSliders(); updateDataInfo(); if (routeCtx) clearRoute(true); refreshMap(); }
   function openCarForm(c) {
     $('carForm').hidden = false; $('carId').value = c ? c.id : '';
     $('carName').value = c ? c.name : ''; $('carFuel').value = c ? c.fuel : state.fuel;
     $('carTank').value = c ? c.tank : 50; $('carCons').value = c ? c.cons : 6.5; $('carReserve').value = c ? c.reserve : 5;
+    $('carPaint').value = c && c.paint || ''; $('carColor').value = c && c.color || '#3b82f6'; $('paintSug').innerHTML = '';
     $('carName').focus();
   }
   $('carFuel').innerHTML = FUELS.map(function (f) { return '<option value="' + f.key + '">' + f.label + '</option>'; }).join('');
@@ -907,11 +914,74 @@
   $('carCancel').addEventListener('click', function () { $('carForm').hidden = true; });
   $('carForm').addEventListener('submit', function (e) {
     e.preventDefault();
-    var tank = +$('carTank').value, c = { id: $('carId').value || 'c' + Date.now(), name: $('carName').value.trim() || 'Véhicule', fuel: $('carFuel').value, tank: tank, cons: +$('carCons').value, reserve: Math.min(+$('carReserve').value || 0, tank / 2) };
+    var tank = +$('carTank').value, c = { id: $('carId').value || 'c' + Date.now(), name: $('carName').value.trim() || 'Véhicule', fuel: $('carFuel').value, tank: tank, cons: +$('carCons').value, reserve: Math.min(+$('carReserve').value || 0, tank / 2), color: $('carColor').value, paint: $('carPaint').value.trim() };
     var idx = state.cars.map(function (x) { return x.id; }).indexOf(c.id);
     if (idx >= 0) state.cars[idx] = c; else state.cars.push(c);
     $('carForm').hidden = true; useCar(c.id);
   });
+
+  // Couleur de la voiture : teinte d'usine (table js/paints.js), photo de SA voiture, ou photos du modèle (Wikimedia Commons,
+  // gratuit, sans clé, et qui autorise la lecture des pixels). Sur la photo : couleur dominante proposée, un toucher sur la carrosserie l'ajuste.
+  function paintChips(list) { return list.map(function (p) { return '<button type="button" class="chip" data-paint="' + p.color + '" data-label="' + esc(p.label) + '"><i style="background:' + p.color + '"></i>' + esc(p.label) + '</button>'; }).join(''); }
+  $('carPaint').addEventListener('input', function () { $('paintSug').innerHTML = paintChips(window.FuelPaints ? FuelPaints.search(this.value + ' ' + $('carName').value, 6) : []); });
+  $('paintSug').addEventListener('click', function (e) { var b = e.target.closest('[data-paint]'); if (!b) return; $('carColor').value = b.getAttribute('data-paint'); $('carPaint').value = b.getAttribute('data-label'); this.innerHTML = ''; });
+  $('paintPhoto').addEventListener('click', function () { $('paintFile').click(); });
+  $('paintFile').addEventListener('change', function () { var f = this.files && this.files[0]; this.value = ''; if (f) { var u = URL.createObjectURL(f); paintPicker(u, function () { URL.revokeObjectURL(u); }); } });
+  $('paintWeb').addEventListener('click', function () { searchPaintPhotos(($('carPaint').value || $('carName').value || '').trim()); });
+  function searchPaintPhotos(q) {
+    if (!q) { toast('Tape d\'abord le modèle et la couleur, ex. « Mazda MX-5 bleu »'); return; }
+    openModal('<h2>🔎 ' + esc(q) + '</h2><p class="hint">⏳ Recherche de photos…</p>');
+    // « mx5 » → « mx-5 » (nom des fichiers Commons), puis on élargit en retirant les derniers mots tant qu'il y a trop peu de photos
+    var words = q.replace(/([a-z])(\d)/gi, '$1-$2').split(/\s+/), tries = [q], imgs = [];
+    for (var n = words.length; n >= 2; n--) tries.push(words.slice(0, n).join(' '));
+    if (words.length > 2) tries.push(words.slice(0, 2).join(' ') + ' ' + words[words.length - 1]); // marque modèle + couleur
+    var next = function () {
+      var t = tries.shift(); if (!t || imgs.length >= 9) return Promise.resolve(imgs);
+      return fetch('https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrnamespace=6&gsrlimit=18&gsrsearch=' + encodeURIComponent(t + ' filetype:bitmap') + '&prop=imageinfo&iiprop=url&iiurlwidth=360')
+        .then(function (r) { return r.json(); }).then(function (j) {
+          var pages = j.query && j.query.pages ? Object.keys(j.query.pages).map(function (k) { return j.query.pages[k]; }).sort(function (a, b) { return a.index - b.index; }) : [];
+          pages.forEach(function (p) { var u = p.imageinfo && p.imageinfo[0] && p.imageinfo[0].thumburl; if (u && imgs.indexOf(u) < 0 && imgs.length < 18) imgs.push(u); });
+          return next();
+        });
+    };
+    return next().then(function (imgs) {
+        $('modalBody').innerHTML = '<h2>🔎 ' + esc(q) + '</h2>' + (imgs.length ? '<p class="hint">Touche la photo qui ressemble le plus à ta voiture.</p><div class="paintgrid">' + imgs.map(function (u) { return '<img src="' + esc(u) + '" data-paintimg="' + esc(u) + '" alt="" loading="lazy">'; }).join('') + '</div>' : '<p class="hint">Aucune photo trouvée. Essaie « marque modèle couleur », ex. « Peugeot 208 rouge ».</p>') + '<p class="hint">Photos : Wikimedia Commons.</p>';
+        return imgs;
+      }).catch(function () { $('modalBody').innerHTML = '<p class="hint">⚠️ Recherche impossible (pas de réseau ?)</p>'; return []; });
+  }
+  $('modalBody').addEventListener('click', function (e) {
+    var im = e.target.closest('[data-paintimg]'); if (im) { paintPicker(im.getAttribute('data-paintimg')); return; }
+    var use = e.target.closest('[data-paintuse]'); if (use) { $('carColor').value = use.getAttribute('data-paintuse'); if (!$('carPaint').value) $('carPaint').value = 'Couleur de ma photo'; closeModal(); toast('🎨 Couleur du curseur choisie'); }
+  });
+  function hex(r, g, b) { return '#' + [r, g, b].map(function (v) { return ('0' + Math.round(v).toString(16)).slice(-2); }).join(''); }
+  function dominant(ctx, w, h) { // couleur la plus présente au centre de la photo (là où est la voiture) ; les teintes vives comptent plus que le gris du bitume ou le ciel
+    var x0 = Math.round(w * 0.2), y0 = Math.round(h * 0.3), d = ctx.getImageData(x0, y0, Math.round(w * 0.6), Math.round(h * 0.45)).data, bins = {}, best = null;
+    for (var i = 0; i < d.length; i += 16) {
+      var r = d[i], g = d[i + 1], b = d[i + 2], mx = Math.max(r, g, b), mn = Math.min(r, g, b), sat = mx ? (mx - mn) / mx : 0;
+      var k = (r >> 5) + ',' + (g >> 5) + ',' + (b >> 5), o = bins[k] || (bins[k] = { n: 0, w: 0, r: 0, g: 0, b: 0 });
+      o.n++; o.w += 1 + sat * 1.5; o.r += r; o.g += g; o.b += b;
+    }
+    Object.keys(bins).forEach(function (k) { if (!best || bins[k].w > best.w) best = bins[k]; });
+    return best ? hex(best.r / best.n, best.g / best.n, best.b / best.n) : '#3b82f6';
+  }
+  function paintPicker(src, done) {
+    openModal('<h2>🎨 Couleur de ta voiture</h2><p class="hint">Couleur dominante proposée ; touche la carrosserie pour l\'ajuster.</p><canvas id="paintCanvas"></canvas><div class="paintpick"><i id="paintSw"></i><b id="paintHex"></b><button type="button" class="primary" id="paintUse">Utiliser</button></div>');
+    var img = new Image(); img.crossOrigin = 'anonymous';
+    img.onload = function () {
+      var cv = $('paintCanvas'); if (!cv) return; var sc = Math.min(1, 800 / Math.max(img.width, img.height)), w = Math.round(img.width * sc), h = Math.round(img.height * sc);
+      cv.width = w; cv.height = h; var ctx = cv.getContext('2d', { willReadFrequently: true }); ctx.drawImage(img, 0, 0, w, h); if (done) done();
+      var set = function (c) { $('paintSw').style.background = c; $('paintHex').textContent = c; $('paintUse').setAttribute('data-paintuse', c); };
+      try { set(dominant(ctx, w, h)); } catch (e) { $('modalBody').querySelector('.hint').textContent = '⚠️ Impossible de lire cette photo : choisis-en une autre.'; return; }
+      cv.addEventListener('click', function (ev) {
+        var r = cv.getBoundingClientRect(), x = Math.round((ev.clientX - r.left) * w / r.width), y = Math.round((ev.clientY - r.top) * h / r.height);
+        var d = ctx.getImageData(Math.max(0, x - 3), Math.max(0, y - 3), 7, 7).data, s = [0, 0, 0], n = d.length / 4;
+        for (var i = 0; i < d.length; i += 4) { s[0] += d[i]; s[1] += d[i + 1]; s[2] += d[i + 2]; }
+        set(hex(s[0] / n, s[1] / n, s[2] / n));
+      });
+    };
+    img.onerror = function () { var hn = $('modalBody').querySelector('.hint'); if (hn) hn.textContent = '⚠️ Photo illisible : choisis-en une autre.'; };
+    img.src = src;
+  }
 
   // ------------------------------------------------------------------ premier lancement : véhicule obligatoire
   var obFuel = null;
@@ -1438,7 +1508,8 @@
   window.__fuelmapAPI = { // utilisé par js/car.js (écran Android Auto) — fonctions internes, lecture seule sauf sélection
     get stations() { return stations; }, stationsInBounds: stationsInBounds, pick: pick, confidence: confidence, opening: opening, score: score, isAutoUpdate: isAutoUpdate,
     get route() { return routeCtx; }, get fix() { return lastFix || mePos; }, map: map, openStation: openStation, brandName: brandName, price3: price3, whenText: whenText, shortAge: shortAge, ageHours: ageHours,
-    haversine: haversine, fuelsFor: fuelsFor, car: car, FUELS: FUELS, FUEL_INDEX: FUEL_INDEX, state: state, setFollow: setFollow, locate: locate, titleCase: titleCase, esc: esc, num: num, progressKm: progressKm, DETOUR_FACTOR: DETOUR_FACTOR, colorFor: colorFor, save: save, eighths: eighths, toast: toast, osrmRoute: osrmRoute, decodePolyline: decodePolyline, agoText: agoText, price3: price3
+    haversine: haversine, fuelsFor: fuelsFor, car: car, FUELS: FUELS, FUEL_INDEX: FUEL_INDEX, state: state, setFollow: setFollow, locate: locate, titleCase: titleCase, esc: esc, num: num, progressKm: progressKm, DETOUR_FACTOR: DETOUR_FACTOR, colorFor: colorFor, save: save, eighths: eighths, toast: toast, osrmRoute: osrmRoute, decodePolyline: decodePolyline, agoText: agoText, price3: price3,
+    refreshMap: refreshMap, themes: THEMES, setTheme: function (k) { if (!THEMES[k]) return; state.theme = k; save(); applyTheme(); refreshMap(); }
   };
   window.__fuelmap = { carPan: carPan, carZoom: carZoom, carInsets: carInsets, carStable: carStable, restoreLastRoute: restoreLastRoute, setCarMode: setCarMode, updateHud: updateHud, get fix() { return lastFix; }, set fix(p) { lastFix = mePos = p; updateHud(); }, setPlan: setPlan, alternativesFor: alternativesFor, tryPlan: tryPlan, state: state, compute: computeRoute, setPlace: setPlace, get route() { return routeCtx; }, get count() { return stations.length; }, get stations() { return stations; }, map: map, openStation: openStation }; // pour les tests
 })();
