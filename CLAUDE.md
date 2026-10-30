@@ -34,7 +34,7 @@ apk/android/app/src/main/java/fr/soaresden/fuelmap/
 ## Règles non négociables
 
 - **versionCode jamais réutilisé** : le Play Console grille un code dès qu'un AAB est téléversé, même en brouillon.
-  Dernier utilisé : **49 (1.6.1)**. Chaque livraison = code +1 ET bump de `versionName` dans `apk/android/app/build.gradle`,
+  Dernier utilisé : **50 (1.6.2)**. Chaque livraison = code +1 ET bump de `versionName` dans `apk/android/app/build.gradle`,
   de `version` dans `js/config.js`, et du nom de cache dans `sw.js`. Les trois ensemble, toujours.
 - Chaque livraison fournit : l'**AAB** (Play, signé avec la clé d'upload) et un commit. **Plus d'APK** : depuis la 1.5.9 Denis
   installe uniquement via le Play Store (tests internes). Les `*.apk`/`*.aab` sont ignorés par git ; ils vivent dans `apk/`.
@@ -57,7 +57,13 @@ apk/android/app/src/main/java/fr/soaresden/fuelmap/
 - À la main : copier `index.html sw.js js css icons vendor manifest.webmanifest privacy.html version-min.json` dans `apk/www/`,
   `npx cap sync android`, puis Gradle. Le dossier `apk/www/` est ignoré par git.
 - Données locales pour tester : `node tools/build-data.mjs` (cibles : fr es pt ad it brands hist).
-- Test unitaire : `node tests/optimizer.test.js`. Les tests d'écran se faisaient avec Playwright contre `index.html?car=1&aa=1`
+- Test unitaire : `node tests/optimizer.test.js`.
+- **Tests d'écran automatiques** (à lancer avant chaque livraison, sur le PC de Denis) : `cd tests && npm install` une fois, puis
+  `node tests/ecrans.test.mjs`. Microsoft Edge installé (playwright-core, sans navigateur téléchargé), serveur local intégré ; voiture
+  1193×480 / 850×480 / 780×715 (écran partagé) + téléphone 375×812 ; vérifie chevauchements, sorties d'écran, zone des boutons de l'hôte ;
+  captures dans tests/captures/. Claude ne peut pas le lancer lui-même (Edge refusé dans son bac à sable) : il refait les mêmes contrôles
+  dans le navigateur intégré.
+- Pour Claude : écrire les scripts de modification dans un fichier (Write) plutôt qu'en heredoc bash — le shell mange les `\'`. Les tests d'écran se faisaient avec Playwright contre `index.html?car=1&aa=1`
   en 1193×480 (taille de l'écran de la voiture de Denis), insets hôte : visible Rect(26,95-1167,467), stable Rect(26,26-1167,467).
 - Écran voiture virtuel : `apk\dhu\lancer-dhu-ma-voiture.bat` (1193×480) ou `lancer-dhu.bat` (1280×720). Téléphone en USB,
   débogage USB, Android Auto → paramètres développeur → « Démarrer le serveur de l'unité principale » (à refaire à chaque fois),
@@ -115,7 +121,9 @@ l'étape est une **carte flottante** à gauche (`#carPane`, 330 px, hauteur selo
 - 🧭 Trajet : Destination (🔍 hôte, 📅 agenda, favoris, dernier trajet) › Réservoir › Arrêts › Guidage. **Le niveau du réservoir est toujours demandé avant le calcul.**
   Dernier trajet du téléphone (< 3 h) repris d'office à l'étape Réservoir.
 - 🚨 Pénurie : Autour de moi › Station › Guidage (note fraîcheur-distance-prix, pushs automatiques type Total 00:01 pénalisés).
-- 🚗 Ma voiture : tout au toucher (pas de clavier) — véhicule actif si plusieurs, carburant préféré, consommation (± 0,1), réservoir
+- 🚗 Ma voiture (SP98 : `car.prefer98` 0 / 0,02 / 0,05 € — si le SP98 coûte à peine plus que le compatible le moins cher, `pick` le choisit,
+  donc carte, listes et optimiseur) : tout au toucher (pas de clavier) — véhicule actif si plusieurs, carburant préféré, consommation (± 0,1) + soit le réservoir, soit (mode « Autonomie », `car.consMode='km'`, pour qui ne connaît pas
+  son réservoir) les km faits d'habitude entre deux pleins → carburant utilisable = km × conso / 100, réservoir = utilisable + réserve
   (± 1 L), couleur du curseur : 9 teintes courantes + « perso » = roue chromatique (teinte/intensité sur la roue, clair/foncé sur la barre). Écrit dans la fiche véhicule partagée avec le téléphone (`__fuelmapAPI.updateCar/useCar`).
 - Vue du guidage 2D / 3D (`#carView`, en bas à gauche de la partie libre) : 3D = carte inclinée (`--nav-tilt: 32deg`), 2D = à plat ;
   toujours tournée dans le sens de la marche ; choix mémorisé (`localStorage['fuelmap-car3d']`).
@@ -157,6 +165,34 @@ téléphone via le plugin Capacitor `Agenda.list()` (puce « 📅 Agenda » de l
 (synchrone) / `askAgenda()` (invite sur le téléphone). Le lieu touché est géocodé par `__fuelmapAPI.findPlace` (texte entier, puis
 en retirant les morceaux du début : « Cabinet X, 10 rue Y, Tours » → l'adresse). Play Console : déclarer l'accès à l'agenda dans
 la section « Sécurité des données » (lu sur l'appareil, seul le lieu choisi part au géocodeur ; privacy.html le dit).
+
+## Fiabilité (1.6.2)
+
+- Itinéraires : `OSRM_SERVERS` = démo OSRM puis FOSSGIS (routing.openstreetmap.de) en secours (12 s max chacun). Fond de carte :
+  tuiles OSM (CARTO exige désormais une clé : « API KEY REQUIRED »). Solution durable = MapLibre + OpenFreeMap (piste 1b).
+- Noms des villes : dessinés par l'appli (`drawTowns`) à partir des stations (ville + position moyenne), après les pastilles et sans
+  jamais les recouvrir ; plus gros en voiture. Commune actuelle en voiture (`#carTown`) par géocodage inverse (~600 m).
+- Réglages partagés téléphone ↔ voiture (`SHARED`) relus à chaque modification de l'autre écran (`storage`) et au retour au premier plan.
+- Publication : `privacy.html` et `version-min.json` étaient ABSENTS du site (404 : politique de confidentialité du Play et mise à jour
+  obligatoire cassées) → ajoutés au workflow. Dernière étape du workflow : échec (→ e-mail GitHub) si les prix français ont plus d'un
+  jour ou le fichier plus de 12 h. Dans l'appli : pastille « ⚠️ prix d'il y a N j » (`staleDays`).
+- Tunnels : GPS muet > 4 s en roulant → position estimée sur l'itinéraire (vitesse connue, 2 min max), annonce « GPS perdu. N'oubliez
+  pas : … » ; recalcul seulement après 3 positions hors route et jamais sur position imprécise (> 80 m) ou estimée.
+- Instructions : numéro de sortie et directions des panneaux (`exits` / `destinations` d'OSRM) dans le texte et la voix.
+- Fiche station (voiture) : historique 30 jours en SVG — station (couleur du texte), moyenne à 10 km (rouge pointillé), × = prix déclarés.
+- Cadres moins cher / plus cher : seulement autour d'une vraie pastille (zoom ≥ 10,5, pastille effectivement placée) ; redressés en guidage.
+- Favorites (voiture) : une ligne par station (nom, prix, âge) ; repliables.
+- Guidage : la colonne reste visible, en colonne flottante à droite des cartes de l'hôte (`--navleft`).
+- Fiche station (voiture) : prix + « (SP98 x,xxx) » à droite si la voiture l'accepte ; « Plein N L ≈ … € · compléter M L ≈ … € » d'après
+  le niveau Trajet › Réservoir (`state.startE`) ; ligne 💡 SP98 (« à ce prix, tu peux prendre du 98 » si écart ≤ 3 cts).
+- Pendant un trajet guidé, la fiche station propose « ⛽ Remplacer l'arrêt X » (ou « Ajouter cet arrêt ») : la destination est gardée.
+- À moins de 15 km d'un arrêt carburant : prix relus toutes les 5 min (`refreshQuiet`) ; rupture → alerte écran + voix ; prix changé → annoncé.
+- En haut à gauche (carte au repos) : commune, taille de la vue « ↔ 25 km · ↕ 15 km », puis les favorites dessous (position calculée
+  sous la commune, jamais à droite : Denis ne veut pas qu'elles bougent avec les boutons de l'hôte).
+- Trafic / travaux : rien aujourd'hui. Travaux, fermetures, accidents = données ouvertes Bison Futé (DATEX II) récupérables par la
+  GitHub Action (chantier séparé) ; trafic temps réel = services payants (TomTom, HERE), pas de source gratuite.
+- Péages (à faire, chantier séparé) : grilles PDF des sociétés d'autoroute → script `tools/` → tableau entrée/sortie/prix + gares OSM.
+  Les tarifs varient par tronçon (ex. A14 La Défense → A13 Rouen) : une estimation au km ne suffit pas.
 
 ## Couleur de la voiture (curseur)
 

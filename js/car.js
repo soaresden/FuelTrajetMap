@@ -13,8 +13,8 @@
   if (!/[?&]aa=1/.test(location.search)) return;
   var A = null, F = null, pane = document.getElementById('carPane'), timer = null;
   function el(id, tag) { var e = document.createElement(tag || 'div'); e.id = id; e.hidden = true; document.body.appendChild(e); return e; }
-  var rail = el('carRail', 'nav'), steps = el('carSteps'), chip = el('carChip', 'button'), nextBox = el('carNext'), lockBox = el('carLock'), favBox = el('carFavs'), viewBox = el('carView'), refreshBox = el('carRefresh', 'button');
-  refreshBox.setAttribute('aria-label', 'Actualiser les prix'); refreshBox.innerHTML = '<svg viewBox="0 0 24 24" width="24" height="24"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  var rail = el('carRail', 'nav'), steps = el('carSteps'), chip = el('carChip', 'button'), nextBox = el('carNext'), lockBox = el('carLock'), favBox = el('carFavs'), viewBox = el('carView'), townBox = el('carTown'), refreshBox = el('carRefresh', 'button');
+  refreshBox.setAttribute('aria-label', 'Actualiser les prix'); refreshBox.innerHTML = '<svg viewBox="0 0 24 24" width="24" height="24"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3.5v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><rect x="8.6" y="8" width="4.6" height="8" rx=".8" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="9.7" y="9.2" width="2.4" height="2" fill="currentColor"/><path d="M13.2 10l1.7 1.4v3.1a.7.7 0 0 0 1.4 0V11" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   refreshBox.addEventListener('click', function () { log('voiture : actualisation des prix'); A.refreshPrices().then(schedule); });
   function log(m) { try { window.FM && window.FM.log(m); } catch (e) { } }
 
@@ -74,7 +74,7 @@
   function stationRow(x, extra, right) {
     var s = x.s, k = x.k, fi = A.FUEL_INDEX[A.car().fuel], col = x.t == null ? '' : ' style="--pc:' + A.colorFor(x.t) + '"';
     return '<button class="crow' + (selected && String(selected.id) === String(s.id) ? ' on' : '') + (x.t != null ? ' tinted' : '') + '" data-sid="' + s.id + '"' + col + '>' +
-      '<div class="l1"><span class="nm">' + name(s) + '</span><span class="pr">' + A.price3(s.p[k]) + '</span></div>' +
+      '<div class="l1"><span class="nm">' + name(s) + '</span><span class="pr">' + A.price3(s.p[k]) + ' €</span></div>' +
       '<div class="l2"><span>' + (extra || A.num(x.d, 1) + ' km') + (k !== fi ? ' · ' + A.FUELS[k].label : '') + '</span><span>' + dot(x.conf.level) + (right || A.whenText(s, k)) + (x.op && x.op.until ? ' · 🕒 ' + x.op.until : x.op && x.op.a24 ? ' · 24/24' : '') + '</span></div></button>';
   }
 
@@ -141,7 +141,8 @@
     var vs = viewStations(); if (!vs.length) { chip.innerHTML = '🔍 Aucune station ici · dézoome'; return; }
     var min = vs.reduce(function (a, b) { return b.p < a.p ? b : a; });
     var max = vs.reduce(function (a, b) { return b.p > a.p ? b : a; }), mean = vs.reduce(function (a, b) { return a + b.p; }, 0) / vs.length, fr = A.franceAvg();
-    chip.innerHTML = '📋 ' + (vs.length >= 40 ? '40+' : vs.length) + ' station' + (vs.length > 1 ? 's' : '') + ' · ▼ <b>' + A.price3(min.p) + '</b><span class="cxa"> · moy. ' + A.price3(mean) + '</span><span class="cxb"> · ▲ ' + A.price3(max.p) + '</span>' + (fr ? '<span class="cxc"> · <small>🇫🇷 ' + A.price3(fr) + '</small></span>' : '') + ' <span class="ar">›</span>';
+    var old = A.staleDays();
+    chip.innerHTML = (old >= 2 ? '<b class="mx">⚠️ ' + old + ' j</b> · ' : '') + (vs.length >= 40 ? '40+' : vs.length) + ' station' + (vs.length > 1 ? 's' : '') + ' · ▼ <b>' + A.price3(min.p) + ' €</b><span class="cxa"> · moy. ' + A.price3(mean) + ' €</span><span class="cxb"> · ▲ <b class="mx">' + A.price3(max.p) + ' €</b></span>' + (fr ? '<span class="cxc"> · <small>🇫🇷 ' + A.price3(fr) + ' €</small></span>' : '') + ' <span class="ar">›</span>';
     // pas la place (écran étroit, favorites à droite) : on retire 🇫🇷, puis la moyenne, puis le max — jamais le nombre ni le moins cher
     chip.classList.remove('t1', 't2', 't3');
     ['t1', 't2', 't3'].some(function (t) { if (chip.scrollWidth <= chip.clientWidth + 1) return true; chip.classList.add(t); return false; });
@@ -153,20 +154,41 @@
     var fis = A.fuelsFor(A.car().fuel), o = origin(), want = {}; ids.forEach(function (id) { want[id] = 1; });
     var list = A.stations.filter(function (s) { return want[String(s.id)]; }).map(function (s) { var k = A.pick(s, fis); return { s: s, k: k, d: A.haversine(o.lat, o.lon, s.lat, s.lon) }; });
     list.sort(function (a, b) { return a.d - b.d; });
-    favBox.innerHTML = '<div class="fh">⭐ Mes favorites</div>' + list.slice(0, 4).map(function (x) {
+    // une ligne par favorite (nom, prix, âge du prix) ; repliable d'un toucher sur l'en-tête pour libérer la carte (choix mémorisé)
+    var narrow = innerWidth < 600; // écran vraiment étroit : favorites repliées d'office
+    var folded = favFolded || narrow;
+    document.documentElement.classList.toggle('cfavs-up', narrow); // pas la place à côté du bouton du bas : les favorites passent au-dessus
+    favBox.classList.toggle('folded', folded);
+    favBox.innerHTML = '<button class="fh" data-favfold>⭐ Mes favorites' + (folded ? ' (' + list.length + ') ▸' : ' ▾') + '</button>' + (folded ? '' : list.slice(0, 3).map(function (x) {
       var s = x.s, k = x.k;
-      return '<button data-fav="' + s.id + '"><span class="nm">' + name(s) + '</span>' + (k >= 0 ? '<span class="pr">' + A.price3(s.p[k]) + '</span><span class="wh">' + dot(A.confidence(s, k).level) + A.whenText(s, k) + '</span>' : '<span class="pr">—</span><span class="wh">pas de prix récent</span>') + '</button>';
-    }).join('');
+      return '<button data-fav="' + s.id + '"><span class="nm">' + name(s) + '</span>' + (k >= 0 ? '<span class="pr">' + A.price3(s.p[k]) + ' €</span><span class="wh">' + dot(A.confidence(s, k).level) + A.shortAge(A.ageHours(s, k)) + '</span>' : '<span class="pr">—</span><span class="wh"></span>') + '</button>';
+    }).join(''));
   }
-  favBox.addEventListener('click', function (e) { var b = e.target.closest('[data-fav]'); if (!b) return; var s = A.stations.filter(function (x) { return String(x.id) === b.getAttribute('data-fav'); })[0]; if (s) pick(s); });
+  var favFolded = false; try { favFolded = localStorage.getItem('fuelmap-carfavs') === '0'; } catch (e) { }
+  favBox.addEventListener('click', function (e) { if (e.target.closest('[data-favfold]')) { favFolded = !favFolded; try { localStorage.setItem('fuelmap-carfavs', favFolded ? '0' : '1'); } catch (err) { } render(); return; } var b = e.target.closest('[data-fav]'); if (!b) return; var s = A.stations.filter(function (x) { return String(x.id) === b.getAttribute('data-fav'); })[0]; if (s) pick(s); });
   function render() {
     if (!ready() || pane.hidden && rail.hidden) return;
     if (listEl) scrollKeep = listEl.scrollTop;
     var all = mode !== 'route'; if (all !== !!window.__carShowAll) { window.__carShowAll = all; A.refreshMap(); } // hors trajet : toutes les stations sur la carte, pas seulement celles du trajet
     renderRail(); renderSteps(); renderFavs(); renderChip(); saveSession();
+    if (!chip.hidden && !favBox.hidden) { // on mesure : si le bouton du bas touche les favorites, elles passent au-dessus (quelle que soit la largeur d'écran)
+      var cr = chip.getBoundingClientRect(), fr = favBox.getBoundingClientRect();
+      if (cr.right > fr.left - 6 && cr.bottom > fr.top + 2 && cr.top < fr.bottom - 2) { document.documentElement.classList.add('cfavs-up'); renderChip(); }
+    }
     nextBox.hidden = viewBox.hidden = !(guide && step === 'guide');
+    // en haut à gauche : la commune, puis la taille de la zone affichée (largeur ↔, hauteur ↕), puis les favorites dessous
+    var sc = !nav.on && A.map ? viewSize() : '';
+    townBox.hidden = !(town.name || sc) || panelStep();
+    townBox.innerHTML = (town.name ? '<b>📍 ' + A.esc(town.name) + '</b>' : '') + (sc ? '<small><i class="crect"></i>' + sc + '</small>' : '');
+    if (!favBox.hidden) { // favorites juste sous la commune (colonne de gauche, stable, jamais sous les boutons de l'hôte)
+      var tb = townBox.hidden ? null : townBox.getBoundingClientRect();
+      favBox.style.top = Math.round((tb && tb.height ? tb.bottom : rail.getBoundingClientRect().top + 6) + 8) + 'px';
+    }
     viewBox.innerHTML = '<button data-view="2"' + (view3d ? '' : ' class="on"') + '>2D</button><button data-view="3"' + (view3d ? ' class="on"' : '') + '>3D</button>';
-    var show = panelStep(); pane.classList.toggle('open', show); document.documentElement.classList.toggle('carpane-open', show);
+    var show = panelStep(); pane.classList.toggle('open', show);
+    var pl = (nav.on ? Math.max(rail.getBoundingClientRect().right, 0) : rail.getBoundingClientRect().right) + 8; // carte flottante sous les boutons de l'hôte si elle atteint leur zone
+    document.documentElement.classList.toggle('cpane-low', show && pl + 330 > innerWidth - 430); document.documentElement.classList.toggle('carpane-open', show);
+    if (!selected && selMarker) { try { selMarker.remove(); } catch (e) { } selMarker = null; } // plus de station choisie : plus de marqueur
     if (!show) { listEl = null; return; }
     var c = A.car(), head = '', body = '', foot = '', fuelLabel = A.FUELS[A.FUEL_INDEX[c.fuel]].label;
     if (step === 'list' && mode === 'map') {
@@ -185,11 +207,17 @@
     } else if (step === 'station' && selected) {
       var s = selected, k = A.pick(s, A.fuelsFor(c.fuel)), o = origin(), conf = k >= 0 ? A.confidence(s, k) : null, op = A.opening(s);
       head = '<span class="nm">' + name(s) + '</span>';
-      body = '<div class="ccard"><div class="big">' + (k >= 0 ? A.price3(s.p[k]) + ' <small>€/L ' + A.FUELS[k].label + '</small>' : '—') + '</div>' +
-        '<div class="ln">📍 ' + A.esc(A.titleCase(s.adr)) + ' · ' + km(A.haversine(o.lat, o.lon, s.lat, s.lon)) + '</div>' +
-        (conf ? '<div class="ln">' + dot(conf.level) + A.esc(conf.label) + ' · ' + A.whenText(s, k) + '</div>' : '') +
-        (op ? '<div class="ln">' + (!op.open ? '🔒 fermée' : op.a24 ? '🕒 24/24' : op.until ? '🕒 ouverte jusqu\'à ' + op.until : '🕒 ouverte') + '</div>' : '') + '</div>';
-      foot = '<button class="cbig" data-go>🧭 Y aller</button>';
+      body = '<div class="ccard"><div class="big">' + (k >= 0 ? A.price3(s.p[k]) + ' <small>€/L ' + A.FUELS[k].label + '</small>' + p98Side(s, k) : '—') + '</div>' + (k >= 0 ? fillLine(s, k) : '') +
+        '<div class="ln"><i>📍</i><span>' + A.esc(A.titleCase(s.adr)) + ' · ' + km(A.haversine(o.lat, o.lon, s.lat, s.lon)) + '</span></div>' +
+        (conf ? '<div class="ln"><i>' + dot(conf.level) + '</i><span>' + A.esc(conf.label) + ' · ' + A.whenText(s, k) + '</span></div>' : '') +
+        (op ? '<div class="ln"><i>' + (op.open ? '🕒' : '🔒') + '</i><span>' + (!op.open ? 'fermée' : op.a24 ? '24/24' : op.until ? 'ouverte jusqu\'à ' + op.until : 'ouverte') + '</span></div>' : '') + '</div>' +
+        sp98Tip(s, k) +
+        (k >= 0 ? '<div class="cchart" data-chart="' + s.id + ':' + k + '">' + (charts[s.id + ':' + k] || '<small>⏳ historique des prix…</small>') + '</div>' : '');
+      if (k >= 0 && !charts[s.id + ':' + k]) loadChart(s, k);
+      // trajet guidé en cours vers une destination : cette station remplace le prochain arrêt (ou s'ajoute), la destination est gardée
+      var trip = guide && !guide.fin.s, nstop = trip ? guide.wps.filter(function (w) { return w.stop && !w.done; })[0] : null;
+      foot = trip ? '<button class="cbig" data-swap>⛽ ' + (nstop ? 'Remplacer l’arrêt ' + A.esc(nstop.plain) : 'Ajouter cet arrêt au trajet') + '</button><button class="csub" data-go>🧭 Y aller directement</button>'
+        : '<button class="cbig" data-go>🧭 Y aller</button>';
     } else if (step === 'dest') {
       var ch = destChoices();
       head = '<span>Où va-t-on ?</span>';
@@ -223,7 +251,11 @@
         head = '<span>🚗 ' + A.esc(cc.name) + '</span>';
         body = (cars.length > 1 ? '<div class="ctg">Véhicule</div><div class="cgrid">' + cars.map(function (x) { return '<button class="copt' + (x.id === cc.id ? ' on' : '') + '" data-usecar="' + x.id + '">' + A.esc(x.name) + '</button>'; }).join('') + '</div>' : '') +
           '<div class="ctg">Carburant préféré</div><div class="cgrid">' + A.FUELS.map(function (f) { return '<button class="copt fuel' + (f.key === cc.fuel ? ' on' : '') + '" style="--fc:' + f.color + ';--fi:' + f.ink + '" data-cfuel="' + f.key + '">' + (f.short || f.label) + '</button>'; }).join('') + '</div>' +
-          adj('Consommation', A.num(cc.cons, 1) + ' L/100', 'cons') + adj('Réservoir', A.num(cc.tank) + ' L', 'tank') +
+          (A.fuelsFor(cc.fuel).indexOf(A.FUEL_INDEX.sp98) >= 0 && cc.fuel !== 'sp98' ? '<div class="ctg">Prendre le SP98 s’il coûte à peine plus</div><div class="cgrid">' + [[0, 'Non'], [0.02, '≤ 2 cts'], [0.05, '≤ 5 cts']].map(function (o) { return '<button class="copt' + ((+cc.prefer98 || 0) === o[0] ? ' on' : '') + '" data-p98="' + o[0] + '">' + o[1] + '</button>'; }).join('') + '</div>' : '') +
+          '<div class="cseg"><button class="copt' + (cc.consMode === 'km' ? '' : ' on') + '" data-consmode="l">Réservoir connu</button><button class="copt' + (cc.consMode === 'km' ? ' on' : '') + '" data-consmode="km">Autonomie</button></div>' +
+          adj('Consommation', A.num(cc.cons, 1) + ' L/100', 'cons') +
+          (cc.consMode === 'km' ? adj('Par plein ≈', A.num(Math.round((cc.tank - cc.reserve) * 100 / cc.cons / 10) * 10) + ' km', 'range') + '<div class="cnote">→ environ ' + A.num(cc.tank - cc.reserve) + ' L utilisés entre deux pleins</div>'
+            : adj('Réservoir', A.num(cc.tank) + ' L', 'tank')) +
           '<div class="ctg">Couleur du curseur</div><div class="ccols">' + COLORS.map(function (p) { return '<button class="ccol' + (p[1] === cc.color ? ' on' : '') + '" data-ccolor="' + p[1] + '" data-cname="' + A.esc(p[0]) + '" style="background:' + p[1] + '" aria-label="' + A.esc(p[0]) + '"></button>'; }).join('') +
           '<button class="ccol cperso' + (custom ? ' on' : '') + '" data-wheelopen aria-label="Couleur perso"' + (custom ? ' style="--cc:' + cc.color + '"' : '') + '></button></div>';
         if (wheel) { // roue chromatique : teinte et intensité sur la roue, clair / foncé sur la barre ; appliqué au curseur à chaque toucher
@@ -241,7 +273,6 @@
       var thm = function (dark) { return '<div class="cthemes">' + Object.keys(T).filter(function (k2) { return !!T[k2].dark === dark; }).map(function (k2) { var t = T[k2], on = k2 === A.state.theme; return '<button class="cth' + (on ? ' on' : '') + '" data-theme="' + k2 + '" style="background:' + t.bg + ';color:' + t.text + ';border-color:' + (on ? t.accent : t.line) + '"><i style="background:' + t.accent + '"></i>' + t.emoji + ' ' + t.name + '</button>'; }).join('') + '</div>'; };
       body = '<div class="ctg">☀️ Clairs</div>' + thm(false) + '<div class="ctg">🌙 Foncés</div>' + thm(true);
     }
-    if (!selected && selMarker) { try { selMarker.remove(); } catch (e) { } selMarker = null; }
     pane.innerHTML = (head ? '<div class="chead">' + head + '</div>' : '') + '<div class="clist">' + body + '</div>' + (foot ? '<div class="cfoot">' + foot + '</div>' : '');
     listEl = pane.querySelector('.clist'); listEl.scrollTop = scrollKeep;
   }
@@ -278,8 +309,46 @@
     if (d) { s = d / (1 - Math.abs(2 * l - 1)); h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h = (h * 60 + 360) % 360; }
     return { h: h, s: Math.min(1, s), l: Math.max(0.12, Math.min(0.88, l)) };
   }
+  // à droite du prix : le SP98 entre parenthèses, quand la voiture l'accepte et que la station en vend
+  function p98Side(s, k) { var k98 = A.FUEL_INDEX.sp98; return k !== k98 && A.fuelsFor(A.car().fuel).indexOf(k98) >= 0 && s.p[k98] > 0 ? ' <small class="c98">(SP98 ' + A.price3(s.p[k98]) + ')</small>' : ''; }
+  // ce que coûte le plein complet, et ce qu'il faut pour compléter d'après le niveau indiqué (Trajet › Réservoir)
+  function fillLine(s, k) {
+    var c = A.car(), left = c.tank * (A.state.startE || 0) / 8, need = Math.max(0, c.tank - left), p = s.p[k];
+    return '<div class="ln cfill"><i>⛽</i><span>Plein ' + A.num(c.tank) + ' L ≈ <b>' + A.num(c.tank * p, 2) + ' €</b> · compléter ' + A.num(need) + ' L ≈ <b>' + A.num(need * p, 2) + ' €</b> <small>(reste ≈ ' + A.num(left) + ' L)</small></span></div>';
+  }
+  // SP98 comparé au carburant retenu, quand la voiture l'accepte : « à ce prix, tu peux prendre du 98 » (écart ≤ 3 cts)
+  function sp98Tip(s, k) {
+    var c = A.car(), k98 = A.FUEL_INDEX.sp98;
+    if (k < 0 || k === k98 || A.fuelsFor(c.fuel).indexOf(k98) < 0 || !(s.p[k98] > 0) || A.ageHours(s, k98) > 24 * 7) return '';
+    var d = s.p[k98] - s.p[k], liters = Math.max(10, c.tank * (1 - (A.state.startE || 0) / 8)), extra = d * liters;
+    return '<div class="ln ctip"><i>💡</i><span>SP98 à ' + A.price3(s.p[k98]) + ' € : ' + (d >= 0 ? '+' : '−') + A.price3(Math.abs(d)) + ' €/L, soit ' + (d >= 0 ? '+' : '−') + A.num(Math.abs(extra), 2) + ' € sur ' + A.num(liters) + ' L' +
+      (d <= 0.03 ? ' · <b>à ce prix, tu peux prendre du 98</b>' : '') + '</span></div>';
+  }
+  // ---- fiche station : 30 jours de prix — la station (couleur du texte), la moyenne à moins de 10 km (rouge), × = prix déclaré
+  var charts = {};
+  function loadChart(s, k) {
+    var key = s.id + ':' + k; charts[key] = '<small>⏳ historique des prix…</small>';
+    A.histSeries(s, k, 30).then(function (r) { charts[key] = r ? chartSvg(r) : '<small>Pas d’historique pour cette station.</small>'; }, function () { charts[key] = '<small>Historique indisponible.</small>'; })
+      .then(function () { var el = pane.querySelector('[data-chart="' + key + '"]'); if (el) el.innerHTML = charts[key]; });
+  }
+  function chartSvg(r) {
+    var W = 300, H = 92, L = 34, R = 6, T = 6, B = 14, vals = r.own.concat(r.avg).filter(function (v) { return v; });
+    if (vals.length < 2) return '<small>Pas assez d’historique.</small>';
+    var lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals), pad = Math.max(0.01, (hi - lo) * 0.15); lo -= pad; hi += pad;
+    var n = r.own.length, x = function (i) { return L + (W - L - R) * i / (n - 1); }, y = function (v) { return T + (H - T - B) * (1 - (v - lo) / (hi - lo)); };
+    var path = function (a) { var d = '', on = false; a.forEach(function (v, i) { if (v == null) { on = false; return; } d += (on ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1); on = true; }); return d; };
+    var marks = r.marks.map(function (p) { var X = x(p[0] - r.from), Y = y(p[1]); return '<path d="M' + (X - 3.5) + ' ' + (Y - 3.5) + 'L' + (X + 3.5) + ' ' + (Y + 3.5) + 'M' + (X + 3.5) + ' ' + (Y - 3.5) + 'L' + (X - 3.5) + ' ' + (Y + 3.5) + '" class="cx"/>'; }).join('');
+    var last = r.own[n - 1], la = r.avg[n - 1], diff = last && la ? last - la : null;
+    return '<svg viewBox="0 0 ' + W + ' ' + H + '" class="csvg" role="img" aria-label="Prix sur 30 jours">' +
+      '<text x="' + (L - 4) + '" y="' + (T + 8) + '" class="ax" text-anchor="end">' + A.price3(hi - pad) + '</text><text x="' + (L - 4) + '" y="' + (H - B) + '" class="ax" text-anchor="end">' + A.price3(lo + pad) + '</text>' +
+      '<text x="' + L + '" y="' + (H - 2) + '" class="ax">il y a 30 j</text><text x="' + (W - R) + '" y="' + (H - 2) + '" class="ax" text-anchor="end">auj.</text>' +
+      (r.n ? '<path d="' + path(r.avg) + '" class="avg"/>' : '') + '<path d="' + path(r.own) + '" class="own"/>' + marks + '</svg>' +
+      '<div class="cleg"><span><i class="own"></i>cette station</span>' + (r.n ? '<span><i class="avg"></i>moy. ' + r.n + ' stations à 10 km</span>' : '') + '<span>× prix déclaré</span></div>' +
+      (diff != null ? '<div class="cdiff">Aujourd’hui ' + A.price3(last) + ' € · alentour ' + A.price3(la) + ' € <b class="' + (diff > 0.005 ? 'up' : diff < -0.005 ? 'dn' : '') + '">(' + (diff >= 0 ? '+' : '−') + A.price3(Math.abs(diff)) + ' €)</b></div>' : '');
+  }
   function setStep(st, m) {
     if (st !== 'setup') wheel = null;
+    if (st === 'map' && (m || mode) === 'map') selected = null; // retour à la carte au repos : plus de station sélectionnée (ni son marqueur)
     if (m && m !== mode) { mode = m; scrollKeep = 0; }
     if (st !== step) scrollKeep = 0;
     step = st; render();
@@ -297,7 +366,7 @@
   function select(s, fly) {
     selected = s;
     try {
-      if (!selMarker) selMarker = L.marker([s.lat, s.lon], { icon: L.divIcon({ className: '', html: '<div class="csel-marker"></div>', iconSize: [34, 34], iconAnchor: [17, 17] }), interactive: false, zIndexOffset: 1000 }).addTo(A.map);
+      if (!selMarker) selMarker = L.marker([s.lat, s.lon], { icon: L.divIcon({ className: '', html: '<div class="csel-marker"></div>', iconSize: [0, 0], iconAnchor: [0, 0] }), interactive: false, zIndexOffset: 1000 }).addTo(A.map);
       else selMarker.setLatLng([s.lat, s.lon]);
     } catch (e) { }
     try { if (window.AndroidAuto && window.AndroidAuto.setTarget) { var k = A.pick(s, A.fuelsFor(A.car().fuel)); window.AndroidAuto.setTarget(s.lat, s.lon, plainName(s) + (k >= 0 ? ' · ' + A.price3(s.p[k]) + ' €' : '')); } } catch (e) { }
@@ -338,8 +407,17 @@
     if (sd) return sd;
     return 'straight';
   }
-  function cueText(k, m, road) {
-    var r = road ? ' sur ' + road : '', ex = m.exit ? (m.exit === 1 ? '1re' : m.exit + 'e') + ' sortie' : '';
+  // Panneaux : numéro de sortie (« 12 ») et directions (« A 10: Paris, Orléans ») fournis par OSRM — ce qu'on veut entendre pour
+  // ne pas rater la sortie, surtout quand on ne voit rien (tunnel, échangeur).
+  function signs(st) {
+    var d = String(st.destinations || '').split(':'), refs = d.length > 1 ? d[0].replace(/\s+/g, '') : '', towns = (d.length > 1 ? d[1] : d[0]).split(',').map(function (x) { return x.trim(); }).filter(Boolean).slice(0, 2);
+    return { exitNo: String(st.exits || '').split(';')[0].trim(), dir: towns.length ? ', direction ' + towns.join(', ') : refs ? ', direction ' + refs : '' };
+  }
+  function cueText(k, m, road, sg) {
+    sg = sg || {}; var dir = sg.dir || '';
+    var r = dir || (road ? ' sur ' + road : ''), ex = m.exit ? (m.exit === 1 ? '1re' : m.exit + 'e') + ' sortie' : '';
+    if (/^off-ramp/.test(k)) return 'Prenez la sortie' + (sg.exitNo ? ' ' + sg.exitNo : '') + (k.slice(-4) === 'left' ? ' à gauche' : ' à droite') + (dir || (road ? ' vers ' + road : ''));
+    if (/^(on-ramp|fork|merge)/.test(k) && dir) return (/^on-ramp/.test(k) ? 'Prenez la bretelle' : /^fork/.test(k) ? (k.slice(-4) === 'left' ? 'Restez à gauche' : 'Restez à droite') : 'Rejoignez la voie') + dir;
     switch (k) {
       case 'depart': return 'C\'est parti' + r;
       case 'straight': return 'Continuez tout droit' + r;
@@ -385,8 +463,8 @@
       (r.legs || []).forEach(function (leg, li) {
         var wp = wps[li], last = li === wps.length - 1;
         (leg.steps || []).forEach(function (st) {
-          var o = { kind: kind(st.maneuver), m: st.maneuver, road: st.name || '', at: acc, dist: st.distance, wp: li };
-          o.cue = /^arrive/.test(o.kind) && !last ? 'Arrêt carburant, ' + wp.plain + (side(st.maneuver.modifier) === 'left' ? ', à gauche' : side(st.maneuver.modifier) === 'right' ? ', à droite' : '') : cueText(o.kind, st.maneuver, o.road);
+          var o = { kind: kind(st.maneuver), m: st.maneuver, road: st.name || '', at: acc, dist: st.distance, wp: li }, sg = signs(st);
+          o.cue = /^arrive/.test(o.kind) && !last ? 'Arrêt carburant, ' + wp.plain + (side(st.maneuver.modifier) === 'left' ? ', à gauche' : side(st.maneuver.modifier) === 'right' ? ', à droite' : '') : cueText(o.kind, st.maneuver, o.road, sg);
           g.steps.push(o); acc += st.distance;
         });
         legEnd += leg.distance; if (wp) wp.atM = legEnd; acc = legEnd;
@@ -411,9 +489,9 @@
     guide.idx = bi; return { km: guide.cum[bi], off: best };
   }
   function nextWp() { for (var i = 0; i < guide.wps.length; i++) if (!guide.wps[i].done) return guide.wps[i]; return null; }
-  function updateGuide(force) {
+  function updateGuide(force, vf) { // vf : position estimée (tunnel), sinon la position GPS
     if (!guide || !guide.pts) return;
-    var f = A.fix; if (!f) return;
+    var f = vf || A.fix; if (!f) return;
     var g = guide, pr = progress(f), progM = pr.km * 1000, leftKm = Math.max(0, g.D - pr.km), mins = g.min * (g.D > 0 ? leftKm / g.D : 1);
     g.wps.forEach(function (w, i) { // arrêts atteints (ou dépassés sur la route) ; le dernier point = arrivée
       if (w.done) return; var dd = A.haversine(f.lat, f.lon, w.lat, w.lon);
@@ -437,12 +515,54 @@
       }
       var stops = g.wps.filter(function (w) { return w.stop; });
       nextBox.innerHTML = !nw ? '🏁 <b>' + A.esc(g.fin.plain) + '</b>' :
-        (nw.s ? '⛽ ' + (nw.stop ? 'Arrêt ' + (stops.indexOf(nw) + 1) + '/' + stops.length + ' · ' : '') + '<b>' + A.esc(nw.plain) + '</b>' + (nw.price ? ' · ' + nw.price + ' €' : '') : '🏁 <b>' + A.esc(nw.plain) + '</b>') +
+        (nw.s ? '⛽ ' + (nw.stop ? 'Arrêt ' + (stops.indexOf(nw) + 1) + '/' + stops.length + ' · ' : '') + '<b>' + A.esc(nw.plain) + '</b>' + (nw.price ? ' · ' + nw.price + (nw.price.indexOf('⚠') < 0 ? ' €' : '') : '') : '🏁 <b>' + A.esc(nw.plain) + '</b>') +
         (nw.atM != null ? ' · ' + km(Math.max(0, nw.atM - progM) / 1000) : '') + (nw.stop ? '<button data-skip>⏭ Passer</button>' : '');
     }
     if (force || !g.savedAt || Date.now() - g.savedAt > 15000) { g.savedAt = Date.now(); saveSession(); }
-    followCar(false);
-    if (pr.off > 0.5 && !arrived) reroute();
+    followCar(false, vf);
+    if (vf) return; // position estimée : on ne recalcule jamais dessus
+    approachCheck(g, nw, progM);
+    g.realKm = pr.km;
+    // hors itinéraire : recalcul seulement après 3 positions de suite à plus de 500 m, et pas sur une position imprécise (sortie de tunnel)
+    if (pr.off > 0.5 && !arrived && !(f.acc > 80)) { g.offN = (g.offN || 0) + 1; if (g.offN >= 3) reroute(); } else g.offN = 0;
+  }
+  // Tunnel : plus de position GPS depuis 4 s alors qu'on roulait → on avance sur l'itinéraire à la dernière vitesse connue (jusqu'à
+  // 2 min), pour que la flèche, les instructions et la voix continuent. Le GPS reprend la main dès qu'il revient.
+  var lastFixAt = Date.now();
+  setInterval(function () {
+    var g = guide, f = A && A.fix; if (!g || !g.pts || !f || g.realKm == null) return;
+    var dt = (Date.now() - lastFixAt) / 1000, v = f.speed || 0; if (dt < 4 || dt > 120 || v < 3) return;
+    var target = g.realKm + v * dt / 1000, P = g.pts, C = g.cum, j = g.idx;
+    while (j < C.length - 1 && C[j] < target) j++;
+    var i = Math.max(0, j - 1), u = C[j] > C[i] ? Math.min(1, Math.max(0, (target - C[i]) / (C[j] - C[i]))) : 0;
+    var toR = Math.PI / 180, a = P[i], b = P[j], dLon = (b[1] - a[1]) * toR, hd = (Math.atan2(Math.sin(dLon) * Math.cos(b[0] * toR), Math.cos(a[0] * toR) * Math.sin(b[0] * toR) - Math.sin(a[0] * toR) * Math.cos(b[0] * toR) * Math.cos(dLon)) / toR + 360) % 360;
+    if (!g.drLogged) { // GPS perdu : on le dit, et on rappelle la prochaine manœuvre (sortie, direction) pour ne pas la rater
+      g.drLogged = 1; log('voiture : GPS perdu, position estimée sur l’itinéraire');
+      var nx = nextStep(g.realKm * 1000);
+      if (nx && !/^arrive/.test(nx.kind)) speak('GPS perdu. N’oubliez pas : ' + (nx.at - g.realKm * 1000 > 150 ? 'dans ' + distSpeech(nx.at - g.realKm * 1000) + ', ' + lower(nx.cue) : lower(nx.cue)) + '.');
+      else speak('GPS perdu, position estimée.');
+    }
+    updateGuide(false, { lat: a[0] + (b[0] - a[0]) * u, lon: a[1] + (b[1] - a[1]) * u, speed: v, heading: hd, dr: true });
+  }, 1000);
+  // À l'approche d'un arrêt carburant (< 15 km) : les prix sont relus toutes les 5 min. Rupture déclarée → alerte écran + voix
+  // (on peut alors prendre une autre station et « Remplacer l'arrêt ») ; prix changé → on le dit. Une seule alerte par station.
+  function approachCheck(g, nw, progM) {
+    if (!nw || !nw.s || !nw.s.id || nw.atM == null || nw.atM - progM > 15000) return;
+    if (g.checkAt && Date.now() - g.checkAt < 5 * 60000) return;
+    g.checkAt = Date.now(); g.warned = g.warned || {};
+    A.refreshQuiet().then(function () {
+      if (guide !== g || nw.done) return;
+      var s2 = A.stations.filter(function (x) { return String(x.id) === String(nw.s.id); })[0]; if (!s2) return;
+      var k = A.pick(s2, A.fuelsFor(A.car().fuel)), conf = k >= 0 ? A.confidence(s2, k) : null, id = String(s2.id);
+      log('voiture : vérification à l’approche de ' + nw.plain + ' → ' + (k < 0 ? 'pas de prix' : A.price3(s2.p[k]) + ' ' + (conf ? conf.label : '')));
+      if ((k < 0 || (conf && conf.level < 0)) && !g.warned[id]) {
+        g.warned[id] = 1; speak('Attention : rupture de carburant déclarée à ' + nw.plain + '. Choisissez une autre station avec Pénurie.');
+        A.toast('⚠️ Rupture déclarée à ' + nw.plain + ' : 🚨 Pénurie pour une autre station'); nw.price = '⚠️ rupture'; g.lastKey = '';
+      } else if (k >= 0 && nw.price && nw.price !== A.price3(s2.p[k]) && nw.price.indexOf('⚠') < 0) {
+        var old = nw.price; nw.price = A.price3(s2.p[k]); g.lastKey = '';
+        speak('Le prix a changé à ' + nw.plain + ' : ' + nw.price.replace(',', ' euros ') + '.'); A.toast('ℹ️ ' + nw.plain + ' : ' + old + ' € → ' + nw.price + ' €');
+      }
+    }).catch(function () { });
   }
   var rerouteAt = 0;
   function remaining() { return guide.wps.filter(function (w) { return !w.done; }); }
@@ -482,6 +602,7 @@
     // la colonne est masquée, la carte couvre tout l'écran et la flèche se place au milieu de la partie libre.
     var root = document.documentElement, st = root.style, cs = getComputedStyle(root), px = function (v) { return parseFloat(cs.getPropertyValue(v)) || 0; };
     var left = Math.max(px('--stable-l'), px('--safe-l')), right = innerWidth - Math.max(px('--stable-r'), px('--safe-r')), h = innerHeight;
+    if (!rail.hidden && rail.getBoundingClientRect().width) left = Math.max(left, rail.getBoundingClientRect().right); // colonne flottante
     if (panelStep()) left = Math.max(left, pane.getBoundingClientRect().right); // une étape est ouverte : la flèche reste visible à sa droite
     var cx = left + Math.max(0, right - left) / 2, cy = h * 0.66, R = Math.max(Math.hypot(cx, cy), Math.hypot(innerWidth - cx, cy), Math.hypot(cx, h - cy), Math.hypot(innerWidth - cx, h - cy));
     var S = Math.ceil(2 * R * 1.2); // le carré tourné et incliné doit couvrir tout l'écran, coins compris
@@ -511,8 +632,8 @@
     nav.heading = cur + delta; window.__mapRotation = nav.heading * Math.PI / 180;
     document.documentElement.style.setProperty('--nav-rot', (-nav.heading) + 'deg');
   }
-  function followCar(force) {
-    var f = A.fix; if (!f || !guide) return;
+  function followCar(force, vf) {
+    var f = vf || A.fix; if (!f || !guide) return;
     if (!nav.on) navOn();
     var kmh = f.speed != null ? f.speed * 3.6 : 0, hd = f.heading != null && !isNaN(f.heading) && kmh > 6 ? f.heading : routeBearing(f);
     setHeading(hd);
@@ -551,11 +672,19 @@
     if ((t = e.target.closest('[data-e]'))) { var v = +t.getAttribute('data-e'); if (v === A.state.startE) v--; A.state.startE = Math.max(0, Math.min(8, v)); A.save(); render(); return; }
     if (e.target.closest('[data-calc]')) { setStep('stops'); compute(); return; }
     if (e.target.closest('[data-trip]')) { goTrip(); return; }
+    if (e.target.closest('[data-swap]') && selected && guide) { // remplace le prochain arrêt du trajet (ou l'ajoute avant la destination)
+      var rem = remaining(), ix = -1, nw = wpOf(selected, true); rem.some(function (w, i) { if (w.stop) { ix = i; return true; } return false; });
+      if (ix >= 0) rem.splice(ix, 1, nw); else rem.splice(rem.length - 1, 0, nw);
+      log('voiture : nouvel arrêt ' + nw.plain); speak('Nouvel arrêt carburant : ' + nw.plain + '.'); go(rem, true); return;
+    }
     if (e.target.closest('[data-go]')) { if (selected) go([wpOf(selected)]); return; }
     if ((t = e.target.closest('[data-usecar]'))) { A.useCar(t.getAttribute('data-usecar')); render(); return; }
+    if ((t = e.target.closest('[data-p98]'))) { A.updateCar({ prefer98: +t.getAttribute('data-p98') }); render(); return; }
+    if ((t = e.target.closest('[data-consmode]'))) { A.updateCar({ consMode: t.getAttribute('data-consmode') }); render(); return; }
     if ((t = e.target.closest('[data-cfuel]'))) { A.updateCar({ fuel: t.getAttribute('data-cfuel') }); render(); return; }
     if ((t = e.target.closest('[data-adj]'))) {
       var cc = A.car(), d = +t.getAttribute('data-d'), key = t.getAttribute('data-adj');
+      if (key === 'range') { var r0 = Math.round((cc.tank - cc.reserve) * 100 / cc.cons / 10) * 10, r1 = Math.max(100, Math.min(2500, r0 + d * 10)); A.updateCar({ tank: Math.round((r1 * cc.cons / 100 + cc.reserve) * 10) / 10 }); render(); return; } // km par plein → carburant utilisable → réservoir
       if (key === 'cons') A.updateCar({ cons: Math.round(Math.max(1, Math.min(40, cc.cons + d * 0.1)) * 10) / 10 });
       else A.updateCar({ tank: Math.max(5, Math.min(200, Math.round(cc.tank) + d)), reserve: Math.min(cc.reserve, (Math.round(cc.tank) + d) / 2) });
       render(); return;
@@ -650,6 +779,25 @@
   function endPinch() { if (!pz) return; var m = A.map, z = pz.z; pz = null; cancelAnimationFrame(pzRaf); pzRaf = 0; m._resetView(m.getCenter(), m._limitZoom(z)); } // comme la fin d'un pincer Leaflet
   function zoomBy(d) { var m = A.map; if (nav.on) nav.freeUntil = Date.now() + 8000; A.setFollow(false); m.setZoom(Math.round(m.getZoom()) + d); }
 
+  // ---- la commune où l'on est (en haut à gauche de la carte) : pour se repérer d'un coup d'œil. Demandée au service d'adresses
+  // tous les ~600 m (Géoplateforme IGN, puis l'ancienne API Adresse, puis Photon hors de France).
+  var town = { name: '', at: null, t: 0, busy: false };
+  function updateTown() {
+    var f = A.fix; if (!f || town.busy) return;
+    if (town.at && A.haversine(f.lat, f.lon, town.at.lat, town.at.lon) < 0.6 && Date.now() - town.t < 300000) return;
+    town.busy = true; town.at = { lat: f.lat, lon: f.lon }; town.t = Date.now();
+    var q = '?lon=' + f.lon.toFixed(5) + '&lat=' + f.lat.toFixed(5) + '&limit=1';
+    var fr = function (base) { return fetch(base + q).then(function (r) { return r.json(); }).then(function (j) { var p = j.features && j.features[0] && j.features[0].properties; if (!p || !p.city) throw new Error('vide'); return p.city; }); };
+    fr('https://data.geopf.fr/geocodage/reverse').catch(function () { return fr('https://api-adresse.data.gouv.fr/reverse/'); })
+      .catch(function () { return fetch('https://photon.komoot.io/reverse' + q + '&lang=fr').then(function (r) { return r.json(); }).then(function (j) { var p = j.features && j.features[0] && j.features[0].properties; return p ? p.city || p.town || p.village || p.name || '' : ''; }); })
+      .then(function (n) { if (n && n !== town.name) { town.name = n; log('voiture : commune ' + n); render(); } }, function () { })
+      .then(function () { town.busy = false; });
+  }
+  function viewSize() { // « ↔ 25 km · ↕ 15 km » : ce que couvre la carte affichée
+    var b = A.map.getBounds(), c = b.getCenter(), w = A.haversine(c.lat, b.getWest(), c.lat, b.getEast()), h = A.haversine(b.getNorth(), c.lng, b.getSouth(), c.lng);
+    var f = function (d) { return d < 10 ? A.num(d, 1) : A.num(d, 0); };
+    return '↔ ' + f(w) + ' km · ↕ ' + f(h) + ' km';
+  }
   function schedule() { clearTimeout(timer); timer = setTimeout(render, 150); }
   function start() {
     if (!ready()) { setTimeout(start, 200); return; }
@@ -668,7 +816,8 @@
     center();
     document.addEventListener('fuelmap:stations', function () { schedule(); if (wantRoute && !computing && !routeReady && !routeErr) compute(); });
     document.addEventListener('fuelmap:fix', function () {
-      center(); resumeGuide(); updateGuide();
+      lastFixAt = Date.now(); if (guide) guide.drLogged = 0;
+      center(); resumeGuide(); updateGuide(); updateTown();
       if (wantRoute && !computing && !routeReady && !routeErr) compute();
       else if (step === 'list' && (!listEl || listEl.scrollTop < 10)) schedule();
     });
@@ -681,6 +830,7 @@
     });
     m.on('moveend', function () { if (mode === 'map' && (step === 'map' || step === 'list')) schedule(); });
     window.addEventListener('resize', schedule);
+    document.addEventListener('fuelmap:state', schedule); // réglages changés sur le téléphone (véhicule, couleur, thème…)
     document.addEventListener('fuelmap:insets', function () { if (nav.on) navGeometry(); }); // l'hôte déplace sa zone libre (début / fin du guidage) sans redimensionner la page
     setInterval(render, 60000); // les âges « il y a x h » vieillissent
     setTimeout(function () { if (!A.fix) render(); }, 12500);

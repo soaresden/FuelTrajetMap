@@ -17,10 +17,14 @@ jobs:
         with: { node-version: 22 }
       - run: node tests/optimizer.test.js
       - run: node tools/build-data.mjs
-      - run: mkdir _site && cp -r index.html sw.js manifest.webmanifest css js icons vendor data _site/
+      - run: mkdir _site && cp -r index.html sw.js manifest.webmanifest privacy.html version-min.json css js icons vendor data _site/  # privacy.html : page exigée par le Play Store ; version-min.json : mise à jour obligatoire
       - uses: actions/configure-pages@v5
         with: { enablement: true }   # active GitHub Pages tout seul au premier passage
       - uses: actions/upload-pages-artifact@v3
         with: { path: _site }
       - id: deployment
         uses: actions/deploy-pages@v4
+      # Contrôle de fraîcheur, en dernier (le site est publié quoi qu'il arrive) : si les prix français ont plus de 12 h, l'exécution
+      # échoue et GitHub envoie un e-mail (à qui a modifié le planning en dernier) — sinon personne ne verrait que les prix vieillissent.
+      - name: Prix assez récents ?
+        run: node -e "const j=require('./data/fr.json'); let d=0; j.list.forEach(x=>(x.m||[]).forEach(v=>{ if(v>d) d=v; })); const today=Math.floor(Date.now()/864e5), h=(Date.now()-j.ts)/36e5; console.log('Fichier refait il y a '+h.toFixed(1)+' h, prix le plus récent : jour '+d+' (aujourd hui : '+today+')'); if (!(h < 12) || d < today - 1) { console.error('Prix français trop anciens : la source officielle ne publie plus ?'); process.exit(1); }"

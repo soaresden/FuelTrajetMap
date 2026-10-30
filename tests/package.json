@@ -1,0 +1,6 @@
+{
+  "name": "fuelmap-tests",
+  "private": true,
+  "description": "Tests de FuelMap : node optimizer.test.js ; node ecrans.test.mjs (tests d'écran, Microsoft Edge)",
+  "devDependencies": { "playwright-core": "1.52.0" }
+}

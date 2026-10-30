@@ -22,3 +22,6 @@ apk/dhu/
 apk/aa-log.txt
 # Code mis de côté (abonnement), pas dans le dépôt public
 .plus-archive/
+# Tests d'écran : modules et captures
+tests/node_modules/
+tests/captures/
