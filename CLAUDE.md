@@ -67,6 +67,9 @@ apk/android/app/src/main/java/fr/soaresden/fuelmap/
   1193×480 / 850×480 / 780×715 (écran partagé) + téléphone 375×812 ; vérifie chevauchements, sorties d'écran, zone des boutons de l'hôte ;
   captures dans tests/captures/. Claude ne peut pas le lancer lui-même (Edge refusé dans son bac à sable) : il refait les mêmes contrôles
   dans le navigateur intégré.
+- Workflow GitHub (`.github/workflows/pages.yml`) : toujours vérifier qu'il reste du YAML valide après modification
+  (`python -c "import yaml; yaml.safe_load(open('.github/workflows/pages.yml', encoding='utf-8'))"`). Une ligne `run:` contenant « : »
+  doit passer en bloc `run: |`, sinon tout le workflow meurt en 0 s (publication ET mise à jour des prix) — arrivé en 1.6.2.
 - Pour Claude : écrire les scripts de modification dans un fichier (Write) plutôt qu'en heredoc bash — le shell mange les `\'`. Les tests d'écran se faisaient avec Playwright contre `index.html?car=1&aa=1`
   en 1193×480 (taille de l'écran de la voiture de Denis), insets hôte : visible Rect(26,95-1167,467), stable Rect(26,26-1167,467).
 - Écran voiture virtuel : `apk\dhu\lancer-dhu-ma-voiture.bat` (1193×480) ou `lancer-dhu.bat` (1280×720). Téléphone en USB,
