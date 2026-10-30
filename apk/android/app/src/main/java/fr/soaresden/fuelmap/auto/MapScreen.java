@@ -48,6 +48,7 @@ public class MapScreen extends Screen {
             @Override public void onNavigate(double lat, double lon, String label) { openMaps(lat, lon, label != null ? label : "Station"); }
             @Override public void onSearch() { openSearch(); }
             @Override public void onOpenMaps(double lat, double lon, String label) { openMaps(lat, lon, label); }
+            @Override public void onAskAgenda() { askAgenda(); }
         });
     }
 
@@ -110,6 +111,16 @@ public class MapScreen extends Screen {
             case "arrive-left": return Maneuver.TYPE_DESTINATION_LEFT; case "arrive-right": return Maneuver.TYPE_DESTINATION_RIGHT; case "arrive": return Maneuver.TYPE_DESTINATION;
             default: return Maneuver.TYPE_STRAIGHT;
         }
+    }
+
+    /** Agenda : autorisation demandée sur le téléphone (invite de l'hôte), puis la page relit les rendez-vous. */
+    private void askAgenda() {
+        try {
+            getCarContext().requestPermissions(java.util.Collections.singletonList(android.Manifest.permission.READ_CALENDAR), (granted, rejected) -> {
+                Diag.i("FuelMapCar", "agenda : accordé " + granted + ", refusé " + rejected);
+                surface.run("window.__fuelmapCar&&window.__fuelmapCar.render()");
+            });
+        } catch (Exception e) { Diag.w("FuelMapCar", "demande d'accès à l'agenda impossible : " + e); }
     }
 
     /** Destination du trajet : écran de recherche de l'hôte, puis la page calcule le trajet depuis la voiture. */

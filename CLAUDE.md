@@ -17,7 +17,7 @@ js/car.js                              écran Android Auto (?aa=1) : rail + pann
 js/fillup.js                           carnet de pleins (question au démarrage près d'une station, pavé, km, stats)
 js/diag.js                             journal côté page (FM.log), export du zip de diagnostic
 js/sources.js, js/optimizer.js         chargement/normalisation des données ; algorithme d'arrêts (testé : tests/optimizer.test.js)
-js/themes.js, js/update.js             12 thèmes ; mise à jour obligatoire (version-min.json)
+js/themes.js, js/update.js             12 thèmes (6 clairs, 6 foncés ; anciens noms → FUELMAP_THEME_ALIASES) ; mise à jour obligatoire
 js/paints.js                           teintes constructeur approchées (couleur du curseur de la voiture)
 tools/build-data.mjs                   génère data/<pays>.json, brands, hist, fr-habits.json (habitudes de mise à jour)
 apk/                                   projet Capacitor ; apk/android = projet Gradle (Java) ; apk/dhu = écran de voiture virtuel
@@ -34,7 +34,7 @@ apk/android/app/src/main/java/fr/soaresden/fuelmap/
 ## Règles non négociables
 
 - **versionCode jamais réutilisé** : le Play Console grille un code dès qu'un AAB est téléversé, même en brouillon.
-  Dernier utilisé : **48 (1.6.0)**. Chaque livraison = code +1 ET bump de `versionName` dans `apk/android/app/build.gradle`,
+  Dernier utilisé : **49 (1.6.1)**. Chaque livraison = code +1 ET bump de `versionName` dans `apk/android/app/build.gradle`,
   de `version` dans `js/config.js`, et du nom de cache dans `sw.js`. Les trois ensemble, toujours.
 - Chaque livraison fournit : l'**AAB** (Play, signé avec la clé d'upload) et un commit. **Plus d'APK** : depuis la 1.5.9 Denis
   installe uniquement via le Play Store (tests internes). Les `*.apk`/`*.aab` sont ignorés par git ; ils vivent dans `apk/`.
@@ -105,33 +105,70 @@ apk/android/app/src/main/java/fr/soaresden/fuelmap/
 ## Écran voiture (js/car.js) — comportement attendu (refait en 1.5.9, façon Waze / Google Maps)
 
 Denis veut un écran **épuré** : la carte d'abord, le reste **par étapes**. Colonne fine (60 px) à gauche : en tête l'icône de l'appli,
-« FuelMap » et la version (pour savoir qu'on est dans l'appli), puis icônes seules ⛽ Stations, 🧭 Trajet, 🚨 Pénurie, 🎨 Thème, et
+« FuelMap » et la version (pour savoir qu'on est dans l'appli), puis icônes seules ⛽ Stations, 🧭 Trajet, 🚨 Pénurie, 🚗 Ma voiture, 🎨 Thème, et
 zoom ＋/− en bas (secours si le pincer n'arrive pas). Colonne masquée pendant le guidage. Carte au repos : **favorites** (⭐ du téléphone)
 en bas à droite (`#carFavs`, 4 max, prix + heure de mise à jour, toucher = fiche station). Chaque mode est un parcours
 (`FLOWS`) dont les étapes s'affichent en **bulles** en haut (`#carSteps`, ✓ = étape faite, touchable pour revenir) ; le contenu de
 l'étape est une **carte flottante** à gauche (`#carPane`, 330 px, hauteur selon le contenu).
 - ⛽ Stations : Carte › Liste › Station › Guidage. Étape Carte = rien d'ouvert, prix écrits sur la carte (pastilles plus grosses
   en voiture), bouton bas « 📋 N stations · dès x,xxx › » (`#carChip`) pour ouvrir la liste. Toucher une pastille = étape Station.
-- 🧭 Trajet : Destination › Réservoir › Arrêts › Guidage. **Le niveau du réservoir est toujours demandé avant le calcul.**
+- 🧭 Trajet : Destination (🔍 hôte, 📅 agenda, favoris, dernier trajet) › Réservoir › Arrêts › Guidage. **Le niveau du réservoir est toujours demandé avant le calcul.**
   Dernier trajet du téléphone (< 3 h) repris d'office à l'étape Réservoir.
 - 🚨 Pénurie : Autour de moi › Station › Guidage (note fraîcheur-distance-prix, pushs automatiques type Total 00:01 pénalisés).
-- 🎨 Thème : les 12 thèmes, appliqués tout de suite (`__fuelmapAPI.setTheme`).
+- 🚗 Ma voiture : tout au toucher (pas de clavier) — véhicule actif si plusieurs, carburant préféré, consommation (± 0,1), réservoir
+  (± 1 L), couleur du curseur : 9 teintes courantes + « perso » = roue chromatique (teinte/intensité sur la roue, clair/foncé sur la barre). Écrit dans la fiche véhicule partagée avec le téléphone (`__fuelmapAPI.updateCar/useCar`).
+- Vue du guidage 2D / 3D (`#carView`, en bas à gauche de la partie libre) : 3D = carte inclinée (`--nav-tilt: 32deg`), 2D = à plat ;
+  toujours tournée dans le sens de la marche ; choix mémorisé (`localStorage['fuelmap-car3d']`).
+- 🎨 Thème : 6 clairs (Jour, GéMap, Sable, Menthe, Lavande, Contraste) et 6 foncés (Nuit, Wéyze, Ardoise, Océan, Ambre, Nuit noire),
+  appliqués tout de suite (`__fuelmapAPI.setTheme`). « GéMap » / « Wéyze » : inspirés de Google Maps / Waze, jamais leur vrai nom (marques).
 - Guidage FuelMap **multi-arrêts** : OSRM avec tous les points (arrêts carburant puis destination), instructions de toutes les
   étapes, « Arrêt carburant, X » à chaque arrêt, bandeau bas « Arrêt 1/2 · station · prix · km [⏭ Passer] » (`#carNext`),
   avancement sur l'itinéraire sans retour en arrière, recalcul si > 500 m hors route, arrêt auto 20 s après l'arrivée. Vue derrière
   la flèche inchangée. Plus de bouton 📱 Maps dans la voiture.
 - « Les yeux sur la route » : en roulant (> 8 km/h), plus de 6 touchers/gestes en 10 s → écran bloqué 3 s avec une barre qui se
   vide (`#carLock`). Test : `__fuelmapCar.lockTest(true)`.
+- Bouton bas « 📋 N stations · ▼ min · moy. · ▲ max · 🇫🇷 » avec 🔄 à sa gauche ; favorites à droite.
 - Chaque toucher affiche un petit rond (`.ctap`) : on voit que l'écran a réagi.
 - Hors mode Trajet, la carte montre toutes les stations (`window.__carShowAll`), pas seulement les candidates du trajet.
+- Écran partagé (carte + lecteur de musique) : la page est plus étroite, les bulles passent en version compacte « ‹ 2/4 Réservoir ✕ »
+  si elles ne tiennent pas à côté des boutons de l'hôte (≈ 430 px), et ne descendent dessous (`html.csteps-low`) qu'en dernier recours.
+- **Reprise** : CarWebSurface recrée la page à chaque changement de taille (obligatoire : une `Presentation` se ferme si son écran
+  virtuel change de taille). car.js mémorise donc en continu mode, étape, destination, station choisie et guidage (arrêts restants)
+  dans `localStorage['fuelmap-carsession']` ; au démarrage, un écran de moins de 10 min est repris et le guidage relancé sans annonce.
+- Étape ouverte pendant un guidage : bulles et carte flottante à droite des cartes de l'hôte (`left: --stable-l`), flèche à leur droite.
 État et journalisation : `__fuelmapCar.state()/dump()`. Plein : question « tu viens de faire le plein ? » (fillup.js) à gauche.
+
+## Téléphone
+
+En-tête (disposition étroite) sur deux lignes : logo « FuelMap » + version, puis les 6 carburants sur toute la largeur (libellés courts
+E10 / GPL via `FUELS[].short`). La voiture choisie est écrite dans l'onglet Véhicules (en bas à droite) ; plus de bouton véhicule en haut.
+Barre sous l'en-tête : les prix d'abord — ▼ min, moy. (zone affichée), ▲ max, 🇫🇷 moyenne France (`franceAvg`) — puis Enseignes,
+Pénurie ; sur téléphone elle passe à la ligne (jamais rien de caché sur le côté). Moins cher : cadre vert fluo animé bordé de noir
+AUTOUR de la pastille (plus cher : cadre rouge fixe), le prix reste lisible. Bouton rond 🔄 = actualiser les prix (`refreshPrices`).
+Carburants aux couleurs usuelles des pistolets (aucune norme) : Gazole jaune, SP95 vert, E10 vert clair, SP98 vert foncé, E85 bleu,
+GPL rouge-orangé (`FUELS[].color/ink`).
+Mode voiture du téléphone : le bandeau (`#hud`) reste au-dessus de la barre d'onglets, zoom / licence / boutons au-dessus du bandeau
+(`--hud-h`, `--top-h` publiés par ResizeObserver). « Ma position » centre la carte et, en mode voiture, la suit (plus de bouton flèche).
+
+## Agenda (destination sans rien écrire)
+
+`agenda/Agenda.java` lit les rendez-vous des 7 prochains jours qui ont un lieu (permission READ_CALENDAR, demandée au premier usage) :
+téléphone via le plugin Capacitor `Agenda.list()` (puce « 📅 Agenda » de l'onglet Trajet), voiture via `AndroidAuto.agenda()`
+(synchrone) / `askAgenda()` (invite sur le téléphone). Le lieu touché est géocodé par `__fuelmapAPI.findPlace` (texte entier, puis
+en retirant les morceaux du début : « Cabinet X, 10 rue Y, Tours » → l'adresse). Play Console : déclarer l'accès à l'agenda dans
+la section « Sécurité des données » (lu sur l'appareil, seul le lieu choisi part au géocodeur ; privacy.html le dit).
 
 ## Couleur de la voiture (curseur)
 
 Fiche véhicule (téléphone) : champ « Couleur ». Trois sources : table de teintes d'usine approchées (`js/paints.js`, ~140 entrées,
 recherche tolérante FR/EN), **photo de sa voiture** (rien ne sort du téléphone), ou **photos du modèle sur Wikimedia Commons**
 (API gratuite sans clé, images lisibles au pixel ; « mx5 » → « mx-5 », élargissement si trop peu de résultats). Sur la photo :
-couleur dominante proposée au centre, un toucher sur la carrosserie l'ajuste. Stockée dans `car.color` / `car.paint`, appliquée
+couleur dominante proposée (bas-centre de la photo, pixels presque noirs/blancs écartés sauf s'ils dominent), un toucher sur la
+carrosserie l'ajuste. « 🔎 Trouver ma couleur » (ou Entrée) répond directement : sous chaque photo, sa couleur analysée et le nom
+de la teinte tiré du titre Commons (« Vert Polo », « Gris Boréal »), et en tête une « couleur retenue » = moyenne du plus grand
+groupe de photos concordantes (≥ 2 sur les 8 premières), sinon rien n'est affirmé. Aucune base ouverte de teintes OEM avec
+hexadécimal n'existe (nuanciers des vendeurs de retouche = commerciaux, sans API). La table n'est PAS exhaustive (teintes récentes) : pour une
+voiture ancienne, la photo est la bonne voie. Teintes très foncées (Vert Polo) : l'analyse auto reste approximative. Stockée dans `car.color` / `car.paint`, appliquée
 via `--car` au point de position et à la flèche du guidage. Google Images écarté : clé payante exposée sans serveur, API fermée aux
 nouveaux comptes, et les sites tiers interdisent la lecture des pixels.
 
@@ -143,11 +180,13 @@ Le README décrit la publication.
 
 ## Pistes en attente (par priorité ressentie)
 
-1. Valider la 1.6.0 dans la voiture : nouvel écran par étapes, colonne en haut, guidage plein écran, favorites, pincer, toucher, verrou 3 s, guidage multi-arrêts ; et toujours fiche de
+1. Valider la 1.6.1 dans la voiture (et l'écran partagé avec le lecteur) : nouvel écran par étapes, colonne en haut, guidage plein écran, favorites, pincer, toucher, verrou 3 s, guidage multi-arrêts ; et toujours fiche de
    manœuvre acceptée par l'hôte, voix dans les enceintes, vue tournée fluide (sinon alléger la nappe de couleur).
 1b. Piste technique proposée : passer la carte de Leaflet à **MapLibre GL** (WebGL, tuiles vectorielles OpenFreeMap gratuites) : rotation et
    inclinaison natives pour le guidage (au lieu du carré CSS tourné), zoom continu, rendu net. Gros chantier (toute la carte de app.js) :
-   à faire à part, après validation de la 1.6.0.
+   à faire à part, après validation de la 1.6.1.
+1c. Choix de la voix du guidage : les voix de Waze / Google Maps sont inaccessibles (données privées de ces applis, sous licence) ;
+   possible en revanche : proposer les voix françaises du moteur de synthèse du téléphone (`TextToSpeech.getVoices()` dans CarVoice).
 2. Remontée utilisateur (« cette station est fermée / plus d'essence ») : nécessite un petit backend (Cloudflare Worker proposé), en attente du compte.
 3. Carnet de pleins : export CSV, rappel kilométrage ; puis découpage gratuit / Plus (voir `.plus-archive`).
 4. Statistiques de conduite (conso réelle déjà calculée entre deux relevés de compteur).

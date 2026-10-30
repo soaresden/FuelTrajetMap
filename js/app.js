@@ -4,13 +4,13 @@
 
   // ------------------------------------------------------------------ constantes
   var FUELS = [
-    { key: 'gazole', label: 'Gazole', gov: 'Gazole' },
-    { key: 'sp95', label: 'SP95', gov: 'SP95' },
-    { key: 'e10', label: 'SP95-E10', gov: 'E10' },
-    { key: 'sp98', label: 'SP98', gov: 'SP98' },
-    { key: 'e85', label: 'E85', gov: 'E85' },
-    { key: 'gplc', label: 'GPLc', gov: 'GPLc' }
-  ];
+    { key: 'gazole', label: 'Gazole', gov: 'Gazole', color: '#f5c518', ink: '#2a2100' },
+    { key: 'sp95', label: 'SP95', gov: 'SP95', color: '#2e9d4f', ink: '#ffffff' },
+    { key: 'e10', label: 'SP95-E10', gov: 'E10', short: 'E10', color: '#8cc63f', ink: '#1a2a06' },
+    { key: 'sp98', label: 'SP98', gov: 'SP98', color: '#17633a', ink: '#ffffff' },
+    { key: 'e85', label: 'E85', gov: 'E85', color: '#2f80d1', ink: '#ffffff' },
+    { key: 'gplc', label: 'GPLc', gov: 'GPLc', short: 'GPL', color: '#e4572e', ink: '#ffffff' }
+  ]; // couleurs : l'usage le plus courant des pistolets en station (aucune norme officielle) — jaune gazole, verts essence, bleu E85, rouge GPL
   var FUEL_INDEX = {}; FUELS.forEach(function (f, i) { FUEL_INDEX[f.key] = i; });
   // Qui peut le plus peut le moins : un moteur prévu pour le SP95-E10 accepte aussi SP95 et SP98 ; un moteur SP95 accepte le SP98.
   var COMPAT = { e10: ['e10', 'sp95', 'sp98'], sp95: ['sp95', 'sp98'], sp98: ['sp98'], gazole: ['gazole'], e85: ['e85'], gplc: ['gplc'] };
@@ -318,7 +318,7 @@
   function theme() { return THEMES[state.theme] || THEMES.nuit; }
   function isDark() { return !!theme().dark; }
   function applyTheme() {
-    if (state.theme === 'dark') state.theme = 'nuit'; if (state.theme === 'light') state.theme = 'jour'; if (!THEMES[state.theme]) state.theme = 'nuit';
+    var alias = window.FUELMAP_THEME_ALIASES || {}; if (!THEMES[state.theme] && alias[state.theme]) state.theme = alias[state.theme]; if (!THEMES[state.theme]) state.theme = 'nuit';
     var t = theme(), st = document.documentElement.style, vars = { bg: '--bg', panel: '--panel', panel2: '--panel2', line: '--line', text: '--text', muted: '--muted', accent: '--accent', accent2: '--accent2', ink: '--accent-ink', warn: '--warn', bad: '--bad', mapBg: '--map-bg' };
     Object.keys(vars).forEach(function (k) { st.setProperty(vars[k], t[k]); });
     st.setProperty('--tile-filter', t.tiles || 'none'); st.setProperty('--shadow', t.dark ? '0 8px 30px rgba(0,0,0,.45)' : '0 8px 30px rgba(20,30,50,.18)');
@@ -329,8 +329,9 @@
   }
   function applyCarColor() { document.documentElement.style.setProperty('--car', car().color || '#3b82f6'); } // curseur (point de position, flèche du guidage) à la couleur de la voiture
   function openThemePicker() {
-    openModal('<h2>🎨 Thème</h2><p class="hint">Couleurs de l\'appli et du fond de carte. Les couleurs des prix (vert = pas cher, rouge = cher) ne changent pas.</p><div class="themes">' +
-      Object.keys(THEMES).map(function (k) { var t = THEMES[k]; return '<button class="theme-card' + (k === state.theme ? ' on' : '') + '" data-theme-pick="' + k + '" style="background:' + t.bg + ';color:' + t.text + ';border-color:' + (k === state.theme ? t.accent : t.line) + '"><span class="sw" style="background:' + t.panel + ';border-color:' + t.line + '"><i style="background:' + t.accent + '"></i><i style="background:' + t.accent2 + '"></i><i style="background:' + t.bad + '"></i></span><b>' + t.emoji + ' ' + t.name + '</b></button>'; }).join('') + '</div>');
+    var card = function (k) { var t = THEMES[k]; return '<button class="theme-card' + (k === state.theme ? ' on' : '') + '" data-theme-pick="' + k + '" style="background:' + t.bg + ';color:' + t.text + ';border-color:' + (k === state.theme ? t.accent : t.line) + '"><span class="sw" style="background:' + t.panel + ';border-color:' + t.line + '"><i style="background:' + t.accent + '"></i><i style="background:' + t.accent2 + '"></i><i style="background:' + t.bad + '"></i></span><b>' + t.emoji + ' ' + t.name + '</b></button>'; };
+    var keys = Object.keys(THEMES), group = function (dark) { return '<div class="themes">' + keys.filter(function (k) { return !!THEMES[k].dark === dark; }).map(card).join('') + '</div>'; };
+    openModal('<h2>🎨 Thème</h2><p class="hint">Couleurs de l\'appli et du fond de carte. Les couleurs des prix (vert = pas cher, rouge = cher) ne changent pas.</p><h3 class="tgrp">☀️ Clairs</h3>' + group(false) + '<h3 class="tgrp">🌙 Foncés</h3>' + group(true));
   }
   $('modalBody').addEventListener('click', function (e) { var b = e.target.closest('[data-theme-pick]'); if (!b) return; state.theme = b.getAttribute('data-theme-pick'); save(); applyTheme(); refreshMap(); openThemePicker(); });
   var TILE_SOURCES = [
@@ -450,7 +451,7 @@
       if (hi - med < 0.01) hi = med + 0.01;
       var minS = inView[0], maxS = inView[0];
       inView.forEach(function (s) { if (s._p < minS._p) minS = s; if (s._p > maxS._p) maxS = s; });
-      viewStats = { n: inView.length, min: minS, max: maxS, med: med };
+      viewStats = { n: inView.length, min: minS, max: maxS, med: med, mean: prices.reduce(function (a, b) { return a + b; }, 0) / prices.length };
     } else viewStats = { n: 0 };
     viewStats.rupt = rupt.filter(function (s) { return vb.contains([s.lat, s.lon]); }).length;
     viewStats.fresh = inView.filter(function (s) { return ageHours(s, pick(s, fis)) <= 6; }).length;
@@ -524,22 +525,29 @@
   var pulse = { min: null, max: null };
   function setPulse(kind, s) {
     if (!s) { if (pulse[kind]) { map.removeLayer(pulse[kind]); pulse[kind] = null; } return; }
-    if (!pulse[kind]) pulse[kind] = L.marker([s.lat, s.lon], { icon: L.divIcon({ className: '', html: '<div class="pulse ' + kind + '"></div>', iconSize: [18, 18], iconAnchor: [9, 9] }), zIndexOffset: kind === 'min' ? 600 : 500 })
+    if (!pulse[kind]) pulse[kind] = L.marker([s.lat, s.lon], { icon: L.divIcon({ className: '', html: '<div class="pulse ' + kind + '"></div>', iconSize: [0, 0], iconAnchor: [0, 0] }), zIndexOffset: kind === 'min' ? 600 : 500 }) // cadre autour de la pastille de prix (le prix reste lisible)
       .on('click', function () { if (viewStats && viewStats[kind]) openStation(viewStats[kind], false); }).addTo(map);
     else pulse[kind].setLatLng([s.lat, s.lon]);
   }
   function brandPill() { return '<span class="stat brand' + (state.brand ? ' on' : '') + '" data-brandpick>🏷️ ' + esc(state.brand || 'Enseignes') + '</span>'; }
+  var frAvg = { key: '', v: 0 };
+  function franceAvg() { // prix moyen en France pour le carburant affiché (recalculé seulement quand les données ou le carburant changent)
+    var fis = displayFuels(), key = fis.join(',') + '|' + stations.length + '|' + dataTs + '|' + state.brand;
+    if (frAvg.key !== key) { var s = 0, n = 0; stations.forEach(function (x) { if (x.cc !== 'fr') return; var k = pick(x, fis); if (k >= 0) { s += x.p[k]; n++; } }); frAvg = { key: key, v: n ? s / n : 0 }; }
+    return frAvg.v;
+  }
   function renderStats() {
     var el = $('statbar'), v = viewStats, fi = FUEL_INDEX[state.fuel];
     setPulse('min', v && v.n > 1 && !routeCtx ? v.min : null); setPulse('max', v && v.n > 1 && !routeCtx && v.max._p > v.min._p + 0.0005 ? v.max : null);
     var ruptPill = v && v.rupt ? '<span class="stat rupt" title="Ruptures déclarées par les stations (prix-carburants.gouv.fr)">⊘ <b>' + num(v.rupt) + '</b> en rupture</span>' : '';
     var modePill = '<span class="stat mode' + (state.shortage ? ' on' : '') + '" data-shortage title="Colorer la carte selon la fraîcheur des prix plutôt que leur niveau">' + (state.shortage ? '⛽ Pénurie : fraîcheur' : '⛽ Pénurie ?') + '</span>';
-    if (!v || !v.n) { el.innerHTML = stations.length ? brandPill() + modePill + '<span class="stat">Aucun prix ' + FUELS[fi].label + ' récent dans cette zone</span>' + ruptPill : ''; return; }
+    if (!v || !v.n) { el.innerHTML = stations.length ? '<span class="stat">Aucun prix ' + (FUELS[fi].short || FUELS[fi].label) + ' ici</span>' + brandPill() + modePill + ruptPill : ''; return; }
     if (state.shortage) { el.innerHTML = brandPill() + modePill + '<span class="stat min">🟢 <b>' + num(v.fresh) + '</b> mise' + (v.fresh > 1 ? 's' : '') + ' à jour < 6 h<span class="wide-only"> · ' + num(v.n) + ' stations</span></span>' + ruptPill; return; }
-    el.innerHTML = brandPill() + modePill +
-      '<span class="stat min" data-go="min">▼ <b>' + price3(v.min._p) + '</b> ' + esc(titleCase(v.min.ville)) + '</span>' +
-      '<span class="stat">médiane <b>' + price3(v.med) + '</b><span class="wide-only"> · ' + num(v.n) + ' stations</span></span>' +
-      '<span class="stat max" data-go="max">▲ <b>' + price3(v.max._p) + '</b></span>' + ruptPill;
+    var fr = franceAvg();
+    el.innerHTML = '<span class="stat min" data-go="min" title="Le moins cher de la zone affichée">▼ <b>' + price3(v.min._p) + '</b><span class="wide-only"> ' + esc(titleCase(v.min.ville)) + '</span></span>' +
+      '<span class="stat" title="Prix moyen dans la zone affichée">moy. <b>' + price3(v.mean) + '</b><span class="wide-only"> · ' + num(v.n) + ' stations</span></span>' +
+      '<span class="stat max" data-go="max" title="Le plus cher de la zone affichée">▲ <b>' + price3(v.max._p) + '</b></span>' +
+      (fr ? '<span class="stat" title="Prix moyen en France">🇫🇷 <b>' + price3(fr) + '</b></span>' : '') + brandPill() + modePill + ruptPill;
   }
   $('statbar').addEventListener('click', function (e) {
     if (e.target.closest('[data-brandpick]')) return; // géré plus bas
@@ -593,8 +601,9 @@
 
   // ------------------------------------------------------------------ carburant, véhicule, thème
   function renderFuelChips() {
-    $('fuelChips').innerHTML = FUELS.map(function (f) { return '<button class="chip' + (f.key === state.fuel ? ' on' : '') + '" role="tab" data-fuel="' + f.key + '">' + f.label + '</button>'; }).join('');
+    $('fuelChips').innerHTML = FUELS.map(function (f) { return '<button class="chip fuel' + (f.key === state.fuel ? ' on' : '') + '" style="--fc:' + f.color + ';--fi:' + f.ink + '" role="tab" data-fuel="' + f.key + '" title="' + f.label + '"><span class="lg">' + f.label + '</span><span class="sh">' + (f.short || f.label) + '</span></button>'; }).join('');
     var c = car(); $('vehicleBtn').textContent = '🚗 ' + c.name;
+    var tab = document.querySelector('#tabs [data-tab=cars] span'); if (tab) tab.textContent = state.cars.length ? c.name : 'Véhicules'; // téléphone : la voiture choisie, en bas à droite
     var on = $('fuelChips').querySelector('.on'); if (on && on.scrollIntoView) on.scrollIntoView({ block: 'nearest', inline: 'center' });
   }
   $('fuelChips').addEventListener('click', function (e) {
@@ -620,18 +629,22 @@
       }, function (err) { rej(new Error(err.code === 1 ? 'Position refusée par le navigateur' : 'Position introuvable')); }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
     });
   }
-  $('locateBtn').addEventListener('click', function () { locate().then(function (p) { map.setView([p.lat, p.lon], 12); }).catch(function (e) { toast(e.message); }); });
+  $('locateBtn').addEventListener('click', function () { locate().then(function (p) { map.setView([p.lat, p.lon], Math.max(map.getZoom(), 12)); if (carMode) setFollow(true); }).catch(function (e) { toast(e.message); }); }); // mode voiture : la carte suit ensuite la position, jusqu'à ce qu'on la déplace
 
   // ------------------------------------------------------------------ mode voiture : gros contrôles, suivi GPS, prochaine station
   var carMode = false, follow = false, watchId = null, lastFix = null, hudTimer = null;
   function setCarMode(on, silent) {
     carMode = on; document.documentElement.toggleAttribute('data-car', on);
-    $('carBtn').style.borderColor = on ? 'var(--accent)' : ''; $('followBtn').hidden = !on; $('hud').hidden = !on;
+    $('carBtn').style.borderColor = on ? 'var(--accent)' : ''; $('hud').hidden = !on;
     if (on) { startWatch(); setFollow(true); updateHud(); if (!silent) toast('🚗 Mode voiture : suivi GPS et prochaine station en bas de la carte'); }
     else { setFollow(false); stopWatch(); }
     setTimeout(function () { map.invalidateSize(); refreshMap(); }, 250);
   }
-  function setFollow(on) { follow = on; $('followBtn').style.borderColor = on ? 'var(--accent)' : ''; if (on && lastFix) map.setView([lastFix.lat, lastFix.lon], Math.max(map.getZoom(), 12)); }
+  try { // en-tête sur deux lignes au téléphone, bandeau du mode voiture de hauteur variable : on publie leur vraie hauteur
+    new ResizeObserver(function () { var st = document.documentElement.style; st.setProperty('--top-h', $('topbar').offsetHeight + 'px'); st.setProperty('--hud-h', ($('hud').hidden ? 0 : $('hud').offsetHeight) + 'px'); }).observe($('topbar'));
+    new ResizeObserver(function () { document.documentElement.style.setProperty('--hud-h', ($('hud').hidden ? 0 : $('hud').offsetHeight) + 'px'); }).observe($('hud'));
+  } catch (e) { }
+  function setFollow(on) { follow = on; $('locateBtn').style.borderColor = on ? 'var(--accent)' : ''; if (on && lastFix) map.setView([lastFix.lat, lastFix.lon], Math.max(map.getZoom(), 12)); }
   function startWatch() {
     if (watchId != null || !navigator.geolocation) return;
     watchId = navigator.geolocation.watchPosition(function (p) {
@@ -927,6 +940,7 @@
   $('paintSug').addEventListener('click', function (e) { var b = e.target.closest('[data-paint]'); if (!b) return; $('carColor').value = b.getAttribute('data-paint'); $('carPaint').value = b.getAttribute('data-label'); this.innerHTML = ''; });
   $('paintPhoto').addEventListener('click', function () { $('paintFile').click(); });
   $('paintFile').addEventListener('change', function () { var f = this.files && this.files[0]; this.value = ''; if (f) { var u = URL.createObjectURL(f); paintPicker(u, function () { URL.revokeObjectURL(u); }); } });
+  $('carPaint').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); searchPaintPhotos(this.value.trim()); } }); // Entrée = « Trouver ma couleur »
   $('paintWeb').addEventListener('click', function () { searchPaintPhotos(($('carPaint').value || $('carName').value || '').trim()); });
   function searchPaintPhotos(q) {
     if (!q) { toast('Tape d\'abord le modèle et la couleur, ex. « Mazda MX-5 bleu »'); return; }
@@ -940,29 +954,76 @@
       return fetch('https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrnamespace=6&gsrlimit=18&gsrsearch=' + encodeURIComponent(t + ' filetype:bitmap') + '&prop=imageinfo&iiprop=url&iiurlwidth=360')
         .then(function (r) { return r.json(); }).then(function (j) {
           var pages = j.query && j.query.pages ? Object.keys(j.query.pages).map(function (k) { return j.query.pages[k]; }).sort(function (a, b) { return a.index - b.index; }) : [];
-          pages.forEach(function (p) { var u = p.imageinfo && p.imageinfo[0] && p.imageinfo[0].thumburl; if (u && imgs.indexOf(u) < 0 && imgs.length < 18) imgs.push(u); });
+          pages.forEach(function (p) { var u = p.imageinfo && p.imageinfo[0] && p.imageinfo[0].thumburl; if (u && !imgs.some(function (x) { return x.u === u; }) && imgs.length < 18) imgs.push({ u: u, t: p.title || '' }); });
           return next();
         });
     };
     return next().then(function (imgs) {
-        $('modalBody').innerHTML = '<h2>🔎 ' + esc(q) + '</h2>' + (imgs.length ? '<p class="hint">Touche la photo qui ressemble le plus à ta voiture.</p><div class="paintgrid">' + imgs.map(function (u) { return '<img src="' + esc(u) + '" data-paintimg="' + esc(u) + '" alt="" loading="lazy">'; }).join('') + '</div>' : '<p class="hint">Aucune photo trouvée. Essaie « marque modèle couleur », ex. « Peugeot 208 rouge ».</p>') + '<p class="hint">Photos : Wikimedia Commons.</p>';
+        // Réponse directe : sous chaque photo, sa couleur analysée et le nom de la teinte quand le titre le donne (« Vert Polo », « Gris Boréal »).
+        // Toucher la pastille = couleur choisie ; toucher la photo = l'ouvrir pour pointer la carrosserie soi-même.
+        $('modalBody').innerHTML = '<h2>🔎 ' + esc(q) + '</h2>' + (imgs.length ? '<div id="pgBest" class="pgbest" hidden></div><p class="hint">Ou touche la pastille de la voiture qui ressemble à la tienne (ou la photo, pour viser la carrosserie toi-même).</p><div class="paintgrid">' + imgs.map(function (x, i) {
+          var nm = paintName(x.t);
+          return '<div class="pgi"><img src="' + esc(x.u) + '" data-paintimg="' + esc(x.u) + '" alt="" loading="lazy"><button type="button" class="pgc" id="pgc' + i + '" disabled><i></i><span>' + (nm ? esc(nm) : '…') + '</span></button></div>';
+        }).join('') + '</div>' : '<p class="hint">Aucune photo trouvée. Essaie « marque modèle couleur », ex. « Peugeot 406 vert ».</p>') + '<p class="hint">Photos : Wikimedia Commons.</p>';
+        var found = []; // couleurs analysées des photos les plus pertinentes (les 8 premières)
+        imgs.forEach(function (x, i) { // analyse de chaque vignette, à mesure qu'elles arrivent
+          var im = new Image(); im.crossOrigin = 'anonymous';
+          im.onload = function () {
+            var b = $('pgc' + i); if (!b) return;
+            try {
+              var w = 160, h = Math.max(1, Math.round(im.height * 160 / im.width)), cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+              var cx = cv.getContext('2d', { willReadFrequently: true }); cx.drawImage(im, 0, 0, w, h); var c = dominant(cx, w, h);
+              if (i < 8) { found.push({ c: c, name: paintName(x.t) }); consensus(found, q); }
+              b.disabled = false; b.setAttribute('data-paintuse', c); b.setAttribute('data-paintname', paintName(x.t) || ''); b.querySelector('i').style.background = c; if (!paintName(x.t)) b.querySelector('span').textContent = c;
+            } catch (e) { b.querySelector('span').textContent = '—'; }
+          };
+          im.src = x.u;
+        });
         return imgs;
       }).catch(function () { $('modalBody').innerHTML = '<p class="hint">⚠️ Recherche impossible (pas de réseau ?)</p>'; return []; });
   }
   $('modalBody').addEventListener('click', function (e) {
     var im = e.target.closest('[data-paintimg]'); if (im) { paintPicker(im.getAttribute('data-paintimg')); return; }
-    var use = e.target.closest('[data-paintuse]'); if (use) { $('carColor').value = use.getAttribute('data-paintuse'); if (!$('carPaint').value) $('carPaint').value = 'Couleur de ma photo'; closeModal(); toast('🎨 Couleur du curseur choisie'); }
+    var use = e.target.closest('[data-paintuse]'); if (use) { $('carColor').value = use.getAttribute('data-paintuse'); var pn = use.getAttribute('data-paintname'); if (pn) $('carPaint').value = pn; else if (!$('carPaint').value) $('carPaint').value = 'Couleur de ma photo'; closeModal(); toast('🎨 Couleur du curseur choisie'); }
   });
+  // Couleur retenue : les photos d'une même teinte varient avec la lumière (métallisé, nacré). On garde le plus grand groupe de couleurs
+  // proches entre elles (écarte vitres, détails, autres voitures) et on en fait la moyenne ; il faut au moins 2 photos d'accord.
+  function consensus(found, q) {
+    var rgb = function (h) { return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]; }, P = found.map(function (f) { return rgb(f.c); });
+    var near = function (a, b) { return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]) < 48; }, best = [];
+    P.forEach(function (a) { var g = []; P.forEach(function (b, j) { if (near(a, b)) g.push(j); }); if (g.length > best.length) best = g; });
+    var el = $('pgBest'); if (!el) return;
+    if (best.length < 2) { el.hidden = true; return; }
+    var m = [0, 0, 0]; best.forEach(function (j) { m[0] += P[j][0]; m[1] += P[j][1]; m[2] += P[j][2]; });
+    var c = hex(m[0] / best.length, m[1] / best.length, m[2] / best.length), nm = best.map(function (j) { return found[j].name; }).filter(Boolean)[0] || q;
+    el.hidden = false;
+    el.innerHTML = '<i style="background:' + c + '"></i><div><b>🎯 Couleur retenue</b><small>' + esc(nm) + ' · ' + c + ' · selon ' + best.length + ' photos sur ' + found.length + '</small></div><button type="button" class="primary" data-paintuse="' + c + '" data-paintname="' + esc(nm) + '">Utiliser</button>';
+  }
+  // nom de teinte dans le titre d'une photo : « … Vert Polo (Pack…) » → « Vert Polo », « … Gris Boreal (3).jpg » → « Gris Boreal »
+  function paintName(title) {
+    var m = /\b(Vert|Bleu|Rouge|Gris|Blanc|Noir|Jaune|Orange|Beige|Marron|Violet|Argent|Bordeaux|Green|Blue|Red|Grey|Gray|White|Black|Yellow|Silver)\s+([A-ZÉÈ][\wéèêàç-]+(?:\s+[A-ZÉÈ][\wéèêàç-]+)?)/.exec(String(title).replace(/^File:/, '').replace(/\.\w+$/, ''));
+    return m ? m[1] + ' ' + m[2] : '';
+  }
   function hex(r, g, b) { return '#' + [r, g, b].map(function (v) { return ('0' + Math.round(v).toString(16)).slice(-2); }).join(''); }
-  function dominant(ctx, w, h) { // couleur la plus présente au centre de la photo (là où est la voiture) ; les teintes vives comptent plus que le gris du bitume ou le ciel
-    var x0 = Math.round(w * 0.2), y0 = Math.round(h * 0.3), d = ctx.getImageData(x0, y0, Math.round(w * 0.6), Math.round(h * 0.45)).data, bins = {}, best = null;
-    for (var i = 0; i < d.length; i += 16) {
-      var r = d[i], g = d[i + 1], b = d[i + 2], mx = Math.max(r, g, b), mn = Math.min(r, g, b), sat = mx ? (mx - mn) / mx : 0;
-      var k = (r >> 5) + ',' + (g >> 5) + ',' + (b >> 5), o = bins[k] || (bins[k] = { n: 0, w: 0, r: 0, g: 0, b: 0 });
-      o.n++; o.w += 1 + sat * 1.5; o.r += r; o.g += g; o.b += b;
-    }
-    Object.keys(bins).forEach(function (k) { if (!best || bins[k].w > best.w) best = bins[k]; });
-    return best ? hex(best.r / best.n, best.g / best.n, best.b / best.n) : '#3b82f6';
+  // Couleur de la carrosserie sur une photo : zone centrale (là où est la voiture), histogramme de couleurs. Les pixels presque noirs
+  // (pneus, vitres, ombres) ou presque blancs (reflets, ciel) sont écartés, sauf s'ils dominent vraiment (voiture noire ou blanche) ;
+  // les teintes franches comptent plus que le gris du bitume.
+  function dominant(ctx, w, h) {
+    var x0 = Math.round(w * 0.15), y0 = Math.round(h * 0.4), d = ctx.getImageData(x0, y0, Math.round(w * 0.7), Math.round(h * 0.45)).data; // bas-centre : la voiture, pas le ciel
+    var pick = function (keep) {
+      var bins = {}, best = null, n = 0;
+      for (var i = 0; i < d.length; i += 16) {
+        var r = d[i], g = d[i + 1], b = d[i + 2], mx = Math.max(r, g, b), mn = Math.min(r, g, b), sat = mx ? (mx - mn) / mx : 0, lum = 0.3 * r + 0.59 * g + 0.11 * b;
+        if (!keep(lum, sat)) continue; n++;
+        var k = (r >> 5) + ',' + (g >> 5) + ',' + (b >> 5), o = bins[k] || (bins[k] = { n: 0, w: 0, r: 0, g: 0, b: 0 });
+        o.n++; o.w += 1 + sat * 2.5 * Math.min(1, lum / 60); o.r += r; o.g += g; o.b += b;
+      }
+      Object.keys(bins).forEach(function (k) { if (!best || bins[k].w > best.w) best = bins[k]; });
+      return { best: best, n: n };
+    };
+    var all = d.length / 16, mid = pick(function (lum) { return lum > 38 && lum < 232; });
+    var res = mid.n > all * 0.35 ? mid : pick(function () { return true; }); // presque tout est très sombre ou très clair : c'est la couleur de la voiture
+    return res.best ? hex(res.best.r / res.best.n, res.best.g / res.best.n, res.best.b / res.best.n) : '#3b82f6';
   }
   function paintPicker(src, done) {
     openModal('<h2>🎨 Couleur de ta voiture</h2><p class="hint">Couleur dominante proposée ; touche la carrosserie pour l\'ajuster.</p><canvas id="paintCanvas"></canvas><div class="paintpick"><i id="paintSw"></i><b id="paintHex"></b><button type="button" class="primary" id="paintUse">Utiliser</button></div>');
@@ -1034,6 +1095,38 @@
       return all.filter(function (x) { var k = x.label + '|' + x.ctx; if (seen[k]) return false; seen[k] = 1; return true; }).slice(0, 7);
     });
   }
+  // Lieu d'un rendez-vous d'agenda (« Cabinet Dupont, 12 rue X, Tours ») → coordonnées. Si le texte entier ne donne rien, on retire
+  // les morceaux du début un à un (le nom du lieu), jusqu'à tomber sur l'adresse ou la ville.
+  function findPlace(text) {
+    var parts = String(text).split(/\s*[,;\n]\s*/).filter(Boolean), tries = [text];
+    for (var i = 1; i < parts.length; i++) tries.push(parts.slice(i).join(', '));
+    var next = function () {
+      var t = tries.shift(); if (!t) return Promise.reject(new Error('Lieu introuvable : ' + text));
+      return Promise.all([geocodeFr(t).catch(function () { return []; }), state.neighbours ? geocodeEurope(t).catch(function () { return []; }) : []]).then(function (r) {
+        var x = r[0][0] || r[1][0]; return x ? { label: x.label + (x.ctx && !x.town ? ', ' + x.ctx.split(',').pop().trim() : ''), lat: x.lat, lon: x.lon } : next();
+      });
+    };
+    return next();
+  }
+  function agendaWhen(ev) { // « aujourd'hui 14:30 », « demain 9:00 », « lun. 3 nov. 10:00 »
+    var d = new Date(ev.begin), t0 = new Date(); t0.setHours(0, 0, 0, 0); var days = Math.floor((d - t0) / DAY);
+    var day = days <= 0 ? 'aujourd\'hui' : days === 1 ? 'demain' : d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+    return ev.allDay ? day : day + ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  }
+  function openAgenda() { // téléphone : rendez-vous à venir avec un lieu → destination
+    var P = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Agenda;
+    if (!P) { toast('📅 L\'agenda est disponible dans l\'appli Android'); return; }
+    P.list().then(function (r) {
+      var ev = (r && r.events) || [];
+      openModal('<h2>📅 Mon agenda</h2>' + (ev.length ? '<p class="hint">Rendez-vous des 7 prochains jours qui ont un lieu. Touche-en un pour y aller.</p>' + ev.map(function (x, i) { return '<button class="card agenda-ev" data-agenda="' + i + '"><b>' + esc(x.title || 'Rendez-vous') + '</b><small>' + esc(agendaWhen(x)) + ' · ' + esc(x.where) + '</small></button>'; }).join('') : '<p class="hint">Aucun rendez-vous avec un lieu dans les 7 prochains jours.</p>'));
+      $('modalBody')._agenda = ev;
+    }).catch(function (e) { toast('📅 ' + (e.message || 'Agenda indisponible')); });
+  }
+  $('modalBody').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-agenda]'); if (!b) return; var ev = ($('modalBody')._agenda || [])[+b.getAttribute('data-agenda')]; if (!ev) return;
+    b.querySelector('small').textContent = '⏳ Recherche du lieu…';
+    findPlace(ev.where).then(function (p) { closeModal(); setPlace('to', p); showTab('route'); toast('📅 Destination : ' + p.label); }).catch(function (err) { b.querySelector('small').textContent = '⚠️ ' + err.message; });
+  });
   function wireSuggest(which) {
     var input = $(which + 'Input'), list = $(which + 'Suggest'), ctrl = null, items = [];
     var run = debounce(function () {
@@ -1060,9 +1153,11 @@
       if (state.places.some(function (x) { return Math.abs(x.lat - p.lat) < 1e-4 && Math.abs(x.lon - p.lon) < 1e-4; })) return;
       html += '<button class="chip" data-star="' + w + '">☆ mémoriser ' + (w === 'from' ? 'le départ' : "l'arrivée") + '</button>';
     });
+    if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Agenda) html = '<button class="chip" data-agendaopen>📅 Agenda</button>' + html;
     $('placeChips').innerHTML = html;
   }
   $('placeChips').addEventListener('click', function (e) {
+    if (e.target.closest('[data-agendaopen]')) { openAgenda(); return; }
     var rm = e.target.closest('[data-rm]');
     if (rm) { state.places.splice(+rm.getAttribute('data-rm'), 1); save(); renderPlaceChips(); return; }
     var star = e.target.closest('[data-star]');
@@ -1468,6 +1563,12 @@
   $('neighbours').checked = !!state.neighbours;
   $('neighbours').addEventListener('change', function () { state.neighbours = this.checked; save(); rebuild(); if (this.checked) map.fire('moveend'); });
   $('refreshData').addEventListener('click', function () { fetchData(false).then(function () { toast('Prix actualisés'); }); });
+  function refreshPrices() { // bouton 🔄 (carte du téléphone, écran voiture) : l'icône tourne pendant le chargement
+    var root = document.documentElement; if (root.classList.contains('refreshing')) return Promise.resolve();
+    root.classList.add('refreshing');
+    return fetchData(true).then(function () { toast('✅ Prix actualisés'); }).catch(function () { toast('⚠️ Actualisation impossible (réseau ?)'); }).then(function () { root.classList.remove('refreshing'); });
+  }
+  $('refreshBtn').addEventListener('click', refreshPrices);
   $('brandBtn2').textContent = state.brand ? '🏷️ ' + state.brand + ' uniquement' : 'Toutes les enseignes';
   loadBrands(); loadHabits();
   renderFuelChips(); updateSliders(); renderPlaceChips(); showTab(isWide() ? 'route' : 'map');
@@ -1509,6 +1610,8 @@
     get stations() { return stations; }, stationsInBounds: stationsInBounds, pick: pick, confidence: confidence, opening: opening, score: score, isAutoUpdate: isAutoUpdate,
     get route() { return routeCtx; }, get fix() { return lastFix || mePos; }, map: map, openStation: openStation, brandName: brandName, price3: price3, whenText: whenText, shortAge: shortAge, ageHours: ageHours,
     haversine: haversine, fuelsFor: fuelsFor, car: car, FUELS: FUELS, FUEL_INDEX: FUEL_INDEX, state: state, setFollow: setFollow, locate: locate, titleCase: titleCase, esc: esc, num: num, progressKm: progressKm, DETOUR_FACTOR: DETOUR_FACTOR, colorFor: colorFor, save: save, eighths: eighths, toast: toast, osrmRoute: osrmRoute, decodePolyline: decodePolyline, agoText: agoText, price3: price3,
+    useCar: useCar, updateCar: function (patch) { var c = car(); if (!c.id) return; Object.keys(patch).forEach(function (k) { c[k] = patch[k]; }); if (patch.fuel) state.fuel = patch.fuel; save(); applyCarColor(); renderFuelChips(); renderCars(); refreshMap(); }, // réglages « Ma voiture » de l'écran voiture
+    findPlace: findPlace, agendaWhen: agendaWhen, franceAvg: franceAvg, refreshPrices: function () { return refreshPrices(); },
     refreshMap: refreshMap, themes: THEMES, setTheme: function (k) { if (!THEMES[k]) return; state.theme = k; save(); applyTheme(); refreshMap(); }
   };
   window.__fuelmap = { carPan: carPan, carZoom: carZoom, carInsets: carInsets, carStable: carStable, restoreLastRoute: restoreLastRoute, setCarMode: setCarMode, updateHud: updateHud, get fix() { return lastFix; }, set fix(p) { lastFix = mePos = p; updateHud(); }, setPlan: setPlan, alternativesFor: alternativesFor, tryPlan: tryPlan, state: state, compute: computeRoute, setPlace: setPlace, get route() { return routeCtx; }, get count() { return stations.length; }, get stations() { return stations; }, map: map, openStation: openStation }; // pour les tests

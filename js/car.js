@@ -13,14 +13,17 @@
   if (!/[?&]aa=1/.test(location.search)) return;
   var A = null, F = null, pane = document.getElementById('carPane'), timer = null;
   function el(id, tag) { var e = document.createElement(tag || 'div'); e.id = id; e.hidden = true; document.body.appendChild(e); return e; }
-  var rail = el('carRail', 'nav'), steps = el('carSteps'), chip = el('carChip', 'button'), nextBox = el('carNext'), lockBox = el('carLock'), favBox = el('carFavs');
+  var rail = el('carRail', 'nav'), steps = el('carSteps'), chip = el('carChip', 'button'), nextBox = el('carNext'), lockBox = el('carLock'), favBox = el('carFavs'), viewBox = el('carView'), refreshBox = el('carRefresh', 'button');
+  refreshBox.setAttribute('aria-label', 'Actualiser les prix'); refreshBox.innerHTML = '<svg viewBox="0 0 24 24" width="24" height="24"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  refreshBox.addEventListener('click', function () { log('voiture : actualisation des prix'); A.refreshPrices().then(schedule); });
   function log(m) { try { window.FM && window.FM.log(m); } catch (e) { } }
 
-  var MODES = [['map', '⛽', 'Stations'], ['route', '🧭', 'Trajet'], ['shortage', '🚨', 'Pénurie'], ['theme', '🎨', 'Thème']];
+  var MODES = [['map', '⛽', 'Stations'], ['route', '🧭', 'Trajet'], ['shortage', '🚨', 'Pénurie'], ['car', '🚗', 'Ma voiture'], ['theme', '🎨', 'Thème']];
   var FLOWS = {
     map: [['map', 'Carte'], ['list', 'Liste'], ['station', 'Station'], ['guide', 'Guidage']],
     route: [['dest', 'Destination'], ['fuel', 'Réservoir'], ['stops', 'Arrêts'], ['guide', 'Guidage']],
     shortage: [['list', 'Autour de moi'], ['station', 'Station'], ['guide', 'Guidage']],
+    car: [['setup', 'Réglages']],
     theme: [['pick', 'Couleurs']]
   };
   var mode = 'map', step = 'map', selected = null, sortAsc = true, dest = null, computing = false, routeErr = null, routeReady = false, wantRoute = false;
@@ -82,6 +85,16 @@
     (A.state.places || []).forEach(function (p) { add('⭐', p.name || p.label, p, p.label !== p.name ? p.label : ''); });
     return out;
   }
+  // agenda du téléphone : rendez-vous des 7 prochains jours qui ont un lieu → destination en un toucher
+  var agendaEv = [];
+  function agendaRows() {
+    if (!(window.AndroidAuto && window.AndroidAuto.agenda)) return '';
+    var r = null; try { r = JSON.parse(window.AndroidAuto.agenda()); } catch (e) { }
+    if (!r) return '';
+    if (!r.perm) return '<button class="crow cchoice" data-askagenda><div class="l1"><span class="nm">📅 Mon agenda</span></div><div class="l2"><span>Toucher pour l\'autoriser (question sur le téléphone)</span></div></button>';
+    agendaEv = r.events || [];
+    return agendaEv.map(function (x, i) { return '<button class="crow cchoice" data-agenda="' + i + '"><div class="l1"><span class="nm">📅 ' + A.esc(x.title || 'Rendez-vous') + '</span></div><div class="l2"><span>' + A.esc(A.agendaWhen(x)) + ' · ' + A.esc(x.where) + '</span></div></button>'; }).join('');
+  }
   function routeRows() {
     var R = A.route; if (!R || !R.plan) return null;
     var f = A.fix, pr = f ? A.progressKm(R, f) : null, out = [], passed = 0;
@@ -115,18 +128,28 @@
       var can = i < cur || (f[0] === 'guide' && guide && guide.gmode === mode);
       return (i ? '<i>›</i>' : '') + '<button class="cstep' + (i < cur ? ' done' : i === cur ? ' on' : '') + '"' + (can ? ' data-step="' + f[0] + '"' : ' disabled') + '>' + (i < cur ? '✓' : i + 1) + ' ' + f[1] + '</button>';
     }).join('') : '') + '<button class="cstx" data-step="close" aria-label="Fermer">✕</button>';
+    // Les boutons de l'hôte, en haut à droite, prennent ≈ 430 px. Pas la place (écran partagé avec le lecteur) : version compacte
+    // « ‹ 2/4 Réservoir ✕ » (le mode se voit dans la colonne) ; et seulement si même ça ne tient pas, les bulles passent dessous.
+    var room = innerWidth - steps.getBoundingClientRect().left - 430;
+    if (steps.scrollWidth > room && fl.length > 1) steps.innerHTML = (cur > 0 ? '<button class="cstep cback" data-step="' + fl[cur - 1][0] + '" aria-label="Étape précédente">‹</button>' : '') +
+      '<span class="cstep on">' + (cur + 1) + '/' + fl.length + ' ' + fl[cur][1] + '</span><button class="cstx" data-step="close" aria-label="Fermer">✕</button>';
+    document.documentElement.classList.toggle('csteps-low', steps.scrollWidth > room);
   }
   function renderChip() {
-    chip.hidden = !(mode === 'map' && step === 'map'); if (chip.hidden) return;
+    chip.hidden = refreshBox.hidden = !(mode === 'map' && step === 'map'); if (chip.hidden) return;
     if (!A.stations.length) { chip.innerHTML = '⏳ Chargement des prix…'; return; }
     var vs = viewStations(); if (!vs.length) { chip.innerHTML = '🔍 Aucune station ici · dézoome'; return; }
     var min = vs.reduce(function (a, b) { return b.p < a.p ? b : a; });
-    chip.innerHTML = '📋 ' + (vs.length >= 40 ? '40+' : vs.length) + ' station' + (vs.length > 1 ? 's' : '') + ' · dès <b>' + A.price3(min.p) + '</b> <span class="ar">›</span>';
+    var max = vs.reduce(function (a, b) { return b.p > a.p ? b : a; }), mean = vs.reduce(function (a, b) { return a + b.p; }, 0) / vs.length, fr = A.franceAvg();
+    chip.innerHTML = '📋 ' + (vs.length >= 40 ? '40+' : vs.length) + ' station' + (vs.length > 1 ? 's' : '') + ' · ▼ <b>' + A.price3(min.p) + '</b><span class="cxa"> · moy. ' + A.price3(mean) + '</span><span class="cxb"> · ▲ ' + A.price3(max.p) + '</span>' + (fr ? '<span class="cxc"> · <small>🇫🇷 ' + A.price3(fr) + '</small></span>' : '') + ' <span class="ar">›</span>';
+    // pas la place (écran étroit, favorites à droite) : on retire 🇫🇷, puis la moyenne, puis le max — jamais le nombre ni le moins cher
+    chip.classList.remove('t1', 't2', 't3');
+    ['t1', 't2', 't3'].some(function (t) { if (chip.scrollWidth <= chip.clientWidth + 1) return true; chip.classList.add(t); return false; });
   }
   // ---- stations favorites (⭐ sur le téléphone) : en bas à droite quand la carte est au repos, prix et heure de mise à jour
   function renderFavs() {
     var ids = A.state.favs || [], show = mode === 'map' && step === 'map' && ids.length && A.stations.length;
-    favBox.hidden = !show; if (!show) return;
+    favBox.hidden = !show; document.documentElement.classList.toggle('cfavs', !!show); if (!show) return;
     var fis = A.fuelsFor(A.car().fuel), o = origin(), want = {}; ids.forEach(function (id) { want[id] = 1; });
     var list = A.stations.filter(function (s) { return want[String(s.id)]; }).map(function (s) { var k = A.pick(s, fis); return { s: s, k: k, d: A.haversine(o.lat, o.lon, s.lat, s.lon) }; });
     list.sort(function (a, b) { return a.d - b.d; });
@@ -140,8 +163,9 @@
     if (!ready() || pane.hidden && rail.hidden) return;
     if (listEl) scrollKeep = listEl.scrollTop;
     var all = mode !== 'route'; if (all !== !!window.__carShowAll) { window.__carShowAll = all; A.refreshMap(); } // hors trajet : toutes les stations sur la carte, pas seulement celles du trajet
-    renderRail(); renderSteps(); renderChip(); renderFavs();
-    nextBox.hidden = !(guide && step === 'guide');
+    renderRail(); renderSteps(); renderFavs(); renderChip(); saveSession();
+    nextBox.hidden = viewBox.hidden = !(guide && step === 'guide');
+    viewBox.innerHTML = '<button data-view="2"' + (view3d ? '' : ' class="on"') + '>2D</button><button data-view="3"' + (view3d ? ' class="on"' : '') + '>3D</button>';
     var show = panelStep(); pane.classList.toggle('open', show); document.documentElement.classList.toggle('carpane-open', show);
     if (!show) { listEl = null; return; }
     var c = A.car(), head = '', body = '', foot = '', fuelLabel = A.FUELS[A.FUEL_INDEX[c.fuel]].label;
@@ -169,7 +193,7 @@
     } else if (step === 'dest') {
       var ch = destChoices();
       head = '<span>Où va-t-on ?</span>';
-      body = '<button class="crow cchoice" data-search><div class="l1"><span class="nm">🔍 Chercher une adresse</span></div><div class="l2"><span>Clavier ou voix, via Android Auto</span></div></button>' +
+      body = '<button class="crow cchoice" data-search><div class="l1"><span class="nm">🔍 Chercher une adresse</span></div><div class="l2"><span>Clavier ou voix, via Android Auto</span></div></button>' + agendaRows() +
         ch.map(function (x, i) { return '<button class="crow cchoice" data-dest="' + i + '"><div class="l1"><span class="nm">' + x.ico + ' ' + A.esc(short(x.label)) + '</span></div><div class="l2"><span>' + A.esc(x.tag || x.label) + '</span></div></button>'; }).join('') +
         (ch.length ? '' : '<p class="cmsg"><small>Ajoute des favoris ⭐ dans FuelMap sur le téléphone : ils apparaissent ici.</small></p>');
       pane._choices = ch;
@@ -190,17 +214,72 @@
         else body += rr.list.map(function (x, i) { return stationRow(x, (i === 0 ? 'Prochain · ' : '') + 'km ' + A.num(x.st.pos) + ' · mets ' + A.num(x.st.buyL, x.st.buyL < 10 ? 1 : 0) + ' L'); }).join('');
         foot = '<button class="cbig" data-trip>▶ Démarrer le guidage</button>';
       }
+    } else if (step === 'setup') {
+      var cars = A.state.cars, cc = A.car();
+      if (!cars.length) body = '<p class="cmsg">Ajoute ton véhicule dans FuelMap sur le téléphone (onglet Véhicules) : il apparaîtra ici.</p>';
+      else {
+        var adj = function (label, val, key) { return '<div class="cadj"><span>' + label + '</span><button data-adj="' + key + '" data-d="-1" aria-label="Moins">−</button><b>' + val + '</b><button data-adj="' + key + '" data-d="1" aria-label="Plus">＋</button></div>'; };
+        var custom = cc.color && !COLORS.some(function (p) { return p[1] === cc.color; });
+        head = '<span>🚗 ' + A.esc(cc.name) + '</span>';
+        body = (cars.length > 1 ? '<div class="ctg">Véhicule</div><div class="cgrid">' + cars.map(function (x) { return '<button class="copt' + (x.id === cc.id ? ' on' : '') + '" data-usecar="' + x.id + '">' + A.esc(x.name) + '</button>'; }).join('') + '</div>' : '') +
+          '<div class="ctg">Carburant préféré</div><div class="cgrid">' + A.FUELS.map(function (f) { return '<button class="copt fuel' + (f.key === cc.fuel ? ' on' : '') + '" style="--fc:' + f.color + ';--fi:' + f.ink + '" data-cfuel="' + f.key + '">' + (f.short || f.label) + '</button>'; }).join('') + '</div>' +
+          adj('Consommation', A.num(cc.cons, 1) + ' L/100', 'cons') + adj('Réservoir', A.num(cc.tank) + ' L', 'tank') +
+          '<div class="ctg">Couleur du curseur</div><div class="ccols">' + COLORS.map(function (p) { return '<button class="ccol' + (p[1] === cc.color ? ' on' : '') + '" data-ccolor="' + p[1] + '" data-cname="' + A.esc(p[0]) + '" style="background:' + p[1] + '" aria-label="' + A.esc(p[0]) + '"></button>'; }).join('') +
+          '<button class="ccol cperso' + (custom ? ' on' : '') + '" data-wheelopen aria-label="Couleur perso"' + (custom ? ' style="--cc:' + cc.color + '"' : '') + '></button></div>';
+        if (wheel) { // roue chromatique : teinte et intensité sur la roue, clair / foncé sur la barre ; appliqué au curseur à chaque toucher
+          var wx = 50 + 50 * wheel.s * Math.sin(wheel.h * Math.PI / 180), wy = 50 - 50 * wheel.s * Math.cos(wheel.h * Math.PI / 180), hx = hslHex(wheel.h, wheel.s, wheel.l);
+          head = '<span>🎨 Couleur perso</span>';
+          body = '<div class="cwheelbox"><div class="cwheel" data-wheel style="--wl:' + Math.round(wheel.l * 100) + '%"><i style="left:' + wx + '%;top:' + wy + '%;background:' + hx + '"></i></div>' +
+            '<div class="cwside"><div class="ctg">Clair / foncé</div><div class="clight" data-light style="background:linear-gradient(90deg,' + hslHex(wheel.h, wheel.s, 0.12) + ',' + hslHex(wheel.h, wheel.s, 0.5) + ',' + hslHex(wheel.h, wheel.s, 0.88) + ')"><i style="left:' + ((wheel.l - 0.12) / 0.76 * 100) + '%"></i></div>' +
+            '<div class="cwprev"><span style="background:' + hx + '"></span><b>' + hx + '</b></div></div></div>';
+          foot = '<button class="cbig" data-wheelok>✓ Garder cette couleur</button>';
+        }
+      }
     } else if (step === 'pick') {
       var T = A.themes || {};
       head = '<span>Couleurs de l\'appli et de la carte</span>';
-      body = '<div class="cthemes">' + Object.keys(T).map(function (k2) { var t = T[k2], on = k2 === A.state.theme; return '<button class="cth' + (on ? ' on' : '') + '" data-theme="' + k2 + '" style="background:' + t.bg + ';color:' + t.text + ';border-color:' + (on ? t.accent : t.line) + '"><i style="background:' + t.accent + '"></i>' + t.emoji + ' ' + t.name + '</button>'; }).join('') + '</div>';
+      var thm = function (dark) { return '<div class="cthemes">' + Object.keys(T).filter(function (k2) { return !!T[k2].dark === dark; }).map(function (k2) { var t = T[k2], on = k2 === A.state.theme; return '<button class="cth' + (on ? ' on' : '') + '" data-theme="' + k2 + '" style="background:' + t.bg + ';color:' + t.text + ';border-color:' + (on ? t.accent : t.line) + '"><i style="background:' + t.accent + '"></i>' + t.emoji + ' ' + t.name + '</button>'; }).join('') + '</div>'; };
+      body = '<div class="ctg">☀️ Clairs</div>' + thm(false) + '<div class="ctg">🌙 Foncés</div>' + thm(true);
     }
     if (!selected && selMarker) { try { selMarker.remove(); } catch (e) { } selMarker = null; }
     pane.innerHTML = (head ? '<div class="chead">' + head + '</div>' : '') + '<div class="clist">' + body + '</div>' + (foot ? '<div class="cfoot">' + foot + '</div>' : '');
     listEl = pane.querySelector('.clist'); listEl.scrollTop = scrollKeep;
   }
 
+  // L'écran voiture est recréé quand sa taille change (passage en écran partagé avec le lecteur de musique…) : on mémorise
+  // en continu le mode, l'étape, la destination et le guidage en cours, et la page reprend là où elle en était.
+  var SESSION = 'fuelmap-carsession', pendingGuide = null, resumeQuiet = false;
+  function saveSession() {
+    try {
+      var g = guide ? { gmode: guide.gmode, back: guide.back, wps: remaining().map(function (w) { return { lat: w.lat, lon: w.lon, plain: w.plain, price: w.price, stop: w.stop, sid: w.s ? w.s.id : null }; }) } : null;
+      localStorage.setItem(SESSION, JSON.stringify({ t: Date.now(), mode: mode, step: step, dest: dest, wantStops: routeReady || computing || wantRoute, sel: selected ? selected.id : null, guide: g }));
+    } catch (e) { }
+  }
+  function restoreSession() { // vrai si un écran récent (< 10 min) a été repris
+    var S = null; try { S = JSON.parse(localStorage.getItem(SESSION) || 'null'); } catch (e) { }
+    if (!S || Date.now() - S.t > 10 * 60000 || !FLOWS[S.mode]) return false;
+    mode = S.mode; step = S.step === 'guide' && !S.guide ? FLOWS[mode][0][0] : S.step; dest = S.dest || null;
+    if (S.sel != null) { var s = A.stations.filter(function (x) { return String(x.id) === String(S.sel); })[0]; if (s) select(s, false); else if (step === 'station') step = FLOWS[mode][0][0]; }
+    if (dest && S.wantStops && (step === 'stops' || S.guide)) wantRoute = true; // les arrêts sont recalculés depuis la position actuelle
+    if (S.guide && S.guide.wps.length) {
+      mode = S.guide.back.mode; step = S.guide.back.step;
+      pendingGuide = S.guide.wps.map(function (w) { var st = w.sid != null ? A.stations.filter(function (x) { return String(x.id) === String(w.sid); })[0] || { id: w.sid } : null; return { lat: w.lat, lon: w.lon, plain: w.plain, price: w.price, stop: w.stop, s: st }; });
+    }
+    log('voiture : écran repris (' + mode + ' › ' + step + (pendingGuide ? ', guidage' : '') + ')');
+    return true;
+  }
+  function resumeGuide() { if (!pendingGuide || !A.fix) return; var w = pendingGuide; pendingGuide = null; resumeQuiet = true; go(w); resumeQuiet = false; }
+  // couleurs du curseur : les 9 teintes de voiture les plus courantes, puis la roue chromatique pour le reste
+  var COLORS = [['Blanc', '#f2f2f0'], ['Noir', '#111214'], ['Gris', '#6f7477'], ['Argent', '#b8bbbd'], ['Rouge', '#c0151f'], ['Bleu', '#1f4fa3'], ['Bleu marine', '#1c2b4b'], ['Vert', '#2f7a43'], ['Jaune', '#f0c419']];
+  var wheel = null; // { h: 0-360, s: 0-1, l: 0-1 } quand la roue est ouverte
+  function hslHex(h, s, l) { var k = function (n) { return (n + h / 30) % 12; }, a = s * Math.min(l, 1 - l), f = function (n) { return l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1)); }; return '#' + [f(0), f(8), f(4)].map(function (v) { return ('0' + Math.round(v * 255).toString(16)).slice(-2); }).join(''); }
+  function hexHsl(hx) {
+    var r = parseInt(hx.slice(1, 3), 16) / 255, g = parseInt(hx.slice(3, 5), 16) / 255, b = parseInt(hx.slice(5, 7), 16) / 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn, h = 0, s = 0;
+    if (d) { s = d / (1 - Math.abs(2 * l - 1)); h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h = (h * 60 + 360) % 360; }
+    return { h: h, s: Math.min(1, s), l: Math.max(0.12, Math.min(0.88, l)) };
+  }
   function setStep(st, m) {
+    if (st !== 'setup') wheel = null;
     if (m && m !== mode) { mode = m; scrollKeep = 0; }
     if (st !== step) scrollKeep = 0;
     step = st; render();
@@ -291,7 +370,7 @@
     if (!wps.length) return;
     var back = guide ? guide.back : { mode: mode, step: step === 'guide' ? FLOWS[mode][0][0] : step }, gmode = guide ? guide.gmode : mode;
     log('voiture : guidage → ' + wps.map(function (w) { return w.plain; }).join(' › '));
-    var spoken = keep && guide ? guide.spoken : {};
+    var spoken = keep && guide ? guide.spoken : resumeQuiet ? { start: 1 } : {}; // reprise après recréation : pas de nouvelle annonce
     stopGuide(true);
     var g = guide = { wps: wps, fin: wps[wps.length - 1], back: back, gmode: gmode, pts: null, cum: null, D: 0, min: 0, steps: [], spoken: spoken, lastKey: '', idx: 0 };
     if (!hostRouting()) { guideBox.hidden = false; guideBox.innerHTML = '<div class="gi">⏳</div><div class="gt"><div class="d">Itinéraire…</div><div class="n">' + A.esc(g.fin.plain) + '</div></div><button data-stopguide>✕</button>'; }
@@ -361,6 +440,7 @@
         (nw.s ? '⛽ ' + (nw.stop ? 'Arrêt ' + (stops.indexOf(nw) + 1) + '/' + stops.length + ' · ' : '') + '<b>' + A.esc(nw.plain) + '</b>' + (nw.price ? ' · ' + nw.price + ' €' : '') : '🏁 <b>' + A.esc(nw.plain) + '</b>') +
         (nw.atM != null ? ' · ' + km(Math.max(0, nw.atM - progM) / 1000) : '') + (nw.stop ? '<button data-skip>⏭ Passer</button>' : '');
     }
+    if (force || !g.savedAt || Date.now() - g.savedAt > 15000) { g.savedAt = Date.now(); saveSession(); }
     followCar(false);
     if (pr.off > 0.5 && !arrived) reroute();
   }
@@ -391,12 +471,18 @@
   // ---- vue navigation : la carte devient un grand carré centré sur la voiture, tourné dans le sens de la marche et incliné (CSS) ;
   // la voiture est dessinée par une flèche fixe au tiers bas de l'écran. Le carré déborde de l'écran : rien ne manque quand il tourne.
   var arrow = el('carArrow');
+  // vue du guidage : 3D = carte inclinée (on voit loin devant), 2D = à plat ; toujours tournée dans le sens de la marche. Choix mémorisé.
+  var view3d = true; try { view3d = localStorage.getItem('fuelmap-car3d') !== '0'; } catch (e) { }
+  function applyView() { document.documentElement.style.setProperty('--nav-tilt', view3d ? '32deg' : '0deg'); }
+  applyView();
+  viewBox.addEventListener('click', function (e) { var b = e.target.closest('[data-view]'); if (!b) return; view3d = b.getAttribute('data-view') === '3'; try { localStorage.setItem('fuelmap-car3d', view3d ? '1' : '0'); } catch (err) { } applyView(); render(); log('voiture : vue ' + (view3d ? '3D' : '2D')); });
   var nav = { on: false, heading: 0, freeUntil: 0 };
   function navGeometry() {
     // Pendant le guidage, l'hôte pose ses cartes (manœuvre, temps restant) à gauche et annonce une zone libre qui commence à leur droite :
     // la colonne est masquée, la carte couvre tout l'écran et la flèche se place au milieu de la partie libre.
     var root = document.documentElement, st = root.style, cs = getComputedStyle(root), px = function (v) { return parseFloat(cs.getPropertyValue(v)) || 0; };
     var left = Math.max(px('--stable-l'), px('--safe-l')), right = innerWidth - Math.max(px('--stable-r'), px('--safe-r')), h = innerHeight;
+    if (panelStep()) left = Math.max(left, pane.getBoundingClientRect().right); // une étape est ouverte : la flèche reste visible à sa droite
     var cx = left + Math.max(0, right - left) / 2, cy = h * 0.66, R = Math.max(Math.hypot(cx, cy), Math.hypot(innerWidth - cx, cy), Math.hypot(cx, h - cy), Math.hypot(innerWidth - cx, h - cy));
     var S = Math.ceil(2 * R * 1.2); // le carré tourné et incliné doit couvrir tout l'écran, coins compris
     st.setProperty('--nav-s', S + 'px'); st.setProperty('--nav-x', Math.round(cx - S / 2) + 'px'); st.setProperty('--nav-y', Math.round(cy - S / 2) + 'px');
@@ -455,11 +541,34 @@
     var t;
     if (e.target.closest('[data-sort]')) { sortAsc = !sortAsc; scrollKeep = 0; render(); return; }
     if (e.target.closest('[data-search]')) { try { if (window.AndroidAuto && window.AndroidAuto.search) window.AndroidAuto.search(); else A.toast('Recherche disponible dans la voiture'); } catch (err) { } return; }
+    if (e.target.closest('[data-askagenda]')) { try { window.AndroidAuto.askAgenda(); } catch (err) { } return; }
+    if ((t = e.target.closest('[data-agenda]'))) {
+      var ev = agendaEv[+t.getAttribute('data-agenda')]; if (!ev) return; var l2 = t.querySelector('.l2 span'); l2.textContent = '⏳ Recherche du lieu…';
+      A.findPlace(ev.where).then(function (p) { log('voiture : destination agenda ' + ev.where); setDest(p); }).catch(function (err) { l2.textContent = '⚠️ ' + err.message; });
+      return;
+    }
     if ((t = e.target.closest('[data-dest]'))) { var ch = pane._choices[+t.getAttribute('data-dest')]; if (ch) setDest(ch.p); return; }
     if ((t = e.target.closest('[data-e]'))) { var v = +t.getAttribute('data-e'); if (v === A.state.startE) v--; A.state.startE = Math.max(0, Math.min(8, v)); A.save(); render(); return; }
     if (e.target.closest('[data-calc]')) { setStep('stops'); compute(); return; }
     if (e.target.closest('[data-trip]')) { goTrip(); return; }
     if (e.target.closest('[data-go]')) { if (selected) go([wpOf(selected)]); return; }
+    if ((t = e.target.closest('[data-usecar]'))) { A.useCar(t.getAttribute('data-usecar')); render(); return; }
+    if ((t = e.target.closest('[data-cfuel]'))) { A.updateCar({ fuel: t.getAttribute('data-cfuel') }); render(); return; }
+    if ((t = e.target.closest('[data-adj]'))) {
+      var cc = A.car(), d = +t.getAttribute('data-d'), key = t.getAttribute('data-adj');
+      if (key === 'cons') A.updateCar({ cons: Math.round(Math.max(1, Math.min(40, cc.cons + d * 0.1)) * 10) / 10 });
+      else A.updateCar({ tank: Math.max(5, Math.min(200, Math.round(cc.tank) + d)), reserve: Math.min(cc.reserve, (Math.round(cc.tank) + d) / 2) });
+      render(); return;
+    }
+    if (e.target.closest('[data-wheelopen]')) { wheel = hexHsl(A.car().color || '#3b82f6'); render(); return; }
+    if (e.target.closest('[data-wheelok]')) { wheel = null; render(); return; }
+    if ((t = e.target.closest('[data-wheel]')) || (t = e.target.closest('[data-light]'))) {
+      var r = t.getBoundingClientRect();
+      if (t.hasAttribute('data-wheel')) { var dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2); wheel.h = (Math.atan2(dx, -dy) * 180 / Math.PI + 360) % 360; wheel.s = Math.min(1, Math.hypot(dx, dy) / (r.width / 2)); }
+      else wheel.l = 0.12 + 0.76 * Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+      A.updateCar({ color: hslHex(wheel.h, wheel.s, wheel.l), paint: 'Couleur perso' }); render(); return;
+    }
+    if ((t = e.target.closest('[data-ccolor]'))) { A.updateCar({ color: t.getAttribute('data-ccolor'), paint: t.getAttribute('data-cname') }); render(); return; }
     if ((t = e.target.closest('[data-theme]'))) { A.setTheme(t.getAttribute('data-theme')); render(); return; }
     if ((t = e.target.closest('[data-sid]'))) { var s = A.stations.filter(function (x) { return String(x.id) === t.getAttribute('data-sid'); })[0]; if (s) pick(s); }
   });
@@ -559,7 +668,7 @@
     center();
     document.addEventListener('fuelmap:stations', function () { schedule(); if (wantRoute && !computing && !routeReady && !routeErr) compute(); });
     document.addEventListener('fuelmap:fix', function () {
-      center(); updateGuide();
+      center(); resumeGuide(); updateGuide();
       if (wantRoute && !computing && !routeReady && !routeErr) compute();
       else if (step === 'list' && (!listEl || listEl.scrollTop < 10)) schedule();
     });
@@ -577,8 +686,9 @@
     setTimeout(function () { if (!A.fix) render(); }, 12500);
     // trajet préparé sur le téléphone il y a peu : on le propose d'office, en commençant par le niveau du réservoir
     var lr = A.state.lastRoute;
-    if (lr && lr.to && Date.now() - lr.ts < 3 * 3600 * 1000) { dest = { label: lr.to.label, lat: +lr.to.lat, lon: +lr.to.lon }; mode = 'route'; step = 'fuel'; }
-    render();
+    if (restoreSession()) { if (wantRoute) compute(); }
+    else if (lr && lr.to && Date.now() - lr.ts < 3 * 3600 * 1000) { dest = { label: lr.to.label, lat: +lr.to.lat, lon: +lr.to.lon }; mode = 'route'; step = 'fuel'; }
+    render(); resumeGuide();
   }
   start();
   function state() { return { mode: mode, step: step, guide: guide ? guide.wps.map(function (w) { return (w.done ? '✓' : '') + w.plain; }).join(' › ') : null, nav: nav.on ? Math.round(nav.heading) + '°' : null, dest: dest, selected: selected ? { id: selected.id, ville: selected.ville } : null, computing: computing, routeReady: routeReady, routeErr: routeErr, sortAsc: sortAsc, lastX: lastX, locked: locked(), listScroll: listEl ? listEl.scrollTop : null, rows: pane.querySelectorAll('.crow').length, zoom: A ? A.map.getZoom() : null, size: innerWidth + '×' + innerHeight }; }
