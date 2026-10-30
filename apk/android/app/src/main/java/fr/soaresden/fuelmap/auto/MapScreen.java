@@ -34,11 +34,12 @@ public class MapScreen extends Screen {
     final CarWebSurface surface;
     private double targetLat, targetLon; private String targetLabel;
     double navLat, navLon; long navAt; // dernière demande « Y aller » (pour reconnaître un renvoi de l'hôte vers nous-mêmes)
-    private RoutingInfo routing; private TravelEstimate estimate; private boolean navigating; private final CarVoice voice;
+    private RoutingInfo routing; private TravelEstimate estimate; private boolean navigating; private final CarVoice voice; private final CarIcon myLocation;
 
     public MapScreen(@NonNull CarContext ctx) {
         super(ctx);
         voice = new CarVoice(ctx);
+        myLocation = new CarIcon.Builder(androidx.core.graphics.drawable.IconCompat.createWithResource(ctx, fr.soaresden.fuelmap.R.drawable.ic_my_location)).build();
         surface = new CarWebSurface(ctx, new CarWebSurface.TargetListener() {
             @Override public void onRouting(String json) { setRouting(json); }
             @Override public void onStopRouting() { stopRouting(); }
@@ -60,9 +61,9 @@ public class MapScreen extends Screen {
                 .addAction(routing != null
                     ? new Action.Builder().setTitle("⏹ Arrêter").setFlags(Action.FLAG_PRIMARY).setBackgroundColor(CarColor.RED).setOnClickListener(() -> surface.run("window.__fuelmapCar&&window.__fuelmapCar.stopGuide()")).build()
                     : new Action.Builder().setTitle("🧭 Y aller").setFlags(Action.FLAG_PRIMARY).setBackgroundColor(CarColor.GREEN).setOnClickListener(this::navigate).build())
-                .addAction(new Action.Builder().setTitle("📍").setOnClickListener(() -> surface.run("window.__fuelmapCar&&window.__fuelmapCar.recenter?window.__fuelmapCar.recenter():window.__fuelmapAPI&&(window.__fuelmapAPI.setFollow(true),window.__fuelmapAPI.locate().catch(function(){}))")).build())
+                // « ma position » : cercle avec un point, comme Google Maps
+                .addAction(new Action.Builder().setIcon(myLocation).setOnClickListener(() -> surface.run("window.__fuelmapCar&&window.__fuelmapCar.recenter?window.__fuelmapCar.recenter():window.__fuelmapAPI&&(window.__fuelmapAPI.setFollow(true),window.__fuelmapAPI.locate().catch(function(){}))")).build())
                 .addAction(new Action.Builder().setTitle("🔍").setOnClickListener(this::openSearch).build())
-                .addAction(new Action.Builder().setTitle("🐞").setOnClickListener(() -> { Diag.marker("bouton 🐞 dans la voiture"); surface.run("window.__fuelmapCar&&window.__fuelmapCar.dump&&window.__fuelmapCar.dump()"); CarToast.makeText(getCarContext(), "Repère noté dans le journal", CarToast.LENGTH_SHORT).show(); }).build())
                 .build())
             .setMapActionStrip(new ActionStrip.Builder().addAction(Action.PAN).build()) // obligatoire pour recevoir les gestes sur la carte…
             .setPanModeListener(inPan -> { })                                            // …et l'hôte n'active le déplacement que si un écouteur existe

@@ -381,19 +381,27 @@ html.wide #update .sheet { border-radius: 18px; }
 
 /* ===== Écran Android Auto (js/car.js) : façon Waze / Google Maps — colonne fine à gauche, la carte partout ailleurs,
    bulles d'étapes en haut, contenu de l'étape dans une carte flottante ===== */
-:root { --carpane: 330px; --rail: 60px; --stable-t: var(--safe-t); --stable-b: var(--safe-b); --stable-l: var(--safe-l); --cleft: calc(var(--stable-l) + var(--rail) + 8px); }
+:root { --carpane: 330px; --rail: 60px; --stable-t: var(--safe-t); --stable-b: var(--safe-b); --stable-l: var(--safe-l); --cleft: calc(var(--stable-l) + var(--rail) + 8px); --ctop: min(var(--stable-t), max(var(--stable-l), 10px)); } /* haut de la colonne de gauche : les boutons de l hôte sont en haut à DROITE, mais sa zone stable (un rectangle) retire toute la bande du haut */
 html[data-carui] #topbar, html[data-carui] #statbar, html[data-carui] #tabs, html[data-carui] #panel, html[data-carui] #hud, html[data-carui] #loader, html[data-carui] .leaflet-control-container { display: none !important; }
 html[data-carui], html[data-carui] body { background: var(--map-bg); }
 html[data-carui] #map { left: calc(var(--stable-l) + var(--rail)) !important; top: 0; bottom: 0; right: 0; background: var(--map-bg); }
 html[data-carui] #mapButtons, html[data-carui] #carBtn, html[data-carui] #themeBtn { display: none !important; }
-#carRail { position: fixed; z-index: 720; left: var(--stable-l); top: 0; bottom: 0; width: var(--rail); background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; align-items: stretch; gap: 6px; padding: calc(6px + var(--stable-t)) 5px calc(6px + var(--stable-b)); }
+#carRail { position: fixed; z-index: 720; left: var(--stable-l); top: 0; bottom: 0; width: var(--rail); background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; align-items: stretch; gap: 6px; padding: calc(6px + var(--ctop)) 5px calc(6px + var(--stable-b)); }
 #carRail[hidden] { display: none; }
-#carRail button { flex: 0 0 54px; border-radius: 14px; border: 0; background: transparent; color: var(--text); font-size: 26px; line-height: 1; padding: 0; display: flex; align-items: center; justify-content: center; }
+#carRail button { flex: 0 0 50px; border-radius: 14px; border: 0; background: transparent; color: var(--text); font-size: 26px; line-height: 1; padding: 0; display: flex; align-items: center; justify-content: center; }
 #carRail button.on { background: linear-gradient(135deg, var(--accent), var(--accent2)); box-shadow: 0 2px 10px rgba(0,0,0,.3); }
 #carRail .sp { flex: 1 1 0; min-height: 4px; }
-#carRail .cz { flex: 0 0 48px; background: var(--panel2); border: 1px solid var(--line); font-size: 28px; font-weight: 700; color: var(--text); }
+#carRail .cbrand { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 1px; padding-bottom: 4px; border-bottom: 1px solid var(--line); margin-bottom: 2px; }
+#carRail .cbrand img { width: 30px; height: 30px; border-radius: 8px; } #carRail .cbrand b { font-size: 10px; line-height: 1.1; } #carRail .cbrand small { font-size: 9px; color: var(--muted); line-height: 1; }
+/* favorites : en bas à droite, carte au repos */
+#carFavs { position: fixed; z-index: 712; right: calc(var(--safe-r) + 10px); bottom: calc(var(--stable-b) + 10px); width: 290px; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); padding: 6px; display: flex; flex-direction: column; gap: 4px; }
+#carFavs[hidden] { display: none; }
+#carFavs .fh { font-size: 13px; font-weight: 700; color: var(--muted); padding: 0 6px; }
+#carFavs button { display: grid; grid-template-columns: 1fr auto; grid-template-areas: 'nm pr' 'wh wh'; gap: 0 8px; text-align: left; padding: 5px 8px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); }
+#carFavs .nm { grid-area: nm; font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } #carFavs .pr { grid-area: pr; font-size: 18px; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; } #carFavs .wh { grid-area: wh; font-size: 12px; color: var(--muted); }
+#carRail .cz { flex: 0 0 44px; background: var(--panel2); border: 1px solid var(--line); font-size: 28px; font-weight: 700; color: var(--text); }
 /* bulles d'étapes */
-#carSteps { position: fixed; z-index: 715; left: var(--cleft); top: calc(var(--stable-t) + 6px); display: flex; align-items: center; gap: 4px; max-width: calc(100vw - var(--cleft) - 300px); padding: 4px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow); white-space: nowrap; overflow: hidden; }
+#carSteps { position: fixed; z-index: 715; left: var(--cleft); top: calc(var(--ctop) + 6px); display: flex; align-items: center; gap: 4px; max-width: calc(100vw - var(--cleft) - 500px); padding: 4px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow); white-space: nowrap; overflow: hidden; }
 #carSteps[hidden] { display: none; }
 #carSteps .cmode { padding: 0 12px 0 10px; font-size: 15px; font-weight: 800; }
 #carSteps i { font-style: normal; color: var(--muted); font-size: 14px; }
@@ -403,7 +411,7 @@ html[data-carui] #mapButtons, html[data-carui] #carBtn, html[data-carui] #themeB
 .cstep[disabled] { opacity: .55; }
 .cstx { flex: 0 0 34px; height: 34px; margin-left: 4px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel2); color: var(--text); font-size: 16px; }
 /* carte flottante de l'étape */
-#carPane { position: fixed; z-index: 710; left: var(--cleft); top: calc(var(--stable-t) + 54px); width: var(--carpane); max-height: calc(100vh - var(--stable-t) - 54px - var(--stable-b) - 8px); background: var(--panel); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); display: flex; flex-direction: column; padding: 8px; gap: 6px; transform: translateX(-24px); opacity: 0; visibility: hidden; transition: transform .18s ease, opacity .18s ease, visibility 0s .18s; }
+#carPane { position: fixed; z-index: 710; left: var(--cleft); top: calc(var(--ctop) + 54px); width: var(--carpane); max-height: calc(100vh - var(--ctop) - 54px - var(--stable-b) - 8px); background: var(--panel); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); display: flex; flex-direction: column; padding: 8px; gap: 6px; transform: translateX(-24px); opacity: 0; visibility: hidden; transition: transform .18s ease, opacity .18s ease, visibility 0s .18s; }
 #carPane.open { transform: none; opacity: 1; visibility: visible; transition: transform .18s ease, opacity .18s ease; }
 #carPane[hidden] { display: none; }
 .clist { flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; } .clist::-webkit-scrollbar { display: none; }
@@ -480,7 +488,7 @@ html.wide .fs-card { border-radius: 22px; }
 .fs-pad button { height: 56px; border-radius: 14px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); font-size: 24px; font-weight: 700; }
 .fs-pad button:active { background: var(--accent); color: var(--accent-ink); }
 html[data-carui] #fillSheet { left: calc(var(--stable-l) + var(--rail)); right: auto; width: 380px; top: 0; bottom: 0; background: var(--panel); align-items: stretch; }
-html[data-carui] .fs-card { max-width: none; border: 0; border-radius: 0; padding: calc(8px + var(--stable-t)) 10px calc(8px + var(--stable-b)); overflow-y: auto; }
+html[data-carui] .fs-card { max-width: none; border: 0; border-radius: 0; padding: calc(8px + var(--ctop)) 10px calc(8px + var(--stable-b)); overflow-y: auto; }
 html[data-carui] .fs-pad { gap: 4px; } html[data-carui] .fs-pad button { height: 36px; font-size: 18px; } html[data-carui] .fs-amount { padding: 4px 10px; } html[data-carui] .fs-amount b { font-size: 22px; } html[data-carui] .fs-btn { min-height: 40px; font-size: 15px; } html[data-carui] .fs-btn.big { min-height: 42px; font-size: 16px; } html[data-carui] .fs-btn.ghost { min-height: 32px; } html[data-carui] .fs-station { font-size: 14px; padding: 5px 10px; } html[data-carui] .fs-station small, html[data-carui] .fs-q small { display: none; } html[data-carui] .fs-q { font-size: 15px; margin: 0; } html[data-carui] .fs-head { font-size: 15px; } html[data-carui] .fs-x { width: 34px; height: 34px; } html[data-carui] .fs-card { gap: 4px; } html[data-carui] .fs-row { gap: 6px; }
 /* carnet */
 .fl-stats { display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 10px 12px; border-radius: 14px; background: var(--panel2); margin-bottom: 8px; font-size: 14px; color: var(--muted); } .fl-stats b { color: var(--text); font-size: 16px; }
@@ -506,8 +514,9 @@ html[data-carui].carnav .leaflet-control-container { display: none; }
 #carArrow[hidden] { display: none; }
 #carArrow::before { content: ''; position: absolute; left: -16px; top: -22px; border-left: 16px solid transparent; border-right: 16px solid transparent; border-bottom: 34px solid var(--car, var(--accent)); filter: drop-shadow(0 0 1px #fff) drop-shadow(0 0 1px #fff) drop-shadow(0 0 4px rgba(0,0,0,.8)); }
 #carArrow::after { content: ''; position: absolute; left: -9px; top: 4px; border-left: 9px solid transparent; border-right: 9px solid transparent; border-bottom: 12px solid var(--panel); }
-html[data-carui].carnav #carGuide { left: calc(var(--stable-l) + var(--rail) + 10px); }
-html[data-carui].carnav #carRail { padding-top: calc(8px + var(--safe-t)); } /* pendant le guidage, la fiche de manœuvre de l'hôte occupe le haut à gauche */
+html[data-carui].carnav #carGuide { left: calc(var(--stable-l) + 10px); }
+html[data-carui].carnav #carRail { display: none; } /* guidage : les cartes de l'hôte prennent la gauche, la carte occupe tout l'écran (comme Waze / Google Maps) */
+html[data-carui].carnav #carNext { left: calc(var(--stable-l) + (100vw - var(--stable-l)) / 2); }
 
 /* couleur de la voiture (fiche véhicule) : teintes proposées, photo à toucher */
 .paintrow { display: flex; gap: 8px; } .paintrow input[type=text] { flex: 1; min-width: 0; }

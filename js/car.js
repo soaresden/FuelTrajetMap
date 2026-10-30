@@ -13,7 +13,7 @@
   if (!/[?&]aa=1/.test(location.search)) return;
   var A = null, F = null, pane = document.getElementById('carPane'), timer = null;
   function el(id, tag) { var e = document.createElement(tag || 'div'); e.id = id; e.hidden = true; document.body.appendChild(e); return e; }
-  var rail = el('carRail', 'nav'), steps = el('carSteps'), chip = el('carChip', 'button'), nextBox = el('carNext'), lockBox = el('carLock');
+  var rail = el('carRail', 'nav'), steps = el('carSteps'), chip = el('carChip', 'button'), nextBox = el('carNext'), lockBox = el('carLock'), favBox = el('carFavs');
   function log(m) { try { window.FM && window.FM.log(m); } catch (e) { } }
 
   var MODES = [['map', '⛽', 'Stations'], ['route', '🧭', 'Trajet'], ['shortage', '🚨', 'Pénurie'], ['theme', '🎨', 'Thème']];
@@ -105,7 +105,7 @@
 
   // ---- dessin : colonne, bulles d'étapes, carte flottante, bouton « N stations », bandeau du prochain arrêt
   function renderRail() {
-    rail.innerHTML = MODES.map(function (m) { return '<button class="' + (mode === m[0] ? 'on' : '') + '" data-rail="' + m[0] + '" aria-label="' + m[2] + '">' + m[1] + '</button>'; }).join('') +
+    rail.innerHTML = '<div class="cbrand"><img src="icons/icon.svg" alt=""><b>FuelMap</b><small>v' + ((window.FUELMAP_CONFIG || {}).version || '') + '</small></div>' + MODES.map(function (m) { return '<button class="' + (mode === m[0] ? 'on' : '') + '" data-rail="' + m[0] + '" aria-label="' + m[2] + '">' + m[1] + '</button>'; }).join('') +
       '<span class="sp"></span><button class="cz" data-rail="zin" aria-label="Zoomer">＋</button><button class="cz" data-rail="zout" aria-label="Dézoomer">−</button>';
   }
   function renderSteps() {
@@ -123,11 +123,24 @@
     var min = vs.reduce(function (a, b) { return b.p < a.p ? b : a; });
     chip.innerHTML = '📋 ' + (vs.length >= 40 ? '40+' : vs.length) + ' station' + (vs.length > 1 ? 's' : '') + ' · dès <b>' + A.price3(min.p) + '</b> <span class="ar">›</span>';
   }
+  // ---- stations favorites (⭐ sur le téléphone) : en bas à droite quand la carte est au repos, prix et heure de mise à jour
+  function renderFavs() {
+    var ids = A.state.favs || [], show = mode === 'map' && step === 'map' && ids.length && A.stations.length;
+    favBox.hidden = !show; if (!show) return;
+    var fis = A.fuelsFor(A.car().fuel), o = origin(), want = {}; ids.forEach(function (id) { want[id] = 1; });
+    var list = A.stations.filter(function (s) { return want[String(s.id)]; }).map(function (s) { var k = A.pick(s, fis); return { s: s, k: k, d: A.haversine(o.lat, o.lon, s.lat, s.lon) }; });
+    list.sort(function (a, b) { return a.d - b.d; });
+    favBox.innerHTML = '<div class="fh">⭐ Mes favorites</div>' + list.slice(0, 4).map(function (x) {
+      var s = x.s, k = x.k;
+      return '<button data-fav="' + s.id + '"><span class="nm">' + name(s) + '</span>' + (k >= 0 ? '<span class="pr">' + A.price3(s.p[k]) + '</span><span class="wh">' + dot(A.confidence(s, k).level) + A.whenText(s, k) + '</span>' : '<span class="pr">—</span><span class="wh">pas de prix récent</span>') + '</button>';
+    }).join('');
+  }
+  favBox.addEventListener('click', function (e) { var b = e.target.closest('[data-fav]'); if (!b) return; var s = A.stations.filter(function (x) { return String(x.id) === b.getAttribute('data-fav'); })[0]; if (s) pick(s); });
   function render() {
     if (!ready() || pane.hidden && rail.hidden) return;
     if (listEl) scrollKeep = listEl.scrollTop;
     var all = mode !== 'route'; if (all !== !!window.__carShowAll) { window.__carShowAll = all; A.refreshMap(); } // hors trajet : toutes les stations sur la carte, pas seulement celles du trajet
-    renderRail(); renderSteps(); renderChip();
+    renderRail(); renderSteps(); renderChip(); renderFavs();
     nextBox.hidden = !(guide && step === 'guide');
     var show = panelStep(); pane.classList.toggle('open', show); document.documentElement.classList.toggle('carpane-open', show);
     if (!show) { listEl = null; return; }
@@ -380,8 +393,12 @@
   var arrow = el('carArrow');
   var nav = { on: false, heading: 0, freeUntil: 0 };
   function navGeometry() {
-    var st = document.documentElement.style, left = rail.getBoundingClientRect().right, w = innerWidth - left, h = innerHeight, S = Math.ceil(Math.sqrt(w * w + h * h) * 1.45);
-    var cover = panelStep() ? pane.getBoundingClientRect().right - left : 0, cx = left + cover + (w - cover) / 2, cy = h * 0.66;
+    // Pendant le guidage, l'hôte pose ses cartes (manœuvre, temps restant) à gauche et annonce une zone libre qui commence à leur droite :
+    // la colonne est masquée, la carte couvre tout l'écran et la flèche se place au milieu de la partie libre.
+    var root = document.documentElement, st = root.style, cs = getComputedStyle(root), px = function (v) { return parseFloat(cs.getPropertyValue(v)) || 0; };
+    var left = Math.max(px('--stable-l'), px('--safe-l')), right = innerWidth - Math.max(px('--stable-r'), px('--safe-r')), h = innerHeight;
+    var cx = left + Math.max(0, right - left) / 2, cy = h * 0.66, R = Math.max(Math.hypot(cx, cy), Math.hypot(innerWidth - cx, cy), Math.hypot(cx, h - cy), Math.hypot(innerWidth - cx, h - cy));
+    var S = Math.ceil(2 * R * 1.2); // le carré tourné et incliné doit couvrir tout l'écran, coins compris
     st.setProperty('--nav-s', S + 'px'); st.setProperty('--nav-x', Math.round(cx - S / 2) + 'px'); st.setProperty('--nav-y', Math.round(cy - S / 2) + 'px');
     arrow.style.left = cx + 'px'; arrow.style.top = cy + 'px';
   }
@@ -555,6 +572,7 @@
     });
     m.on('moveend', function () { if (mode === 'map' && (step === 'map' || step === 'list')) schedule(); });
     window.addEventListener('resize', schedule);
+    document.addEventListener('fuelmap:insets', function () { if (nav.on) navGeometry(); }); // l'hôte déplace sa zone libre (début / fin du guidage) sans redimensionner la page
     setInterval(render, 60000); // les âges « il y a x h » vieillissent
     setTimeout(function () { if (!A.fix) render(); }, 12500);
     // trajet préparé sur le téléphone il y a peu : on le propose d'office, en commençant par le niveau du réservoir

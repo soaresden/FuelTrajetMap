@@ -681,12 +681,12 @@
   function carPan(dx, dy) { setFollow(false); map.panBy([dx, dy], { animate: false }); }
   function carZoom(scale, fx, fy) { setFollow(false); map.setZoomAround(L.point(fx, fy), map.getZoom() + Math.log(scale) / Math.LN2, { animate: false }); }
   function carStable(t, r, b, l) { // zone JAMAIS couverte par l'hôte : la colonne de gauche s'y cale, sans bouger quand les boutons de l'hôte apparaissent
-    var st = document.documentElement.style; st.setProperty('--stable-t', t + 'px'); st.setProperty('--stable-b', b + 'px'); st.setProperty('--stable-l', l + 'px'); st.setProperty('--stable-r', r + 'px');
+    var st = document.documentElement.style; st.setProperty('--stable-t', t + 'px'); st.setProperty('--stable-b', b + 'px'); st.setProperty('--stable-l', l + 'px'); st.setProperty('--stable-r', r + 'px'); document.dispatchEvent(new CustomEvent('fuelmap:insets'));
   }
   function carInsets(t, r, b, l) { // zone de la page non couverte par l'hôte Android Auto (sa carte d'infos, ses boutons)
     safe = { t: t, r: r, b: b, l: l }; var st = document.documentElement.style;
     st.setProperty('--safe-t', t + 'px'); st.setProperty('--safe-b', b + 'px'); st.setProperty('--safe-l', l + 'px'); st.setProperty('--safe-r', r + 'px');
-    applyLayout(); map.invalidateSize(); if (routeCtx && routeCtx.bounds && !carUi()) setTimeout(fitRoute, 100); // voiture : l'hôte cache / montre ses boutons toutes les 5 s, la carte ne doit pas sauter
+    document.dispatchEvent(new CustomEvent('fuelmap:insets')); applyLayout(); map.invalidateSize(); if (routeCtx && routeCtx.bounds && !carUi()) setTimeout(fitRoute, 100); // voiture : l'hôte cache / montre ses boutons toutes les 5 s, la carte ne doit pas sauter
   }
   $('hud').addEventListener('click', function (e) { var b = e.target.closest('[data-hudshow]'); if (!b) return; var s = stations.filter(function (x) { return String(x.id) === b.getAttribute('data-hudshow'); })[0]; if (s) { setFollow(false); openStation(s, true); } });
   $('carBtn').addEventListener('click', function () { state.carMode = !carMode; save(); setCarMode(!carMode); });

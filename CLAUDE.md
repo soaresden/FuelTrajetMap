@@ -11,7 +11,7 @@ données reconstruites toutes les 3 h par la GitHub Action (`tools/build-data.mj
 
 ```
 index.html, css/app.css, sw.js         page unique + service worker (cache « fuelmap-vNN », à incrémenter à chaque livraison)
-js/config.js                           { dataBase, version }  ← version affichée (v1.5.8 en haut à droite) = versionName Android
+js/config.js                           { dataBase, version }  ← version affichée (affichée en haut à droite sur le téléphone, en tête de colonne dans la voiture) = versionName Android
 js/app.js                              cœur : carte Leaflet, données, trajet, proximité, alertes, thèmes, API interne window.__fuelmapAPI
 js/car.js                              écran Android Auto (?aa=1) : rail + panneau, Stations / Trajet / Pénurie, guidage
 js/fillup.js                           carnet de pleins (question au démarrage près d'une station, pavé, km, stats)
@@ -24,7 +24,7 @@ apk/                                   projet Capacitor ; apk/android = projet G
 apk/android/app/src/main/java/fr/soaresden/fuelmap/
   MainActivity.java                    Capacitor + mise à jour in-app Play + plugins (FuelAlert, Diag)
   auto/FuelCarAppService.java          session Android Auto (catégorie NAVIGATION), permission localisation, NavigationManager
-  auto/MapScreen.java                  NavigationTemplate : boutons Y aller/Arrêter, 📍, 🔍, 🐞 ; fiche de manœuvre + ETA
+  auto/MapScreen.java                  NavigationTemplate : boutons Y aller/Arrêter, ma position (icône ic_my_location), 🔍 ; fiche de manœuvre + ETA
   auto/CarWebSurface.java              la page web dessinée sur l'écran voiture (VirtualDisplay + Presentation + WebView)
   auto/SearchScreen.java, CarVoice.java  recherche d'adresse (clavier/voix de l'hôte) ; synthèse vocale du guidage
   alert/                               alerte carburant (WorkManager 15 min) ; diag/ journal fichier + export zip
@@ -34,7 +34,7 @@ apk/android/app/src/main/java/fr/soaresden/fuelmap/
 ## Règles non négociables
 
 - **versionCode jamais réutilisé** : le Play Console grille un code dès qu'un AAB est téléversé, même en brouillon.
-  Dernier utilisé : **47 (1.5.9)**. Chaque livraison = code +1 ET bump de `versionName` dans `apk/android/app/build.gradle`,
+  Dernier utilisé : **48 (1.6.0)**. Chaque livraison = code +1 ET bump de `versionName` dans `apk/android/app/build.gradle`,
   de `version` dans `js/config.js`, et du nom de cache dans `sw.js`. Les trois ensemble, toujours.
 - Chaque livraison fournit : l'**AAB** (Play, signé avec la clé d'upload) et un commit. **Plus d'APK** : depuis la 1.5.9 Denis
   installe uniquement via le Play Store (tests internes). Les `*.apk`/`*.aab` sont ignorés par git ; ils vivent dans `apk/`.
@@ -62,8 +62,8 @@ apk/android/app/src/main/java/fr/soaresden/fuelmap/
 - Écran voiture virtuel : `apk\dhu\lancer-dhu-ma-voiture.bat` (1193×480) ou `lancer-dhu.bat` (1280×720). Téléphone en USB,
   débogage USB, Android Auto → paramètres développeur → « Démarrer le serveur de l'unité principale » (à refaire à chaque fois),
   « Sources inconnues » coché pour voir un APK installé à la main.
-- Journal : bouton 🐞 dans la voiture (repère + état de l'écran), puis sur le téléphone Véhicules → « Envoyer le journal de
-  diagnostic » → zip (journal.txt = notre fichier tournant, logcat.txt, etat-appli.json, appareil.txt). C'est la source de vérité
+- Journal : sur le téléphone Véhicules → « Envoyer le journal de diagnostic » → zip (le bouton 🐞 de la voiture, qui posait un
+  `MARQUEUR`, a été retiré en 1.6.0 à la demande de Denis ; `__fuelmapCar.dump()` reste appelable) (journal.txt = notre fichier tournant, logcat.txt, etat-appli.json, appareil.txt). C'est la source de vérité
   pour tout ce qui se passe dans la voiture ; lire `journal.txt` en filtrant `icons/brands` (bruit) et chercher `MARQUEUR`.
 
 ## Android Auto : ce qu'on a appris (ne pas refaire les mêmes erreurs)
@@ -94,13 +94,20 @@ apk/android/app/src/main/java/fr/soaresden/fuelmap/
   quart de niveau, `zoomSnap = 0.25` en voiture). Le canvas des stations suit via l'événement `zoom` (StationLayer._onZoom).
 - L'hôte montre / cache ses boutons toutes les ~5 s → `carInsets` est rappelé : il ne doit **pas** recadrer le trajet en voiture
   (la carte sautait sous le doigt).
+- La zone stable est un rectangle : les boutons de l'hôte en haut à DROITE lui font retirer toute la bande du haut. La colonne, les
+  bulles et la carte flottante utilisent donc `--ctop` (petite marge) et non `--stable-t`, sinon un grand vide au-dessus d'elles.
+- Pendant le guidage, l'hôte pose ses cartes (manœuvre, temps restant) à GAUCHE et la zone stable commence à leur droite
+  (`--stable-l` ≈ 430 px) : la colonne se retrouvait au milieu de l'écran. En guidage (`html.carnav`) la colonne est masquée, la carte
+  couvre tout l'écran, la flèche est centrée dans la partie libre ; `carStable`/`carInsets` émettent `fuelmap:insets` pour recalculer.
 - La page peut naître avant que l'écran virtuel ait sa taille : un `ResizeObserver` sur la carte appelle `invalidateSize`, et
   `drawHeat` ignore une carte de taille nulle (sinon exception qui bloquait tout app.js).
 
 ## Écran voiture (js/car.js) — comportement attendu (refait en 1.5.9, façon Waze / Google Maps)
 
-Denis veut un écran **épuré** : la carte d'abord, le reste **par étapes**. Colonne fine (60 px) à gauche, icônes seules :
-⛽ Stations, 🧭 Trajet, 🚨 Pénurie, 🎨 Thème, puis zoom ＋/− en bas (secours si le pincer n'arrive pas). Chaque mode est un parcours
+Denis veut un écran **épuré** : la carte d'abord, le reste **par étapes**. Colonne fine (60 px) à gauche : en tête l'icône de l'appli,
+« FuelMap » et la version (pour savoir qu'on est dans l'appli), puis icônes seules ⛽ Stations, 🧭 Trajet, 🚨 Pénurie, 🎨 Thème, et
+zoom ＋/− en bas (secours si le pincer n'arrive pas). Colonne masquée pendant le guidage. Carte au repos : **favorites** (⭐ du téléphone)
+en bas à droite (`#carFavs`, 4 max, prix + heure de mise à jour, toucher = fiche station). Chaque mode est un parcours
 (`FLOWS`) dont les étapes s'affichent en **bulles** en haut (`#carSteps`, ✓ = étape faite, touchable pour revenir) ; le contenu de
 l'étape est une **carte flottante** à gauche (`#carPane`, 330 px, hauteur selon le contenu).
 - ⛽ Stations : Carte › Liste › Station › Guidage. Étape Carte = rien d'ouvert, prix écrits sur la carte (pastilles plus grosses
@@ -136,11 +143,11 @@ Le README décrit la publication.
 
 ## Pistes en attente (par priorité ressentie)
 
-1. Valider la 1.5.9 dans la voiture : nouvel écran par étapes, pincer, toucher, verrou 3 s, guidage multi-arrêts ; et toujours fiche de
+1. Valider la 1.6.0 dans la voiture : nouvel écran par étapes, colonne en haut, guidage plein écran, favorites, pincer, toucher, verrou 3 s, guidage multi-arrêts ; et toujours fiche de
    manœuvre acceptée par l'hôte, voix dans les enceintes, vue tournée fluide (sinon alléger la nappe de couleur).
 1b. Piste technique proposée : passer la carte de Leaflet à **MapLibre GL** (WebGL, tuiles vectorielles OpenFreeMap gratuites) : rotation et
    inclinaison natives pour le guidage (au lieu du carré CSS tourné), zoom continu, rendu net. Gros chantier (toute la carte de app.js) :
-   à faire à part, après validation de la 1.5.9.
+   à faire à part, après validation de la 1.6.0.
 2. Remontée utilisateur (« cette station est fermée / plus d'essence ») : nécessite un petit backend (Cloudflare Worker proposé), en attente du compte.
 3. Carnet de pleins : export CSV, rappel kilométrage ; puis découpage gratuit / Plus (voir `.plus-archive`).
 4. Statistiques de conduite (conso réelle déjà calculée entre deux relevés de compteur).
