@@ -38,6 +38,8 @@ apk/android/app/src/main/java/fr/soaresden/fuelmap/
   de `version` dans `js/config.js`, et du nom de cache dans `sw.js`. Les trois ensemble, toujours.
 - Chaque livraison fournit : l'**AAB** (Play, signé avec la clé d'upload) et un commit. **Plus d'APK** : depuis la 1.5.9 Denis
   installe uniquement via le Play Store (tests internes). Les `*.apk`/`*.aab` sont ignorés par git ; ils vivent dans `apk/`.
+- **Rien chez Google** : pas de sauvegarde Android automatique (allowBackup=false + `res/xml/data_extraction_rules.xml` qui exclut
+  tout, cloud ET transfert entre téléphones). Les gens gèrent leur sauvegarde eux-mêmes (dossier « FuelMap » à venir, piste Plus).
 - `apk/android/keystore/` (clé d'upload + keystore.properties) **ne va jamais dans git**. `.plus-archive/` non plus.
 - Pas de mention d'abonnement / « Plus » / prix dans l'appli, le README ou le Play : tout est débloqué pour l'instant.
   Le découpage futur gratuit / Plus est documenté dans `.plus-archive/NOTES.md` et `NOTES-carnet.md`.
@@ -223,6 +225,9 @@ Le README décrit la publication.
    à faire à part, après validation de la 1.6.1.
 1c. Choix de la voix du guidage : les voix de Waze / Google Maps sont inaccessibles (données privées de ces applis, sous licence) ;
    possible en revanche : proposer les voix françaises du moteur de synthèse du téléphone (`TextToSpeech.getVoices()` dans CarVoice).
+1d. Prochaine version (1.6.3) : carnet de pleins consultable et saisissable depuis la voiture ; dossier de données « FuelMap » choisi
+   par l'utilisateur (sauvegarde / restauration, « restaurer ou nouveau » au premier démarrage) ; bloc-notes dicté (appels en roulant).
+   Découpage futur gratuit / Plus : voir `.plus-archive/NOTES.md` (trajet optimisé et mode voiture du téléphone restent gratuits).
 2. Remontée utilisateur (« cette station est fermée / plus d'essence ») : nécessite un petit backend (Cloudflare Worker proposé), en attente du compte.
 3. Carnet de pleins : export CSV, rappel kilométrage ; puis découpage gratuit / Plus (voir `.plus-archive`).
 4. Statistiques de conduite (conso réelle déjà calculée entre deux relevés de compteur).
