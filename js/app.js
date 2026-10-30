@@ -1161,10 +1161,10 @@
     var bar = '<div class="nstyles"><span class="nlbl">Style par défaut :</span>' + chips(ns, 'data-nstyle') + '</div>';
     el.innerHTML = bar + (list.length ? '<div class="notes nl-' + ns + '">' + list.map(function (n, i) {
       var d = new Date(n.ts), when = d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }) + ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }), st = n.style || ns;
-      var look = st === 'postit' ? ' style="--pi:' + POSTIT[Math.floor(n.ts / 1000) % POSTIT.length] + ';--rot:' + (i % 2 ? 1.4 : -1.2) + 'deg"' : '';
+      var pi = n.color || POSTIT[Math.floor(n.ts / 1000) % POSTIT.length], look = st === 'postit' ? ' style="--pi:' + pi + ';--rot:' + (i % 2 ? 1.4 : -1.2) + 'deg"' : '';
       return '<div class="nnote ns-' + st + '"' + look + '><div class="nwhen">' + esc(when) + (n.place ? ' · 📍 ' + esc(n.place) : '') + '</div><div class="nt">' + esc(n.text) + '</div>' +
         '<div class="nbtns"><button class="nbtn" data-note-look="' + n.ts + '" title="Style de cette note">🎨</button><button class="nbtn" data-note-del="' + n.ts + '" title="Supprimer">🗑️</button></div>' +
-        (noteStyleOpen === n.ts ? '<div class="nstyles one">' + chips(st, 'data-note-setstyle', n.ts) + '</div>' : '') + '</div>';
+        (noteStyleOpen === n.ts ? '<div class="nstyles one">' + chips(st, 'data-note-setstyle', n.ts) + (st === 'postit' ? '<span class="pcols">' + POSTIT.map(function (c) { return '<button class="pcol' + (c === pi ? ' on' : '') + '" style="background:' + c + '" data-note-color="' + c + '" data-ts="' + n.ts + '" aria-label="Couleur"></button>'; }).join('') + '</span>' : '') + '</div>' : '') + '</div>';
     }).join('') + '</div>' : '<p class="hint">Aucune note. Dans la voiture, le bouton 📝 en haut permet d’en dicter une (clavier à l’arrêt).</p>');
     // cahiers et bloc-notes : le texte doit poser SUR les lignes. Le pied des lettres dépend de la police (différente selon le
     // téléphone) : on le mesure dans chaque note et on cale ses lignes dessus (--bl, depuis le haut de la note).
@@ -1178,6 +1178,7 @@
     var st = e.target.closest('[data-nstyle]'); if (st) { state.noteStyle = st.getAttribute('data-nstyle'); save(); renderNotes(); return; }
     var lk = e.target.closest('[data-note-look]'); if (lk) { var t0 = +lk.getAttribute('data-note-look'); noteStyleOpen = noteStyleOpen === t0 ? 0 : t0; renderNotes(); return; }
     var ss = e.target.closest('[data-note-setstyle]'); if (ss) { var t1 = +ss.getAttribute('data-ts'), n1 = (state.notes || []).filter(function (n) { return n.ts === t1; })[0]; if (n1) { n1.style = ss.getAttribute('data-note-setstyle'); noteStyleOpen = 0; save(); renderNotes(); } return; }
+    var cl = e.target.closest('[data-note-color]'); if (cl) { var t2 = +cl.getAttribute('data-ts'), n2 = (state.notes || []).filter(function (n) { return n.ts === t2; })[0]; if (n2) { n2.color = cl.getAttribute('data-note-color'); save(); renderNotes(); } return; } // couleur du post-it
     var b = e.target.closest('[data-note-del]'); if (!b) return; var ts = +b.getAttribute('data-note-del'); state.notes = (state.notes || []).filter(function (n) { return n.ts !== ts; }); save(); renderNotes(); });
   renderNotes();
 

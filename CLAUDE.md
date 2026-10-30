@@ -36,7 +36,7 @@ apk/android/app/src/main/java/fr/soaresden/fuelmap/
 ## Règles non négociables
 
 - **versionCode jamais réutilisé** : le Play Console grille un code dès qu'un AAB est téléversé, même en brouillon.
-  Dernier utilisé : **52 (1.6.4)**. Chaque livraison = code +1 ET bump de `versionName` dans `apk/android/app/build.gradle`,
+  Dernier utilisé : **53 (1.6.5)**. Chaque livraison = code +1 ET bump de `versionName` dans `apk/android/app/build.gradle`,
   de `version` dans `js/config.js`, et du nom de cache dans `sw.js`. Les trois ensemble, toujours.
 - Chaque livraison fournit : l'**AAB** (Play, signé avec la clé d'upload) et un commit. **Plus d'APK** : depuis la 1.5.9 Denis
   installe uniquement via le Play Store (tests internes). Les `*.apk`/`*.aab` sont ignorés par git ; ils vivent dans `apk/`.
@@ -236,7 +236,7 @@ Le README décrit la publication.
    station la plus proche < 2 km) ; dossier de sauvegarde (Véhicules › 💾 : « FuelMap-sauvegarde.json », remis à jour 4 s après chaque
    changement et quand l'appli passe en arrière-plan ; restaurer depuis le dossier ou un fichier ; « J'ai déjà FuelMap : restaurer » à
    l'accueil ; navigateur = exporter / importer) ; bloc-notes (`state.notes`, bouton 📝 de l'hôte, liste dans Véhicules ; 5 styles : défaut `state.noteStyle`, ou par note `note.style`
-   via 🎨 ; simple, bloc-notes ligné, post-it, cahier 24×32 Seyès, petits carreaux ; traits en filigrane, texte posé sur les lignes grâce
+   via 🎨 (post-it : couleur au choix, `note.color`) ; simple, bloc-notes ligné, post-it, cahier 24×32 Seyès, petits carreaux ; traits en filigrane, texte posé sur les lignes grâce
    à `--bl` mesuré dans chaque note, car le pied des lettres dépend de la police du téléphone) :
    à la voix toujours ; au clavier SEULEMENT à l'arrêt dans la voiture (règles Android Auto : pas de saisie en roulant, risque de refus
    au Store) — en roulant « Gare-toi pour écrire, ou dicte » ; sans limite sur le téléphone.
