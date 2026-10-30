@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status*)", "Bash(git diff*)", "Bash(git log*)", "Bash(git add*)", "Bash(git commit*)", "Bash(git checkout*)",
+      "Bash(node *)", "Bash(npm *)", "Bash(npx cap *)", "Bash(npx playwright *)",
+      "Bash(gradlew.bat *)", "Bash(./gradlew *)", "Bash(adb *)",
+      "Bash(python -m http.server*)", "Bash(py -m http.server*)"
+    ],
+    "deny": [
+      "Read(apk/android/keystore/**)",
+      "Bash(git push --force*)", "Bash(git push -f*)"
+    ]
+  }
+}
