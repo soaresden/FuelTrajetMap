@@ -484,7 +484,7 @@
     }
     good.sort(function (a, b) { return a._p - b._p; });
     // le moins cher et le plus cher de la zone affichée ont toujours leur pastille (leur cadre ne doit jamais entourer un simple point)
-    [viewStats && viewStats.max, viewStats && viewStats.min].forEach(function (x) { var ix = x ? good.indexOf(x) : -1; if (ix > 0) { good.splice(ix, 1); good.unshift(x); } });
+    [viewStats && viewStats.max, viewStats && viewStats.min, window.__carSel].forEach(function (x) { /* + la station choisie dans la voiture */ var ix = x ? good.indexOf(x) : -1; if (ix > 0) { good.splice(ix, 1); good.unshift(x); } });
     var big = carUi(), PW = big ? 68 : 52, PH = big ? 26 : 21; // écran voiture : pastilles de prix plus grosses, lisibles d'un coup d'œil
     var pills = [], dots = [], usePills = zoom >= 10.5, occ = {}, heatPts = [];
     var shortage = state.shortage;

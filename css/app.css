@@ -711,3 +711,11 @@ html[data-carui] .fs-fchip { padding: 4px 8px; font-size: 13px; }
 .nnote.ns-seyes { background-image: linear-gradient(90deg, transparent 30px, rgba(236,88,140,.45) 30px, rgba(236,88,140,.45) 32px, transparent 32px), linear-gradient(rgba(96,104,210,.30) 1px, transparent 1px), linear-gradient(rgba(96,130,220,.13) 1px, transparent 1px), linear-gradient(90deg, rgba(96,104,210,.16) 1px, transparent 1px); background-size: 100% 100%, 100% 32px, 100% 8px, 32px 100%; background-repeat: no-repeat, repeat, repeat, repeat; background-position: 0 0, 0 var(--bl, 22px), 0 var(--bl, 22px), 32px 0; }
 /* couleur d'un post-it (choix 🎨) */
 .pcols { display: inline-flex; gap: 6px; margin-left: 4px; } .pcol { width: 26px; height: 26px; border-radius: 50%; border: 2px solid rgba(0,0,0,.25); } .pcol.on { border-color: #222; box-shadow: 0 0 0 2px #fff, 0 0 0 4px #222; }
+/* Ma voiture sur un écran assez large : deux colonnes (carnet + carburant | conso, réservoir, couleur), tout tient sans défiler */
+html.cpane-wide #carPane { width: 620px; }
+.c2col > div + div { margin-top: 6px; }
+html.cpane-wide .c2col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+html.cpane-wide .c2col > div + div { margin-top: 0; }
+html.cpane-wide .c2col .cseg { margin-top: 0; }
+/* saisie d'une note : le bouton garde sa taille, la zone de texte prend le reste (le bouton « pleine largeur » l'écrasait) */
+.noteadd button { flex: 0 0 auto; width: auto; padding: 0 16px; }

@@ -186,9 +186,10 @@
     }
     viewBox.innerHTML = '<button data-view="2"' + (view3d ? '' : ' class="on"') + '>2D</button><button data-view="3"' + (view3d ? ' class="on"' : '') + '>3D</button>';
     var show = panelStep(); pane.classList.toggle('open', show);
+    var wide = show && step === 'setup' && !wheel && innerWidth >= 900; document.documentElement.classList.toggle('cpane-wide', wide); // Ma voiture : deux colonnes, tout tient sans défiler
     var pl = (nav.on ? Math.max(rail.getBoundingClientRect().right, 0) : rail.getBoundingClientRect().right) + 8; // carte flottante sous les boutons de l'hôte si elle atteint leur zone
-    document.documentElement.classList.toggle('cpane-low', show && pl + 330 > innerWidth - 430); document.documentElement.classList.toggle('carpane-open', show);
-    if (!selected && selMarker) { try { selMarker.remove(); } catch (e) { } selMarker = null; } // plus de station choisie : plus de marqueur
+    document.documentElement.classList.toggle('cpane-low', show && pl + (wide ? 620 : 330) > innerWidth - 430); document.documentElement.classList.toggle('carpane-open', show);
+    if (!selected && selMarker) { try { selMarker.remove(); } catch (e) { } selMarker = null; window.__carSel = null; A.refreshMap(); } // plus de station choisie : plus de marqueur
     if (!show) { listEl = null; return; }
     var c = A.car(), head = '', body = '', foot = '', fuelLabel = A.FUELS[A.FUEL_INDEX[c.fuel]].label;
     if (step === 'list' && mode === 'map') {
@@ -252,15 +253,15 @@
         var fills = (A.state.fillups || []).slice().sort(function (x, y) { return y.ts - x.ts; }), nNotes = (A.state.notes || []).length;
         var carnet = '<div class="ctg">📒 Carnet de pleins</div>' + (fills.length ? fills.slice(0, 3).map(function (x) { var d = new Date(x.ts); return '<div class="cfl"><span>' + d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) + ' · ' + A.esc(x.name) + '</span><b>' + A.num(x.paid) + ' €' + (x.liters ? ' <small>' + A.num(x.liters, 1) + ' L</small>' : '') + '</b></div>'; }).join('') : '<div class="cnote">Aucun plein noté.</div>') +
           '<button class="copt cfillnow" data-fillnow>➕ J’ai fait le plein</button>' + (nNotes ? '<div class="cnote">📝 ' + nNotes + ' note' + (nNotes > 1 ? 's' : '') + ' — à relire sur le téléphone (Véhicules)</div>' : '');
-        body = carnet + (cars.length > 1 ? '<div class="ctg">Véhicule</div><div class="cgrid">' + cars.map(function (x) { return '<button class="copt' + (x.id === cc.id ? ' on' : '') + '" data-usecar="' + x.id + '">' + A.esc(x.name) + '</button>'; }).join('') + '</div>' : '') +
+        body = '<div class="c2col"><div>' + carnet + (cars.length > 1 ? '<div class="ctg">Véhicule</div><div class="cgrid">' + cars.map(function (x) { return '<button class="copt' + (x.id === cc.id ? ' on' : '') + '" data-usecar="' + x.id + '">' + A.esc(x.name) + '</button>'; }).join('') + '</div>' : '') +
           '<div class="ctg">Carburant préféré</div><div class="cgrid">' + A.FUELS.map(function (f) { return '<button class="copt fuel' + (f.key === cc.fuel ? ' on' : '') + '" style="--fc:' + f.color + ';--fi:' + f.ink + '" data-cfuel="' + f.key + '">' + (f.short || f.label) + '</button>'; }).join('') + '</div>' +
           (A.fuelsFor(cc.fuel).indexOf(A.FUEL_INDEX.sp98) >= 0 && cc.fuel !== 'sp98' ? '<div class="ctg">Prendre le SP98 s’il coûte à peine plus</div><div class="cgrid">' + [[0, 'Non'], [0.02, '≤ 2 cts'], [0.05, '≤ 5 cts']].map(function (o) { return '<button class="copt' + ((+cc.prefer98 || 0) === o[0] ? ' on' : '') + '" data-p98="' + o[0] + '">' + o[1] + '</button>'; }).join('') + '</div>' : '') +
-          '<div class="cseg"><button class="copt' + (cc.consMode === 'km' ? '' : ' on') + '" data-consmode="l">Réservoir connu</button><button class="copt' + (cc.consMode === 'km' ? ' on' : '') + '" data-consmode="km">Autonomie</button></div>' +
+          '</div><div>' + '<div class="cseg"><button class="copt' + (cc.consMode === 'km' ? '' : ' on') + '" data-consmode="l">Réservoir connu</button><button class="copt' + (cc.consMode === 'km' ? ' on' : '') + '" data-consmode="km">Autonomie</button></div>' +
           adj('Consommation', A.num(cc.cons, 1) + ' L/100', 'cons') +
           (cc.consMode === 'km' ? adj('Par plein ≈', A.num(Math.round((cc.tank - cc.reserve) * 100 / cc.cons / 10) * 10) + ' km', 'range') + '<div class="cnote">→ environ ' + A.num(cc.tank - cc.reserve) + ' L utilisés entre deux pleins</div>'
             : adj('Réservoir', A.num(cc.tank) + ' L', 'tank')) +
           '<div class="ctg">Couleur du curseur</div><div class="ccols">' + COLORS.map(function (p) { return '<button class="ccol' + (p[1] === cc.color ? ' on' : '') + '" data-ccolor="' + p[1] + '" data-cname="' + A.esc(p[0]) + '" style="background:' + p[1] + '" aria-label="' + A.esc(p[0]) + '"></button>'; }).join('') +
-          '<button class="ccol cperso' + (custom ? ' on' : '') + '" data-wheelopen aria-label="Couleur perso"' + (custom ? ' style="--cc:' + cc.color + '"' : '') + '></button></div>';
+          '<button class="ccol cperso' + (custom ? ' on' : '') + '" data-wheelopen aria-label="Couleur perso"' + (custom ? ' style="--cc:' + cc.color + '"' : '') + '></button></div></div></div>';
         if (wheel) { // roue chromatique : teinte et intensité sur la roue, clair / foncé sur la barre ; appliqué au curseur à chaque toucher
           var wx = 50 + 50 * wheel.s * Math.sin(wheel.h * Math.PI / 180), wy = 50 - 50 * wheel.s * Math.cos(wheel.h * Math.PI / 180), hx = hslHex(wheel.h, wheel.s, wheel.l);
           head = '<span>🎨 Couleur perso</span>';
@@ -367,7 +368,7 @@
 
   // ---- station choisie : marqueur, cible du bouton « Y aller » de l'hôte, carte centrée à droite de la carte flottante
   function select(s, fly) {
-    selected = s;
+    selected = s; window.__carSel = s; A.refreshMap(); // la station choisie a toujours sa pastille (son cadre ne doit pas entourer un point)
     try {
       if (!selMarker) selMarker = L.marker([s.lat, s.lon], { icon: L.divIcon({ className: '', html: '<div class="csel-marker"></div>', iconSize: [0, 0], iconAnchor: [0, 0] }), interactive: false, zIndexOffset: 1000 }).addTo(A.map);
       else selMarker.setLatLng([s.lat, s.lon]);

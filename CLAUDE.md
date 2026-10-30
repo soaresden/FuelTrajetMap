@@ -36,7 +36,7 @@ apk/android/app/src/main/java/fr/soaresden/fuelmap/
 ## Règles non négociables
 
 - **versionCode jamais réutilisé** : le Play Console grille un code dès qu'un AAB est téléversé, même en brouillon.
-  Dernier utilisé : **53 (1.6.5)**. Chaque livraison = code +1 ET bump de `versionName` dans `apk/android/app/build.gradle`,
+  Dernier utilisé : **54 (1.6.6)**. Chaque livraison = code +1 ET bump de `versionName` dans `apk/android/app/build.gradle`,
   de `version` dans `js/config.js`, et du nom de cache dans `sw.js`. Les trois ensemble, toujours.
 - Chaque livraison fournit : l'**AAB** (Play, signé avec la clé d'upload) et un commit. **Plus d'APK** : depuis la 1.5.9 Denis
   installe uniquement via le Play Store (tests internes). Les `*.apk`/`*.aab` sont ignorés par git ; ils vivent dans `apk/`.
@@ -243,6 +243,9 @@ Le README décrit la publication.
    à la voix toujours ; au clavier SEULEMENT à l'arrêt dans la voiture (règles Android Auto : pas de saisie en roulant, risque de refus
    au Store) — en roulant « Gare-toi pour écrire, ou dicte » ; sans limite sur le téléphone.
    Découpage futur gratuit / Plus : voir `.plus-archive/NOTES.md` (trajet optimisé et mode voiture du téléphone restent gratuits).
+1e. Taille de vue « ↔ x km · ↕ y km » sous la commune : doit TOUJOURS être celle de l'écran visible, guidage compris. Aujourd'hui elle
+   reste figée sur la valeur d'avant le guidage (192 km au lieu de quelques centaines de mètres). En guidage la carte est un carré
+   tourné plus grand que l'écran : calculer depuis la zone visible (pas `map.getBounds()`), et rafraîchir en roulant.
 2. Remontée utilisateur (« cette station est fermée / plus d'essence ») : nécessite un petit backend (Cloudflare Worker proposé), en attente du compte.
 3. Carnet de pleins : export CSV, rappel kilométrage ; puis découpage gratuit / Plus (voir `.plus-archive`).
 4. Statistiques de conduite (conso réelle déjà calculée entre deux relevés de compteur).
