@@ -55,6 +55,7 @@
     try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) { }
     // APK : l'écran Android Auto (Java) lit le véhicule actif dans les préférences natives
     try { var P = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Preferences; if (P) P.set({ key: 'car', value: JSON.stringify(car()) }); } catch (e) { }
+    if (typeof scheduleBackup === 'function') scheduleBackup(); // dossier de sauvegarde choisi : copie à jour quelques secondes après
   }
   var NO_CAR = { id: null, name: '—', fuel: 'e10', tank: 50, cons: 7, reserve: 5 };
   function startPct() { return state.startE * 12.5; }
@@ -1137,6 +1138,86 @@
     img.src = src;
   }
 
+  // ------------------------------------------------------------------ bloc-notes (dicté dans la voiture via le bouton 📝, écrit ici)
+  // Chaque note garde l'heure, la position et la commune la plus proche (déduite des stations : rien n'est envoyé nulle part).
+  function nearTown(lat, lon) {
+    var best = null; stationsInBounds(lat - 0.05, lon - 0.07, lat + 0.05, lon + 0.07).forEach(function (s) { var d = haversine(lat, lon, s.lat, s.lon); if (s.ville && (!best || d < best.d)) best = { d: d, v: titleCase(s.ville) }; });
+    return best ? best.v : '';
+  }
+  function addNote(text, place) {
+    text = String(text || '').trim(); if (!text) return false;
+    var f = lastFix || mePos; if (!state.notes) state.notes = [];
+    state.notes.push({ ts: Date.now(), text: text.slice(0, 2000), lat: f ? +f.lat.toFixed(5) : null, lon: f ? +f.lon.toFixed(5) : null, place: place || (f ? nearTown(f.lat, f.lon) : '') });
+    save(); renderNotes(); return true;
+  }
+  function renderNotes() {
+    var el = $('notesList'); if (!el) return;
+    var list = (state.notes || []).slice().sort(function (a, b) { return b.ts - a.ts; });
+    el.innerHTML = list.length ? list.map(function (n) {
+      var d = new Date(n.ts), when = d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }) + ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+      return '<div class="fl-row note"><div class="fl-l"><small>' + esc(when) + (n.place ? ' · 📍 ' + esc(n.place) : '') + '</small><div class="nt">' + esc(n.text) + '</div></div><button class="fl-del" data-note-del="' + n.ts + '" title="Supprimer">🗑️</button></div>';
+    }).join('') : '<p class="hint">Aucune note. Dans la voiture, le bouton 📝 en haut permet d’en dicter une (clavier à l’arrêt).</p>';
+  }
+  $('noteAdd').addEventListener('click', function () { if (addNote($('noteText').value)) { $('noteText').value = ''; toast('📝 Note enregistrée'); } });
+  $('notesList').addEventListener('click', function (e) { var b = e.target.closest('[data-note-del]'); if (!b) return; var ts = +b.getAttribute('data-note-del'); state.notes = (state.notes || []).filter(function (n) { return n.ts !== ts; }); save(); renderNotes(); });
+  renderNotes();
+
+  // ------------------------------------------------------------------ sauvegarde gérée par l'utilisateur (jamais chez Google)
+  // Appli Android : un dossier choisi (ex. Documents/FuelMap) reçoit « FuelMap-sauvegarde.json », remis à jour après chaque
+  // changement. Restaurer : depuis ce dossier ou depuis n'importe quel fichier. Navigateur : exporter / importer le fichier.
+  var backupFolder = null, backupTimer = null;
+  function BK() { return window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Backup; }
+  function backupPayload() { return JSON.stringify({ app: 'FuelMap', format: 1, savedAt: new Date().toISOString(), version: (window.FUELMAP_CONFIG || {}).version || '', state: state }); }
+  function lastBackup() { try { return +localStorage.getItem('fuelmap-lastbackup') || 0; } catch (e) { return 0; } }
+  function backupNow(silent) {
+    var P = BK(); if (!P || !backupFolder) return Promise.resolve();
+    return P.write({ data: backupPayload() }).then(function () { try { localStorage.setItem('fuelmap-lastbackup', String(Date.now())); } catch (e) { } if (!silent) toast('💾 Sauvegardé dans « ' + backupFolder + ' »'); renderBackup(); })
+      .catch(function (e) { if (!silent) toast('⚠️ ' + (e.message || 'Sauvegarde impossible')); });
+  }
+  function scheduleBackup() { if (!backupFolder) return; clearTimeout(backupTimer); backupTimer = setTimeout(function () { backupNow(true); }, 4000); }
+  function restoreFrom(text, ask) {
+    var j; try { j = JSON.parse(text); } catch (e) { toast('⚠️ Fichier illisible'); return; }
+    var st = j && j.state ? j.state : j; if (!st || !Array.isArray(st.cars)) { toast('⚠️ Ce fichier n’est pas une sauvegarde FuelMap'); return; }
+    var when = j.savedAt ? new Date(j.savedAt).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+    if (ask && state.cars.length && !window.confirm('Remplacer toutes tes données actuelles par la sauvegarde' + (when ? ' du ' + when : '') + ' ? (' + st.cars.length + ' véhicule(s), ' + ((st.fillups || []).length) + ' plein(s), ' + ((st.notes || []).length) + ' note(s))')) return;
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(st)); } catch (e) { toast('⚠️ Restauration impossible'); return; }
+    toast('♻️ Sauvegarde restaurée'); setTimeout(function () { location.reload(); }, 700);
+  }
+  function renderBackup() {
+    var P = BK(), info = $('backupInfo'), btns = $('backupBtns'); if (!info) return;
+    if (!P) { // navigateur : fichier à exporter / importer
+      info.textContent = 'Tes données restent dans ce navigateur. Garde une copie : exporte le fichier de sauvegarde, et réimporte-le sur un autre appareil.';
+      btns.innerHTML = '<button class="secondary" data-bk="export">⬇️ Exporter la sauvegarde</button><button class="secondary" data-bk="import">⬆️ Importer une sauvegarde</button>'; return;
+    }
+    var lb = lastBackup();
+    info.textContent = backupFolder ? 'Dossier : « ' + backupFolder + ' » — la sauvegarde y est remise à jour toute seule après chaque changement' + (lb ? ' (dernière : ' + new Date(lb).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) + ')' : '') + '. Rien ne part chez Google : c’est toi qui gardes ce fichier.'
+      : 'Aucun dossier de sauvegarde. Choisis-en un (par exemple Documents/FuelMap, crée-le au besoin) : FuelMap y gardera une copie de tes véhicules, pleins, notes et réglages. Rien ne part chez Google.';
+    btns.innerHTML = (backupFolder ? '<button class="secondary" data-bk="now">💾 Sauvegarder maintenant</button><button class="secondary" data-bk="read">♻️ Restaurer depuis ce dossier</button><button class="secondary" data-bk="pick">📁 Changer de dossier</button>'
+      : '<button class="primary" data-bk="pick">📁 Choisir le dossier de sauvegarde</button>') + '<button class="secondary" data-bk="file">📄 Restaurer depuis un fichier…</button>';
+  }
+  function pickFolder(restoreIfFound) {
+    var P = BK(); if (!P) return;
+    P.pickFolder().then(function (r) {
+      backupFolder = r.folder; renderBackup();
+      if (restoreIfFound) { if (r.hasBackup) P.read().then(function (x) { restoreFrom(x.data, false); }); else toast('Pas de sauvegarde FuelMap dans ce dossier'); }
+      else if (r.hasBackup && !state.cars.length) P.read().then(function (x) { restoreFrom(x.data, false); });
+      else backupNow(false);
+    }).catch(function (e) { if (!/Aucun dossier/.test(e.message || '')) toast('⚠️ ' + e.message); });
+  }
+  $('backupBtns').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-bk]'); if (!b) return; var a = b.getAttribute('data-bk'), P = BK();
+    if (a === 'pick') pickFolder(false);
+    else if (a === 'now') backupNow(false);
+    else if (a === 'read') P.read().then(function (x) { restoreFrom(x.data, true); }).catch(function (err) { toast('⚠️ ' + err.message); });
+    else if (a === 'file') P.openFile().then(function (x) { restoreFrom(x.data, true); }).catch(function () { });
+    else if (a === 'export') { var u = URL.createObjectURL(new Blob([backupPayload()], { type: 'application/json' })), l = document.createElement('a'); l.href = u; l.download = 'FuelMap-sauvegarde.json'; document.body.appendChild(l); l.click(); l.remove(); setTimeout(function () { URL.revokeObjectURL(u); }, 2000); }
+    else if (a === 'import') $('backupFile').click();
+  });
+  $('backupFile').addEventListener('change', function () { var f = this.files && this.files[0]; this.value = ''; if (!f) return; var r = new FileReader(); r.onload = function () { restoreFrom(String(r.result), true); }; r.readAsText(f); });
+  $('obRestore').addEventListener('click', function () { if (BK()) pickFolder(true); else $('backupFile').click(); }); // premier démarrage : « nouveau » (le formulaire) ou restaurer
+  if (BK()) BK().info().then(function (r) { backupFolder = r.folder; renderBackup(); }).catch(renderBackup); else renderBackup();
+  document.addEventListener('visibilitychange', function () { if (document.hidden && backupFolder) backupNow(true); }); // l'appli passe en arrière-plan : copie à jour
+
   // ------------------------------------------------------------------ premier lancement : véhicule obligatoire
   var obFuel = null;
   function showOnboarding() {
@@ -1695,14 +1776,14 @@
   // Téléphone et écran voiture partagent les réglages (même stockage), mais chacun en garde une copie en mémoire : sans ceci, l'un
   // écraserait à sa prochaine sauvegarde ce que l'autre vient de changer (couleur, carburant, véhicule…). On relit donc les réglages
   // partagés dès que l'autre écran les modifie, et en revenant au premier plan. La vue de la carte reste propre à chaque écran.
-  var SHARED = ['cars', 'activeCar', 'fuel', 'theme', 'places', 'favs', 'brand', 'startE', 'neighbours', 'lastRoute', 'fillups', 'fillLog'];
+  var SHARED = ['cars', 'activeCar', 'fuel', 'theme', 'places', 'favs', 'brand', 'startE', 'neighbours', 'lastRoute', 'fillups', 'fillLog', 'notes'];
   function syncShared(raw) {
     var n; try { n = JSON.parse(raw || 'null'); } catch (e) { return; } if (!n || typeof n !== 'object') return;
     var changed = SHARED.filter(function (k) { return n[k] !== undefined && JSON.stringify(n[k]) !== JSON.stringify(state[k]); });
     if (!changed.length) return;
     changed.forEach(function (k) { state[k] = n[k]; });
     try { window.FM && window.FM.log('réglages repris de l’autre écran : ' + changed.join(', ')); } catch (e) { }
-    applyTheme(); renderFuelChips(); renderCars(); renderPlaceChips(); refreshMap();
+    applyTheme(); renderFuelChips(); renderCars(); renderPlaceChips(); refreshMap(); renderNotes();
     document.dispatchEvent(new CustomEvent('fuelmap:state'));
   }
   window.addEventListener('storage', function (e) { if (e.key === STORE_KEY) syncShared(e.newValue); });
@@ -1724,7 +1805,7 @@
     get route() { return routeCtx; }, get fix() { return lastFix || mePos; }, map: map, openStation: openStation, brandName: brandName, price3: price3, whenText: whenText, shortAge: shortAge, ageHours: ageHours,
     haversine: haversine, fuelsFor: fuelsFor, car: car, FUELS: FUELS, FUEL_INDEX: FUEL_INDEX, state: state, setFollow: setFollow, locate: locate, titleCase: titleCase, esc: esc, num: num, progressKm: progressKm, DETOUR_FACTOR: DETOUR_FACTOR, colorFor: colorFor, save: save, eighths: eighths, toast: toast, osrmRoute: osrmRoute, decodePolyline: decodePolyline, agoText: agoText, price3: price3,
     useCar: useCar, updateCar: function (patch) { var c = car(); if (!c.id) return; Object.keys(patch).forEach(function (k) { c[k] = patch[k]; }); if (patch.fuel) state.fuel = patch.fuel; save(); applyCarColor(); renderFuelChips(); renderCars(); refreshMap(); }, // réglages « Ma voiture » de l'écran voiture
-    findPlace: findPlace, agendaWhen: agendaWhen, franceAvg: franceAvg, histSeries: histSeries, histSeries: histSeries, staleDays: staleDays, refreshPrices: function () { return refreshPrices(); }, refreshQuiet: function () { return fetchData(true); }, // sans message : vérification à l'approche d'un arrêt
+    findPlace: findPlace, agendaWhen: agendaWhen, franceAvg: franceAvg, addNote: addNote, histSeries: histSeries, histSeries: histSeries, staleDays: staleDays, refreshPrices: function () { return refreshPrices(); }, refreshQuiet: function () { return fetchData(true); }, // sans message : vérification à l'approche d'un arrêt
     refreshMap: refreshMap, themes: THEMES, setTheme: function (k) { if (!THEMES[k]) return; state.theme = k; save(); applyTheme(); refreshMap(); }
   };
   window.__fuelmap = { carPan: carPan, carZoom: carZoom, carInsets: carInsets, carStable: carStable, restoreLastRoute: restoreLastRoute, setCarMode: setCarMode, updateHud: updateHud, get fix() { return lastFix; }, set fix(p) { lastFix = mePos = p; updateHud(); }, setPlan: setPlan, alternativesFor: alternativesFor, tryPlan: tryPlan, state: state, compute: computeRoute, setPlace: setPlace, get route() { return routeCtx; }, get count() { return stations.length; }, get stations() { return stations; }, map: map, openStation: openStation }; // pour les tests

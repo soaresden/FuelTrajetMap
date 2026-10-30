@@ -159,12 +159,19 @@
         </form>
         <h2 class="mt">📒 Mes pleins</h2>
         <div id="fillLog"></div>
+        <h2 class="mt">📝 Mes notes</h2>
+        <div class="noteadd"><textarea id="noteText" rows="2" maxlength="2000" placeholder="Une note : appel, adresse, rappel…"></textarea><button id="noteAdd" class="secondary">Ajouter</button></div>
+        <div id="notesList"></div>
+        <h2 class="mt">💾 Sauvegarde</h2>
+        <p class="hint" id="backupInfo"></p>
+        <div class="bk-btns" id="backupBtns"></div>
+        <input id="backupFile" type="file" accept=".json,application/json" hidden>
         <h2 class="mt">🗄️ Données</h2>
         <p class="hint" id="dataInfo"></p>
         <div class="field check" style="margin:-6px 0 12px"><label style="margin-top:8px"><input id="neighbours" type="checkbox"> Pays voisins (Espagne, Portugal, Andorre, Italie) — chargés quand la carte ou un trajet y passe</label></div>
         <button id="refreshData" class="secondary">Actualiser les prix maintenant</button>
         <h2 class="mt">🐞 Un souci ?</h2>
-        <p class="hint">FuelMap tient un journal technique sur le téléphone (écran voiture, alertes, erreurs) : rien ne part sans toi. Après un problème, envoie le zip (mail, Drive…) avec deux mots sur ce que tu faisais. Dans la voiture, le bouton 🐞 pose un repère dans le journal au moment du souci.</p>
+        <p class="hint">FuelMap tient un journal technique sur le téléphone (écran voiture, alertes, erreurs) : rien ne part sans toi. Après un problème, envoie le zip (mail, Drive…) avec deux mots sur ce que tu faisais. </p>
         <button id="diagBtn" class="secondary">🐞 Envoyer le journal de diagnostic</button>
         <p class="hint">Prix : données officielles déclarées par les stations — France (prix-carburants.gouv.fr), Espagne (Ministerio), Portugal (DGEG, usage non commercial), Andorre (Govern), Italie (MIMIT, IODL 2.0). Belgique, Suisse et Luxembourg ne publient aucune donnée ouverte par station ; l'Allemagne exige une clé personnelle. Itinéraires : OSRM / OpenStreetMap. Adresses : Géoplateforme IGN et Photon. Pas de compte ni de serveur intermédiaire : ton appareil interroge directement ces services publics et fait tous les calculs lui-même.</p>
       </div>
@@ -190,6 +197,7 @@
       <p class="hint" id="obErr" style="color:var(--bad)" hidden></p>
       <button type="submit" class="primary">🗺️ Afficher la carte</button>
       <p class="hint">Tu pourras ajouter d'autres véhicules ensuite. Tes véhicules restent sur ton appareil.</p>
+      <button type="button" id="obRestore" class="secondary">♻️ J'ai déjà FuelMap : restaurer ma sauvegarde</button>
     </form>
   </div>
 

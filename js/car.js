@@ -249,7 +249,10 @@
         var adj = function (label, val, key) { return '<div class="cadj"><span>' + label + '</span><button data-adj="' + key + '" data-d="-1" aria-label="Moins">−</button><b>' + val + '</b><button data-adj="' + key + '" data-d="1" aria-label="Plus">＋</button></div>'; };
         var custom = cc.color && !COLORS.some(function (p) { return p[1] === cc.color; });
         head = '<span>🚗 ' + A.esc(cc.name) + '</span>';
-        body = (cars.length > 1 ? '<div class="ctg">Véhicule</div><div class="cgrid">' + cars.map(function (x) { return '<button class="copt' + (x.id === cc.id ? ' on' : '') + '" data-usecar="' + x.id + '">' + A.esc(x.name) + '</button>'; }).join('') + '</div>' : '') +
+        var fills = (A.state.fillups || []).slice().sort(function (x, y) { return y.ts - x.ts; }), nNotes = (A.state.notes || []).length;
+        var carnet = '<div class="ctg">📒 Carnet de pleins</div>' + (fills.length ? fills.slice(0, 3).map(function (x) { var d = new Date(x.ts); return '<div class="cfl"><span>' + d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) + ' · ' + A.esc(x.name) + '</span><b>' + A.num(x.paid) + ' €' + (x.liters ? ' <small>' + A.num(x.liters, 1) + ' L</small>' : '') + '</b></div>'; }).join('') : '<div class="cnote">Aucun plein noté.</div>') +
+          '<button class="copt cfillnow" data-fillnow>➕ J’ai fait le plein</button>' + (nNotes ? '<div class="cnote">📝 ' + nNotes + ' note' + (nNotes > 1 ? 's' : '') + ' — à relire sur le téléphone (Véhicules)</div>' : '');
+        body = carnet + (cars.length > 1 ? '<div class="ctg">Véhicule</div><div class="cgrid">' + cars.map(function (x) { return '<button class="copt' + (x.id === cc.id ? ' on' : '') + '" data-usecar="' + x.id + '">' + A.esc(x.name) + '</button>'; }).join('') + '</div>' : '') +
           '<div class="ctg">Carburant préféré</div><div class="cgrid">' + A.FUELS.map(function (f) { return '<button class="copt fuel' + (f.key === cc.fuel ? ' on' : '') + '" style="--fc:' + f.color + ';--fi:' + f.ink + '" data-cfuel="' + f.key + '">' + (f.short || f.label) + '</button>'; }).join('') + '</div>' +
           (A.fuelsFor(cc.fuel).indexOf(A.FUEL_INDEX.sp98) >= 0 && cc.fuel !== 'sp98' ? '<div class="ctg">Prendre le SP98 s’il coûte à peine plus</div><div class="cgrid">' + [[0, 'Non'], [0.02, '≤ 2 cts'], [0.05, '≤ 5 cts']].map(function (o) { return '<button class="copt' + ((+cc.prefer98 || 0) === o[0] ? ' on' : '') + '" data-p98="' + o[0] + '">' + o[1] + '</button>'; }).join('') + '</div>' : '') +
           '<div class="cseg"><button class="copt' + (cc.consMode === 'km' ? '' : ' on') + '" data-consmode="l">Réservoir connu</button><button class="copt' + (cc.consMode === 'km' ? ' on' : '') + '" data-consmode="km">Autonomie</button></div>' +
@@ -679,6 +682,10 @@
     }
     if (e.target.closest('[data-go]')) { if (selected) go([wpOf(selected)]); return; }
     if ((t = e.target.closest('[data-usecar]'))) { A.useCar(t.getAttribute('data-usecar')); render(); return; }
+    if (e.target.closest('[data-fillnow]')) { // plein noté depuis la voiture : la station la plus proche (moins de 2 km)
+      var o2 = origin(), near = A.stations.map(function (x) { return { s: x, d: A.haversine(o2.lat, o2.lon, x.lat, x.lon) }; }).filter(function (x) { return x.d < 2; }).sort(function (x, y) { return x.d - y.d; })[0];
+      if (near && window.__fuelmapFill) window.__fuelmapFill.open(near.s, false); else A.toast('Aucune station à moins de 2 km'); return;
+    }
     if ((t = e.target.closest('[data-p98]'))) { A.updateCar({ prefer98: +t.getAttribute('data-p98') }); render(); return; }
     if ((t = e.target.closest('[data-consmode]'))) { A.updateCar({ consMode: t.getAttribute('data-consmode') }); render(); return; }
     if ((t = e.target.closest('[data-cfuel]'))) { A.updateCar({ fuel: t.getAttribute('data-cfuel') }); render(); return; }
@@ -854,5 +861,9 @@
     if (dest) return { lat: dest.lat, lon: dest.lon, label: short(dest.label) };
     return null;
   }
-  window.__fuelmapCar = { render: render, select: select, pick: pick, setDest: setDest, scroll: scroll, fling: fling, zoom: zoom, state: state, dump: dump, setStep: setStep, target: target, go: goTarget, goTo: function (lat, lon, label) { go([{ lat: +lat, lon: +lon, s: null, stop: false, plain: label || 'Destination', price: '' }]); }, recenter: recenter, stopGuide: stopGuide, skipStop: skipStop, lockTest: function (on) { lock.test = !!on; }, __pts: function () { return guide && guide.pts; } };
+  function addNote(text) { // note dictée (bouton 📝 de l'hôte) : heure, position, commune
+    if (!ready() || !A.addNote(text, town.name)) return;
+    log('voiture : note dictée (' + String(text).length + ' caractères)'); A.toast('📝 Note enregistrée'); render();
+  }
+  window.__fuelmapCar = { render: render, select: select, pick: pick, setDest: setDest, scroll: scroll, fling: fling, zoom: zoom, state: state, dump: dump, setStep: setStep, target: target, go: goTarget, goTo: function (lat, lon, label) { go([{ lat: +lat, lon: +lon, s: null, stop: false, plain: label || 'Destination', price: '' }]); }, recenter: recenter, stopGuide: stopGuide, skipStop: skipStop, addNote: addNote, lockTest: function (on) { lock.test = !!on; }, __pts: function () { return guide && guide.pts; } };
 })();

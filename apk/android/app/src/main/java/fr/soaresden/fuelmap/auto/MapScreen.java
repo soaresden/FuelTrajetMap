@@ -65,6 +65,7 @@ public class MapScreen extends Screen {
                 // « ma position » : cercle avec un point, comme Google Maps
                 .addAction(new Action.Builder().setIcon(myLocation).setOnClickListener(() -> surface.run("window.__fuelmapCar&&window.__fuelmapCar.recenter?window.__fuelmapCar.recenter():window.__fuelmapAPI&&(window.__fuelmapAPI.setFollow(true),window.__fuelmapAPI.locate().catch(function(){}))")).build())
                 .addAction(new Action.Builder().setTitle("🔍").setOnClickListener(this::openSearch).build())
+                .addAction(new Action.Builder().setTitle("📝").setOnClickListener(this::openNote).build()) // bloc-notes : dicté en roulant, clavier à l'arrêt (règles de l'hôte)
                 .build())
             .setMapActionStrip(new ActionStrip.Builder().addAction(Action.PAN).build()) // obligatoire pour recevoir les gestes sur la carte…
             .setPanModeListener(inPan -> { })                                            // …et l'hôte n'active le déplacement que si un écouteur existe
@@ -121,6 +122,12 @@ public class MapScreen extends Screen {
                 surface.run("window.__fuelmapCar&&window.__fuelmapCar.render()");
             });
         } catch (Exception e) { Diag.w("FuelMapCar", "demande d'accès à l'agenda impossible : " + e); }
+    }
+
+    /** Bloc-notes : écran de saisie de l'hôte, la note revient à la page qui l'enregistre (heure, endroit). */
+    private void openNote() {
+        getScreenManager().push(new NoteScreen(getCarContext(), text ->
+            surface.run("window.__fuelmapCar&&window.__fuelmapCar.addNote(" + org.json.JSONObject.quote(text) + ")")));
     }
 
     /** Destination du trajet : écran de recherche de l'hôte, puis la page calcule le trajet depuis la voiture. */

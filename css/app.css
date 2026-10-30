@@ -668,3 +668,10 @@ html[data-carui] #carFavs, html[data-carui].cfavs-up #carFavs { left: var(--clef
 .fs-fchip { padding: 6px 10px; border-radius: 999px; border: 2px solid var(--fc); background: var(--panel2); color: var(--text); font-size: 14px; font-weight: 700; }
 .fs-fchip small { font-weight: 600; opacity: .8; } .fs-fchip.on { background: var(--fc); color: var(--fi); }
 html[data-carui] .fs-fchip { padding: 4px 8px; font-size: 13px; }
+/* notes et sauvegarde (téléphone), carnet dans « Ma voiture » */
+.noteadd { display: flex; gap: 8px; align-items: stretch; margin-bottom: 8px; } .noteadd textarea { flex: 1; min-width: 0; resize: vertical; border-radius: 10px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); padding: 8px; font: inherit; }
+.fl-row.note .nt { white-space: pre-wrap; font-size: 14px; margin-top: 2px; }
+.bk-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; } .bk-btns button { width: auto; }
+#obRestore { width: 100%; margin-top: 8px; }
+.cfl { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; padding: 3px 4px; border-bottom: 1px solid var(--line); } .cfl span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .cfl b { white-space: nowrap; } .cfl small { color: var(--muted); }
+.copt.cfillnow { width: 100%; margin-top: 6px; }

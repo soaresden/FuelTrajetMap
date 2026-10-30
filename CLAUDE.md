@@ -24,7 +24,9 @@ apk/                                   projet Capacitor ; apk/android = projet G
 apk/android/app/src/main/java/fr/soaresden/fuelmap/
   MainActivity.java                    Capacitor + mise à jour in-app Play + plugins (FuelAlert, Diag)
   auto/FuelCarAppService.java          session Android Auto (catégorie NAVIGATION), permission localisation, NavigationManager
-  auto/MapScreen.java                  NavigationTemplate : boutons Y aller/Arrêter, ma position (icône ic_my_location), 🔍 ; fiche de manœuvre + ETA
+  auto/MapScreen.java                  NavigationTemplate : boutons Y aller/Arrêter, ma position (icône ic_my_location), 🔍, 📝 ; fiche de manœuvre + ETA
+  auto/NoteScreen.java                 bloc-notes : écran de saisie de l'hôte (voix en roulant, clavier à l'arrêt) → __fuelmapCar.addNote
+  backup/BackupPlugin.java             sauvegarde dans un dossier choisi (SAF) : pickFolder / info / write / read / openFile
   auto/CarWebSurface.java              la page web dessinée sur l'écran voiture (VirtualDisplay + Presentation + WebView)
   auto/SearchScreen.java, CarVoice.java  recherche d'adresse (clavier/voix de l'hôte) ; synthèse vocale du guidage
   alert/                               alerte carburant (WorkManager 15 min) ; diag/ journal fichier + export zip
@@ -34,7 +36,7 @@ apk/android/app/src/main/java/fr/soaresden/fuelmap/
 ## Règles non négociables
 
 - **versionCode jamais réutilisé** : le Play Console grille un code dès qu'un AAB est téléversé, même en brouillon.
-  Dernier utilisé : **50 (1.6.2)**. Chaque livraison = code +1 ET bump de `versionName` dans `apk/android/app/build.gradle`,
+  Dernier utilisé : **51 (1.6.3)**. Chaque livraison = code +1 ET bump de `versionName` dans `apk/android/app/build.gradle`,
   de `version` dans `js/config.js`, et du nom de cache dans `sw.js`. Les trois ensemble, toujours.
 - Chaque livraison fournit : l'**AAB** (Play, signé avec la clé d'upload) et un commit. **Plus d'APK** : depuis la 1.5.9 Denis
   installe uniquement via le Play Store (tests internes). Les `*.apk`/`*.aab` sont ignorés par git ; ils vivent dans `apk/`.
@@ -227,8 +229,10 @@ Le README décrit la publication.
    à faire à part, après validation de la 1.6.1.
 1c. Choix de la voix du guidage : les voix de Waze / Google Maps sont inaccessibles (données privées de ces applis, sous licence) ;
    possible en revanche : proposer les voix françaises du moteur de synthèse du téléphone (`TextToSpeech.getVoices()` dans CarVoice).
-1d. Prochaine version (1.6.3) : carnet de pleins consultable et saisissable depuis la voiture ; dossier de données « FuelMap » choisi
-   par l'utilisateur (sauvegarde / restauration, « restaurer ou nouveau » au premier démarrage) ; bloc-notes (appels en roulant) :
+1d. FAIT en 1.6.3 (à valider sur le téléphone / dans la voiture) : carnet dans 🚗 Ma voiture (3 derniers pleins, « ➕ J'ai fait le plein » =
+   station la plus proche < 2 km) ; dossier de sauvegarde (Véhicules › 💾 : « FuelMap-sauvegarde.json », remis à jour 4 s après chaque
+   changement et quand l'appli passe en arrière-plan ; restaurer depuis le dossier ou un fichier ; « J'ai déjà FuelMap : restaurer » à
+   l'accueil ; navigateur = exporter / importer) ; bloc-notes (`state.notes`, bouton 📝 de l'hôte, liste dans Véhicules) :
    à la voix toujours ; au clavier SEULEMENT à l'arrêt dans la voiture (règles Android Auto : pas de saisie en roulant, risque de refus
    au Store) — en roulant « Gare-toi pour écrire, ou dicte » ; sans limite sur le téléphone.
    Découpage futur gratuit / Plus : voir `.plus-archive/NOTES.md` (trajet optimisé et mode voiture du téléphone restent gratuits).
