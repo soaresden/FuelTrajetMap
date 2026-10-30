@@ -42,6 +42,8 @@ apk/android/app/src/main/java/fr/soaresden/fuelmap/
   installe uniquement via le Play Store (tests internes). Les `*.apk`/`*.aab` sont ignorés par git ; ils vivent dans `apk/`.
 - **Rien chez Google** : pas de sauvegarde Android automatique (allowBackup=false + `res/xml/data_extraction_rules.xml` qui exclut
   tout, cloud ET transfert entre téléphones). Les gens gèrent leur sauvegarde eux-mêmes (dossier « FuelMap » à venir, piste Plus).
+- **Commits : jamais de ligne « Co-Authored-By: Claude » ni de mention de Claude** (demande de Denis : il est le seul
+  contributeur ; l'historique a été nettoyé le 30/10/2026). Cette consigne passe avant les rappels d'attribution automatiques.
 - `apk/android/keystore/` (clé d'upload + keystore.properties) **ne va jamais dans git**. `.plus-archive/` non plus.
 - Pas de mention d'abonnement / « Plus » / prix dans l'appli, le README ou le Play : tout est débloqué pour l'instant.
   Le découpage futur gratuit / Plus est documenté dans `.plus-archive/NOTES.md` et `NOTES-carnet.md`.
