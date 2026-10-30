@@ -75,7 +75,8 @@
         '<button class="fs-btn ghost" data-fill-no>Pas de plein, merci</button>';
     } else if (cur.step === 'fuel') {
       h += '<p class="fs-q">Quel carburant ?</p><div class="fs-fuels">';
-      for (var i = 0; i < A.FUELS.length; i++) if (s.p[i] > 0) h += '<button class="fs-btn' + (i === cur.fi ? ' yes' : '') + '" data-fill-fuel="' + i + '">' + fuelName(i) + '<small>' + A.price3(s.p[i]) + ' €</small></button>';
+      var known = s.p.some(function (v) { return v > 0; });
+      for (var i = 0; i < A.FUELS.length; i++) if (s.p[i] > 0 || !known) h += '<button class="fs-btn' + (i === cur.fi ? ' yes' : '') + '" data-fill-fuel="' + i + '">' + fuelName(i) + '<small>' + (s.p[i] > 0 ? A.price3(s.p[i]) + ' €' : 'prix inconnu') + '</small></button>';
       h += '</div><button class="fs-btn ghost" data-fill-no>Annuler</button>';
     } else if (cur.step === 'km') {
       var km = parseInt(cur.digits, 10) || 0, lastKm = lastOdometer(), gap = lastKm && km > lastKm ? km - lastKm : 0;
@@ -85,7 +86,9 @@
         '<div class="fs-row"><button class="fs-btn ghost" data-fill-save>Passer</button><button class="fs-btn yes big" data-fill-save' + (km > 0 ? '' : ' disabled') + '>💾 Enregistrer</button></div>';
     } else {
       var paid = parseFloat(cur.digits) || 0, liters = cur.price > 0 ? paid / cur.price : 0;
-      h += '<p class="fs-q">Combien as-tu payé ? <small>' + fuelName(cur.fi) + ' à ' + A.price3(cur.price) + ' €</small></p>' +
+      var fuels = '', any = s.p.some(function (v) { return v > 0; }); for (var j = 0; j < A.FUELS.length; j++) if (s.p[j] > 0 || !any) fuels += '<button class="fs-fchip' + (j === cur.fi ? ' on' : '') + '" style="--fc:' + A.FUELS[j].color + ';--fi:' + A.FUELS[j].ink + '" data-fill-fuel="' + j + '">' + (A.FUELS[j].short || A.FUELS[j].label) + (s.p[j] > 0 ? ' <small>' + A.price3(s.p[j]) + '</small>' : '') + '</button>';
+      h += '<div class="fs-fchips">' + fuels + '</div>' +
+        '<p class="fs-q">Combien as-tu payé ? <small>' + fuelName(cur.fi) + (cur.price > 0 ? ' à ' + A.price3(cur.price) + ' €' : ' · prix inconnu, litres non calculés') + '</small></p>' +
         '<div class="fs-amount"><b>' + amountText(cur.digits) + '</b><small>' + (liters > 0 ? '≈ ' + A.num(liters, 1) + ' L' : '&nbsp;') + '</small></div>' +
         '<div class="fs-pad">' + ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'back'].map(function (k) { return '<button data-key="' + k + '">' + (k === 'back' ? '⌫' : k === '.' ? ',' : k) + '</button>'; }).join('') + '</div>' +
         '<button class="fs-btn yes big" data-fill-next' + (paid > 0 ? '' : ' disabled') + '>Suivant ›</button>';

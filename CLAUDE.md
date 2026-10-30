@@ -187,6 +187,8 @@ la section « Sécurité des données » (lu sur l'appareil, seul le lieu choisi
 - Guidage : la colonne reste visible, en colonne flottante à droite des cartes de l'hôte (`--navleft`).
 - Fiche station (voiture) : prix + « (SP98 x,xxx) » à droite si la voiture l'accepte ; « Plein N L ≈ … € · compléter M L ≈ … € » d'après
   le niveau Trajet › Réservoir (`state.startE`) ; ligne 💡 SP98 (« à ce prix, tu peux prendre du 98 » si écart ≤ 3 cts).
+- Carnet (fillup.js) : le carburant reste modifiable sur l'écran du montant (montant conservé, litres recalculés) ; station sans prix
+  connu → tous les carburants proposés, litres inconnus. Chaque plein garde date/heure, station (nom, adresse, position), carburant, prix, montant, litres, véhicule.
 - Pendant un trajet guidé, la fiche station propose « ⛽ Remplacer l'arrêt X » (ou « Ajouter cet arrêt ») : la destination est gardée.
 - À moins de 15 km d'un arrêt carburant : prix relus toutes les 5 min (`refreshQuiet`) ; rupture → alerte écran + voix ; prix changé → annoncé.
 - En haut à gauche (carte au repos) : commune, taille de la vue « ↔ 25 km · ↕ 15 km », puis les favorites dessous (position calculée
@@ -226,7 +228,9 @@ Le README décrit la publication.
 1c. Choix de la voix du guidage : les voix de Waze / Google Maps sont inaccessibles (données privées de ces applis, sous licence) ;
    possible en revanche : proposer les voix françaises du moteur de synthèse du téléphone (`TextToSpeech.getVoices()` dans CarVoice).
 1d. Prochaine version (1.6.3) : carnet de pleins consultable et saisissable depuis la voiture ; dossier de données « FuelMap » choisi
-   par l'utilisateur (sauvegarde / restauration, « restaurer ou nouveau » au premier démarrage) ; bloc-notes dicté (appels en roulant).
+   par l'utilisateur (sauvegarde / restauration, « restaurer ou nouveau » au premier démarrage) ; bloc-notes (appels en roulant) :
+   à la voix toujours ; au clavier SEULEMENT à l'arrêt dans la voiture (règles Android Auto : pas de saisie en roulant, risque de refus
+   au Store) — en roulant « Gare-toi pour écrire, ou dicte » ; sans limite sur le téléphone.
    Découpage futur gratuit / Plus : voir `.plus-archive/NOTES.md` (trajet optimisé et mode voiture du téléphone restent gratuits).
 2. Remontée utilisateur (« cette station est fermée / plus d'essence ») : nécessite un petit backend (Cloudflare Worker proposé), en attente du compte.
 3. Carnet de pleins : export CSV, rappel kilométrage ; puis découpage gratuit / Plus (voir `.plus-archive`).
