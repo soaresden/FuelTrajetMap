@@ -48,7 +48,7 @@ import java.util.Locale;
  */
 public class CarWebSurface implements SurfaceCallback {
     static final String TAG = "FuelMapCar";
-    public interface TargetListener { void onTarget(double lat, double lon, String label); void onNavigate(double lat, double lon, String label); void onSearch(); void onOpenMaps(double lat, double lon, String label); void onRouting(String json); void onStopRouting(); void onSpeak(String text); void onAskAgenda(); void onNote(); }
+    public interface TargetListener { void onTarget(double lat, double lon, String label); void onNavigate(double lat, double lon, String label); void onSearch(); void onOpenMaps(double lat, double lon, String label); void onRouting(String json); void onStopRouting(); void onSpeak(String text); void onAskAgenda(); void onNote(); void onBuyPlus(); }
 
     private final Context ctx;
     private final TargetListener listener;
@@ -119,7 +119,8 @@ public class CarWebSurface implements SurfaceCallback {
                 @JavascriptInterface public void speak(String text) { main.post(() -> listener.onSpeak(text)); }
                 @JavascriptInterface public String agenda() { return fr.soaresden.fuelmap.agenda.Agenda.read(ctx, 7); } // rendez-vous avec un lieu, pour la destination
                 @JavascriptInterface public void askAgenda() { main.post(listener::onAskAgenda); }
-                @JavascriptInterface public void note() { main.post(listener::onNote); } // bouton 📝 de la colonne : écran de saisie de l'hôte
+                @JavascriptInterface public void note() { main.post(listener::onNote); }
+                @JavascriptInterface public void buyPlus() { main.post(listener::onBuyPlus); } // « Acheter Plus » : notification sur le téléphone // bouton 📝 de la colonne : écran de saisie de l'hôte
             }, "AndroidAuto");
             presentation.setContentView(web, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
             presentation.show();

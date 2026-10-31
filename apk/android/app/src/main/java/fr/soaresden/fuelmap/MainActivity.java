@@ -3,6 +3,7 @@ package fr.soaresden.fuelmap;
 import android.content.IntentSender;
 import android.util.Log;
 
+import android.content.Intent;
 import android.os.Bundle;
 
 import com.getcapacitor.BridgeActivity;
@@ -23,7 +24,18 @@ public class MainActivity extends BridgeActivity {
     private AppUpdateManager updates;
 
     @Override
-    public void onCreate(Bundle savedInstanceState) { fr.soaresden.fuelmap.diag.Diag.init(this); registerPlugin(FuelAlertPlugin.class); registerPlugin(fr.soaresden.fuelmap.diag.DiagPlugin.class); registerPlugin(fr.soaresden.fuelmap.agenda.AgendaPlugin.class); registerPlugin(fr.soaresden.fuelmap.backup.BackupPlugin.class); super.onCreate(savedInstanceState); }
+    public void onCreate(Bundle savedInstanceState) { fr.soaresden.fuelmap.diag.Diag.init(this); registerPlugin(FuelAlertPlugin.class); registerPlugin(fr.soaresden.fuelmap.diag.DiagPlugin.class); registerPlugin(fr.soaresden.fuelmap.agenda.AgendaPlugin.class); registerPlugin(fr.soaresden.fuelmap.backup.BackupPlugin.class); super.onCreate(savedInstanceState); openPlusIfAsked(getIntent()); }
+
+    @Override
+    protected void onNewIntent(Intent intent) { super.onNewIntent(intent); setIntent(intent); openPlusIfAsked(intent); }
+
+    /** Notification « FuelMap Plus » touchée (envoyée depuis l'écran de la voiture) : la page ouvre l'écran d'abonnement. */
+    private void openPlusIfAsked(Intent intent) {
+        if (intent == null || intent.getStringExtra("plus") == null) return;
+        String why = intent.getStringExtra("plus"); intent.removeExtra("plus");
+        String js = "(function t(n){if(window.__fuelmapPlus){window.__fuelmapPlus.paywall(true," + org.json.JSONObject.quote(why) + ")}else if(n<60){setTimeout(function(){t(n+1)},250)}})(0)";
+        try { getBridge().getWebView().postDelayed(() -> getBridge().getWebView().evaluateJavascript(js, null), 800); } catch (Exception e) { Log.w("FuelMap", "Plus : " + e.getMessage()); }
+    }
 
     @Override
     public void onResume() {

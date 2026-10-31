@@ -159,17 +159,17 @@ Si la revue refuse la catégorie navigation, repli possible en « points d'inté
 
 ## 5. Version (Tests → Test interne, puis Production)
 
-AAB : `apk/FuelMap-1.6.8.aab` (versionCode 56). **Nom de la version** : `1.6.8`
+AAB : `apk/FuelMap-1.7.0.aab` (versionCode 58). **Nom de la version** : `1.7.0`
 
 **Notes de version** (500 max) :
 
 ```
 <fr-FR>
-• Accueil : choix du dossier de sauvegarde dès le premier lancement
-• Lieux : maison, travail et lieux favoris, en un toucher dans Trajet et dans la voiture
-• Voiture : bouton Notes dans la colonne, colonne fixe à gauche pendant le guidage, menus rangés
-• Guidage : bandeau d'arrêt lisible en écran partagé
-• Ma voiture : tout tient sans défiler
+• Guidage : choisis ton curseur (citadine, scooter, décapotable, formule 1, fusée…) à la couleur de ta voiture
+• Thèmes : GéMap et Wéyze en clair et en sombre (14 thèmes)
+• Lieux : maison, travail et lieux favoris en un toucher
+• Voiture : bouton Notes, colonne fixe à gauche pendant le guidage
+• Correctifs : la fiche du véhicule ne perd plus les réglages faits dans la voiture
 </fr-FR>
 ```
 
@@ -190,3 +190,21 @@ node tests/captures-store.mjs
 Edge s'ouvre en arrière-plan, charge l'appli avec une voiture fictive (« Ma 208 », Tours → Nantes) et range les images dans
 `store/captures/` : 5 captures téléphone en 1080×1920, 6 captures voiture en 1920×1080, et la bannière 1024×500
 (`store/banniere.html`). Il faut Internet (prix et itinéraires) ; compter une à deux minutes.
+
+---
+
+## Le jour où FuelMap Plus est en vente (interrupteur `plus: true`)
+
+Ce qui est déjà dans l'appli depuis la 1.7.0, mais éteint : voiles + cadenas, badge « Plus » / « Trial », écran d'abonnement,
+panneau « Fonctionnalité Plus » dans la voiture. Avant d'allumer :
+
+1. **Console › Paramètres › Profil de paiement** : créer le profil marchand (vérification par Google, quelques jours).
+2. **Monétiser › Produits › Abonnements** : ID `fuelmap_plus` (doit être exactement celui-là), deux forfaits de base
+   (mensuel, annuel), chacun avec une **offre d'essai gratuit de 7 jours** (« nouveaux clients »).
+3. **Paramètres › Test des licences** : ajouter les comptes Gmail des testeurs (achats de test gratuits).
+4. **Promotions › Codes promo** : codes pour les bêta-testeurs (ils les saisissent via « 🎟️ J'ai un code » dans l'appli → Play Store).
+5. `js/config.js` : `plus: true`, nouvelle version (code +1), AAB.
+6. Fiche : **Classification du contenu › Achats d'articles numériques : Oui** ; la description peut alors mentionner « FuelMap Plus
+   (abonnement avec essai gratuit de 7 jours) : écran de la voiture, curseurs, analyse du carnet » ; la mention « gratuit » reste
+   vraie pour l'installation. La politique de confidentialité a déjà son paragraphe « Abonnement ».
+7. Sécurité des données : rien à ajouter pour le paiement (géré par Google Play, l'appli ne voit pas les moyens de paiement).

@@ -13,7 +13,7 @@
   if (!/[?&]aa=1/.test(location.search)) return;
   var A = null, F = null, pane = document.getElementById('carPane'), timer = null;
   function el(id, tag) { var e = document.createElement(tag || 'div'); e.id = id; e.hidden = true; document.body.appendChild(e); return e; }
-  var rail = el('carRail', 'nav'), steps = el('carSteps'), chip = el('carChip', 'button'), nextBox = el('carNext'), lockBox = el('carLock'), favBox = el('carFavs'), viewBox = el('carView'), townBox = el('carTown'), refreshBox = el('carRefresh', 'button');
+  var plusBox = el('carPlus'), rail = el('carRail', 'nav'), steps = el('carSteps'), chip = el('carChip', 'button'), nextBox = el('carNext'), lockBox = el('carLock'), favBox = el('carFavs'), viewBox = el('carView'), townBox = el('carTown'), refreshBox = el('carRefresh', 'button');
   refreshBox.setAttribute('aria-label', 'Actualiser les prix'); refreshBox.innerHTML = '<svg viewBox="0 0 24 24" width="24" height="24"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3.5v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><rect x="8.6" y="8" width="4.6" height="8" rx=".8" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="9.7" y="9.2" width="2.4" height="2" fill="currentColor"/><path d="M13.2 10l1.7 1.4v3.1a.7.7 0 0 0 1.4 0V11" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   refreshBox.addEventListener('click', function () { log('voiture : actualisation des prix'); A.refreshPrices().then(schedule); });
   function log(m) { try { window.FM && window.FM.log(m); } catch (e) { } }
@@ -124,7 +124,8 @@
 
   // ---- dessin : colonne, bulles d'étapes, carte flottante, bouton « N stations », bandeau du prochain arrêt
   function renderRail() {
-    rail.innerHTML = '<div class="cbrand"><img src="icons/icon.svg" alt=""><b>FuelMap</b><small>v' + ((window.FUELMAP_CONFIG || {}).version || '') + '</small></div>' + MODES.map(function (m) { return '<button class="' + (mode === m[0] ? 'on' : '') + (m[3] ? ' cgrp' : '') + '" data-rail="' + m[0] + '" aria-label="' + m[2] + '">' + m[1] + '</button>'; }).join('') +
+    var P = window.__fuelmapPlus, pst = P ? P.status() : 'off';
+    rail.innerHTML = '<div class="cbrand"><img src="icons/icon.svg" alt=""><b>FuelMap</b><small>v' + ((window.FUELMAP_CONFIG || {}).version || '') + '</small>' + (pst === 'trial' || pst === 'plus' ? P.badge() : '') + '</div>' + MODES.map(function (m) { return '<button class="' + (mode === m[0] ? 'on' : '') + (m[3] ? ' cgrp' : '') + '" data-rail="' + m[0] + '" aria-label="' + m[2] + '">' + m[1] + '</button>'; }).join('') +
       '<span class="sp"></span><button class="cz" data-rail="zin" aria-label="Zoomer">＋</button><button class="cz" data-rail="zout" aria-label="Dézoomer">−</button>';
   }
   function renderSteps() {
@@ -474,6 +475,7 @@
   function wpOf(s, stop) { var k = A.pick(s, A.fuelsFor(A.car().fuel)); return { lat: s.lat, lon: s.lon, s: s, stop: !!stop, plain: plainName(s), price: k >= 0 ? A.price3(s.p[k]) : '' }; }
   // Guidage vers une suite de points : les arrêts carburant (stop) puis le point final (station ou destination du trajet).
   function go(wps, keep) {
+    if (plusLocked()) { if (plusBox.hidden) showPlus(); return; }
     var f = A.fix; if (!f) { A.toast('📍 Pas de position GPS'); return; }
     if (!wps.length) return;
     var back = guide ? guide.back : { mode: mode, step: step === 'guide' ? FLOWS[mode][0][0] : step }, gmode = guide ? guide.gmode : mode;
@@ -623,7 +625,8 @@
   // la voiture est dessinée par une flèche fixe au tiers bas de l'écran. Le carré déborde de l'écran : rien ne manque quand il tourne.
   var arrow = el('carArrow');
   function arrowIcon() { // la flèche du guidage, ou l'icône choisie dans la fiche du véhicule (citadine, scooter, fusée…)
-    var k = A.car().icon || 'arrow'; if (arrow._k === k || !window.FuelCursors) return; arrow._k = k;
+    var k = A.car().icon || 'arrow', P = window.__fuelmapPlus; if (P && !P.has('icons') && !P.freeIcon(k)) k = 'arrow';
+    if (arrow._k === k || !window.FuelCursors) return; arrow._k = k;
     arrow.classList.toggle('ico', k !== 'arrow'); arrow.innerHTML = k === 'arrow' ? '' : FuelCursors.svg(k);
   }
   // vue du guidage : 3D = carte inclinée (on voit loin devant), 2D = à plat ; toujours tournée dans le sens de la marche. Choix mémorisé.
@@ -864,7 +867,7 @@
     document.addEventListener('fuelmap:stations', function () { schedule(); if (wantRoute && !computing && !routeReady && !routeErr) compute(); });
     document.addEventListener('fuelmap:fix', function () {
       lastFixAt = Date.now(); if (guide) guide.drLogged = 0;
-      center(); resumeGuide(); updateGuide(); updateTown();
+      center(); resumeGuide(); updateGuide(); updateTown(); plusCheck();
       if (wantRoute && !computing && !routeReady && !routeErr) compute();
       else if (step === 'list' && (!listEl || listEl.scrollTop < 10)) schedule();
     });
@@ -901,6 +904,29 @@
     if (dest) return { lat: dest.lat, lon: dest.lon, label: short(dest.label) };
     return null;
   }
+  // ---- FuelMap Plus : l'écran voiture est réservé aux abonnés (et à l'essai). Sans abonnement : 5 secondes d'aperçu, puis un
+  // panneau plein écran « Fonctionnalité Plus » qu'on ne peut pas fermer ; « Acheter Plus » envoie une notification au téléphone
+  // (pas de paiement possible sur l'écran de la voiture).
+  var plusTimer = null;
+  function plusLocked() { var P = window.__fuelmapPlus; return !!(P && P.status() === 'free'); }
+  function plusCheck() {
+    if (!plusLocked()) { clearTimeout(plusTimer); plusTimer = null; if (!plusBox.hidden) { plusBox.hidden = true; log('voiture : Plus actif, écran débloqué'); } return; }
+    if (plusBox.hidden && !plusTimer) plusTimer = setTimeout(showPlus, 5000);
+  }
+  function showPlus() {
+    plusTimer = null; if (!plusLocked()) return;
+    if (guide) stopGuide();
+    plusBox.innerHTML = '<div class="cpl"><div class="cplpad">🔒</div><span class="pbadge big">Plus</span><h2>Fonctionnalité Plus</h2>' +
+      '<p>La carte des prix et le guidage sur l\'écran de la voiture font partie de <b>FuelMap Plus</b>.<br>7 jours d\'essai gratuit.</p>' +
+      '<button class="cbig" data-buyplus>⭐ Acheter Plus</button><p class="cplsub" id="carPlusSub">Le paiement se fait sur le téléphone.</p></div>';
+    plusBox.hidden = false; log('voiture : écran Plus (pas d\'abonnement)');
+  }
+  plusBox.addEventListener('click', function (e) {
+    if (!e.target.closest('[data-buyplus]')) return;
+    try { if (window.AndroidAuto && window.AndroidAuto.buyPlus) window.AndroidAuto.buyPlus(); } catch (err) { }
+    var s = document.getElementById('carPlusSub'); if (s) s.textContent = '📱 Regarde ton téléphone : touche la notification « FuelMap Plus ».';
+  });
+  document.addEventListener('fuelmap:plus', function () { plusCheck(); if (ready()) render(); });
   function addNote(text) { // note dictée (bouton 📝 de l'hôte) : heure, position, commune
     if (!ready() || !A.addNote(text, town.name)) return;
     log('voiture : note dictée (' + String(text).length + ' caractères)'); A.toast('📝 Note enregistrée'); render();

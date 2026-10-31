@@ -752,3 +752,33 @@ html.cpane-wide .c2col .cseg { margin-top: 0; }
 .clookbtn .fcur { width: 16px; height: 26px; flex: 0 0 auto; }
 /* thèmes sur deux colonnes (clairs | sombres) quand l'écran est assez large : 7 + 7 tiennent sans défiler */
 html.cpane-wide .c2col .cthemes { grid-template-columns: 1fr 1fr; } html.cpane-wide .c2col .cth { height: 46px; }
+/* ---- FuelMap Plus : badge doré « Plus » / « Trial », voile blanc + cadenas sur les fonctions payantes, écran d'abonnement */
+.pbadge { display: inline-block; vertical-align: middle; padding: 2px 8px; border-radius: 999px; font: 800 10px/1.4 system-ui, sans-serif; letter-spacing: .6px; text-transform: uppercase; color: #3b2800;
+  background: linear-gradient(135deg, #fff1b8 0%, #f5cf55 35%, #d9a520 70%, #b9860f 100%); box-shadow: 0 1px 3px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.6); white-space: nowrap; }
+.pbadge.big { font-size: 14px; padding: 4px 14px; }
+#verBadge .pbadge { margin-left: 6px; } #carIconsTag .pbadge { margin: 0 4px; } .fl-stats .pbadge { align-self: center; }
+.pveil { position: absolute; inset: 0; border-radius: inherit; background: rgba(255,255,255,.66); backdrop-filter: blur(1.5px); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; pointer-events: none; }
+.pveil .ppad { font-size: 20px; line-height: 1; filter: drop-shadow(0 1px 1px rgba(0,0,0,.3)); } .pveil .pbadge { font-size: 8px; padding: 1px 6px; }
+.cicons button { position: relative; overflow: hidden; }
+.pveilbox { position: relative; display: block; width: 100%; min-height: 64px; margin: 4px 0 10px; padding: 12px; border-radius: 12px; border: 1px dashed #d9a520; background: var(--panel2); color: var(--text); text-align: left; font-size: 14px; overflow: hidden; }
+.pveilbox .pveil .ppad { font-size: 30px; } .pveilbox .pveil .pbadge { font-size: 11px; padding: 2px 9px; }
+.pcard { margin: 0 0 14px; padding: 12px 14px; border-radius: 14px; border: 1px solid #d9a520; background: linear-gradient(135deg, rgba(245,207,85,.16), rgba(185,134,15,.06)); }
+.pcard .ph { display: flex; align-items: center; gap: 8px; font-size: 16px; } .pcard p { margin: 6px 0 10px; font-size: 14px; } .pcard button { width: 100%; }
+#plus, #update { position: fixed; inset: 0; z-index: 3000; background: rgba(0,0,0,.72); display: flex; align-items: flex-end; justify-content: center; }
+#plus[hidden], #update[hidden] { display: none; }
+html.wide #plus, html.wide #update { align-items: center; }
+#plus .sheet, #update .sheet { position: relative; width: min(560px, 100%); max-height: 92vh; overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 18px 18px 0 0; padding: 18px 16px calc(18px + var(--safe-b)); box-shadow: var(--shadow); }
+#plus .sheet { border-top: 3px solid #d9a520; }
+html.wide #plus .sheet, html.wide #update .sheet { border-radius: 18px; }
+#plus h2, #update h2 { margin: 0 0 8px; display: flex; align-items: center; gap: 8px; } #plus p { margin: 8px 0; line-height: 1.45; }
+#plusClose { position: absolute; top: 10px; right: 10px; width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel2); color: var(--text); font-size: 15px; }
+#plusWhy { font-weight: 700; } .pperks { margin: 8px 0; padding-left: 0; list-style: none; display: grid; gap: 6px; } .pperks li { line-height: 1.4; }
+#plusOffers { display: grid; gap: 8px; margin: 12px 0; } .plus-offer { width: 100%; text-align: left; }
+#plus .links { display: flex; flex-wrap: wrap; gap: 6px; } #plus .links button { flex: 1 1 auto; height: 36px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); font-size: 13px; }
+#update .primary { width: 100%; margin-top: 10px; } #plus a { color: var(--accent); }
+/* écran voiture sans abonnement : panneau plein écran, par-dessus tout (y compris la colonne) */
+#carPlus { position: fixed; inset: 0; z-index: 2000; display: flex; align-items: center; justify-content: center; background: rgba(8,12,18,.86); backdrop-filter: blur(4px); }
+#carPlus[hidden] { display: none; }
+.cpl { width: min(520px, 90vw); text-align: center; padding: 22px 26px; border-radius: 22px; background: var(--panel); border: 2px solid #d9a520; box-shadow: 0 20px 60px rgba(0,0,0,.6); }
+.cpl .cplpad { font-size: 54px; line-height: 1; margin-bottom: 6px; } .cpl h2 { margin: 10px 0 6px; font-size: 26px; } .cpl p { margin: 6px 0 14px; font-size: 17px; line-height: 1.4; color: var(--text); }
+.cpl .cbig { width: 100%; background: linear-gradient(135deg, #f5cf55, #d9a520 60%, #b9860f); color: #2b1d00; } .cpl .cplsub { font-size: 14px; color: var(--muted); margin: 10px 0 0; }

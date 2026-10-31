@@ -50,6 +50,7 @@ public class MapScreen extends Screen {
             @Override public void onOpenMaps(double lat, double lon, String label) { openMaps(lat, lon, label); }
             @Override public void onAskAgenda() { askAgenda(); }
             @Override public void onNote() { openNote(); }
+            @Override public void onBuyPlus() { PlusNotify.show(getCarContext()); CarToast.makeText(getCarContext(), "Regarde ton téléphone : touche la notification FuelMap Plus", CarToast.LENGTH_LONG).show(); }
         });
     }
 

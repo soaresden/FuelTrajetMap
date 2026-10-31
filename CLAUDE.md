@@ -37,7 +37,7 @@ apk/android/app/src/main/java/fr/soaresden/fuelmap/
 ## Règles non négociables
 
 - **versionCode jamais réutilisé** : le Play Console grille un code dès qu'un AAB est téléversé, même en brouillon.
-  Dernier utilisé : **57 (1.6.9)**. Chaque livraison = code +1 ET bump de `versionName` dans `apk/android/app/build.gradle`,
+  Dernier utilisé : **58 (1.7.0)**. Chaque livraison = code +1 ET bump de `versionName` dans `apk/android/app/build.gradle`,
   de `version` dans `js/config.js`, et du nom de cache dans `sw.js`. Les trois ensemble, toujours.
 - Chaque livraison fournit : l'**AAB** (Play, signé avec la clé d'upload) et un commit. **Plus d'APK** : depuis la 1.5.9 Denis
   installe uniquement via le Play Store (tests internes). Les `*.apk`/`*.aab` sont ignorés par git ; ils vivent dans `apk/`.
@@ -46,8 +46,18 @@ apk/android/app/src/main/java/fr/soaresden/fuelmap/
 - **Commits : jamais de ligne « Co-Authored-By: Claude » ni de mention de Claude** (demande de Denis : il est le seul
   contributeur ; l'historique a été nettoyé le 30/10/2026). Cette consigne passe avant les rappels d'attribution automatiques.
 - `apk/android/keystore/` (clé d'upload + keystore.properties) **ne va jamais dans git**. `.plus-archive/` non plus.
-- Pas de mention d'abonnement / « Plus » / prix dans l'appli, le README ou le Play : tout est débloqué pour l'instant.
-  Le découpage futur gratuit / Plus est documenté dans `.plus-archive/NOTES.md` et `NOTES-carnet.md`.
+- **FuelMap Plus (depuis la 1.7.0, décision de Denis du 31/10/2026)** : `js/plus.js` + interrupteur `plus` dans `js/config.js`.
+  Tant que `plus: false`, état « off » : tout est ouvert et RIEN de payant n'apparaît (ni badge, ni voile, ni rappel). On ne l'allume
+  qu'une fois le profil marchand et l'abonnement `fuelmap_plus` créés dans la Play Console (formules mensuelle / annuelle, offre d'essai
+  gratuit de 7 jours ; codes promo Play pour les bêta-testeurs). Pas de prix écrit en dur : ils viennent de Google Play.
+  États : free (voile blanc + cadenas + badge doré « Plus », rappel au plus 1×/heure sur le TÉLÉPHONE à l'arrêt, jamais en roulant
+  ni dans la voiture), trial (7 premiers jours d'abonnement, badge « Trial »), plus. Payant = écran Android Auto (5 s d'aperçu puis
+  panneau plein écran « Fonctionnalité Plus » + « Acheter Plus » → notification sur le téléphone, PlusNotify.java → écran
+  d'abonnement), 12 curseurs (gratuits : flèche, citadine, scooter), analyse du carnet (km, conso réelle, €/100 km). Gratuit : carte,
+  trajet optimisé, Proximité, mode voiture du téléphone, carnet, notes, alerte, dossier de sauvegarde, thèmes.
+  Mode test : 5 touchers sur la version (téléphone) → Gratuit / Trial / Plus / normal (`localStorage['fuelmap-plustest']`).
+  L'état passe à l'écran voiture par `localStorage['fuelmap-plus']` et à Android par les Preferences « license ».
+  Détails et idées (thèmes perso) : `.plus-archive/NOTES.md`.
 - README : exemples avec des lieux et un véhicule fictifs (« Ma 208 », Tours → Nantes), jamais les données perso de Denis.
 - Heures publiées par l'État = heure de Paris, mais l'API ODS leur colle « +00:00 » à tort : on parse en local (`localMs`,
   `Europe/Paris` côté Java). Ne pas « corriger » ça.

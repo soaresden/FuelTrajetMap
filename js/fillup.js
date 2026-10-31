@@ -116,12 +116,14 @@
     var L = 0, E = 0, n = 0, kmTot = 0, lTot = 0, eTot = 0; list.forEach(function (x) { if (x.liters) { L += x.liters; n++; } E += x.paid; });
     // km parcourus et conso : entre deux relevés de compteur du même véhicule (les litres du plein le plus récent couvrent la distance précédente, pleins complets supposés)
     var byCar = {}; list.slice().reverse().forEach(function (x) { var k = x.car || '-'; if (x.km) { var p = byCar[k]; if (p && x.km > p.km && x.liters) { x._km = x.km - p.km; x._cons = x.liters / x._km * 100; kmTot += x._km; lTot += x.liters; eTot += x.paid; } byCar[k] = x; } });
+    var P = window.__fuelmapPlus, pst = P ? P.status() : 'off', ana = !P || P.has('stats'); // analyse (km, conso réelle, €/100 km) = FuelMap Plus
     var h = sw + '<div class="fl-stats"><span><b>' + list.length + '</b> plein' + (list.length > 1 ? 's' : '') + '</span><span><b>' + A.num(L) + '</b> L</span><span><b>' + A.num(E) + '</b> €</span>' + (L > 0 ? '<span><b>' + A.price3(E / L) + '</b> €/L</span>' : '') +
-      (kmTot > 0 ? '<span><b>' + A.num(kmTot) + '</b> km</span><span><b>' + A.num(lTot / kmTot * 100, 1) + '</b> L/100</span><span><b>' + A.num(eTot / kmTot * 100, 1) + '</b> €/100 km</span>' : '') + '</div>';
+      (!ana ? '' : kmTot > 0 ? '<span><b>' + A.num(kmTot) + '</b> km</span><span><b>' + A.num(lTot / kmTot * 100, 1) + '</b> L/100</span><span><b>' + A.num(eTot / kmTot * 100, 1) + '</b> €/100 km</span>' + (pst !== 'off' ? P.badge() : '') : '') + '</div>' +
+      (ana ? '' : '<button class="pveilbox" data-plusopen="stats"><span>📈 Consommation réelle · €/100 km · kilomètres parcourus</span>' + P.veil() + '</button>');
     h += list.map(function (x, i) {
       var d = new Date(x.ts), when = d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }) + ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
       var prev = list[i + 1], gap = prev ? Math.round((x.ts - prev.ts) / 86400000) : null;
-      return '<div class="fl-row"><div class="fl-l"><b>' + esc(x.name) + '</b><small>' + esc(when) + (x.carName ? ' · ' + esc(x.carName) : '') + (x.km ? ' · ' + A.num(x.km) + ' km' : '') + (x._km ? ' · <b>' + A.num(x._km) + ' km</b> en ' + gap + ' j · <b>' + A.num(x._cons, 1) + ' L/100</b>' : gap != null ? ' · ' + gap + ' j après le précédent' : '') + '</small></div>' +
+      return '<div class="fl-row"><div class="fl-l"><b>' + esc(x.name) + '</b><small>' + esc(when) + (x.carName ? ' · ' + esc(x.carName) : '') + (x.km ? ' · ' + A.num(x.km) + ' km' : '') + (x._km && ana ? ' · <b>' + A.num(x._km) + ' km</b> en ' + gap + ' j · <b>' + A.num(x._cons, 1) + ' L/100</b>' : gap != null ? ' · ' + gap + ' j après le précédent' : '') + '</small></div>' +
         '<div class="fl-r"><b>' + A.num(x.paid) + ' €</b><small>' + (x.liters ? A.num(x.liters, 1) + ' L · ' : '') + fuelName(x.fi != null ? x.fi : A.FUEL_INDEX[x.fuel]) + ' ' + A.price3(x.price) + '</small></div><button class="fl-del" data-fill-del="' + x.ts + '" title="Supprimer">🗑️</button></div>';
     }).join('');
     el.innerHTML = h;
@@ -133,6 +135,7 @@
     if ((t = e.target.closest('[data-fill]'))) { if (!ready()) return; var s = A.stations.filter(function (x) { return String(x.id) === t.getAttribute('data-fill'); })[0]; if (s) { try { A.map.closePopup(); } catch (err) { } open(s, false); } }
   });
   document.addEventListener('fuelmap:tab', function (e) { if (e.detail === 'cars') renderLog(); });
+  document.addEventListener('fuelmap:plus', function () { renderLog(); });
   document.addEventListener('fuelmap:fix', maybeAsk);
   document.addEventListener('fuelmap:stations', maybeAsk);
   window.__fuelmapFill = { open: open, close: close, ask: maybeAsk, renderLog: renderLog, get current() { return cur; } };

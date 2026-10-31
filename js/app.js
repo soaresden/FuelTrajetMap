@@ -1013,9 +1013,12 @@
   function renderCarIcons() { // curseur du guidage (voiture) : aperçu à la couleur choisie
     var box = $('carIcons'); if (!box || !window.FuelCursors) return; var cur = $('carIcon').value || 'arrow';
     box.style.setProperty('--car', $('carColor').value || '#3b82f6');
-    box.innerHTML = FuelCursors.list.map(function (x) { return '<button type="button" class="' + (x[0] === cur ? 'on' : '') + '" data-icon="' + x[0] + '">' + FuelCursors.svg(x[0]) + '<span>' + x[1] + '</span></button>'; }).join('');
+    var P = window.__fuelmapPlus, open = function (k) { return !P || P.has('icons') || P.freeIcon(k); }, st = P ? P.status() : 'off'; // Plus : voile + cadenas sur les curseurs payants
+    if ($('carIconsTag')) $('carIconsTag').innerHTML = P && st !== 'off' ? P.badge() : '';
+    box.innerHTML = FuelCursors.list.map(function (x) { return '<button type="button" class="' + (x[0] === cur ? 'on' : '') + (open(x[0]) ? '' : ' plocked') + '" data-icon="' + x[0] + '">' + FuelCursors.svg(x[0]) + '<span>' + x[1] + '</span>' + (open(x[0]) ? '' : P.veil()) + '</button>'; }).join('');
   }
-  $('carIcons').addEventListener('click', function (e) { var b = e.target.closest('[data-icon]'); if (!b) return; $('carIcon').value = b.getAttribute('data-icon'); renderCarIcons(); });
+  document.addEventListener('fuelmap:plus', function () { if (!$('carForm').hidden) renderCarIcons(); });
+  $('carIcons').addEventListener('click', function (e) { var b = e.target.closest('[data-icon]'); if (!b) return; if (b.classList.contains('plocked')) { window.__fuelmapPlus.require('icons'); return; } $('carIcon').value = b.getAttribute('data-icon'); renderCarIcons(); });
   $('carColor').addEventListener('input', renderCarIcons);
   $('carFuel').innerHTML = FUELS.map(function (f) { return '<option value="' + f.key + '">' + f.label + '</option>'; }).join('');
   $('carList').addEventListener('click', function (e) {
