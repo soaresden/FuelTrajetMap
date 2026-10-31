@@ -18,11 +18,13 @@
   refreshBox.addEventListener('click', function () { log('voiture : actualisation des prix'); A.refreshPrices().then(schedule); });
   function log(m) { try { window.FM && window.FM.log(m); } catch (e) { } }
 
-  var MODES = [['map', '⛽', 'Stations'], ['route', '🧭', 'Trajet'], ['shortage', '🚨', 'Pénurie'], ['car', '🚗', 'Ma voiture'], ['theme', '🎨', 'Thème']];
+  // colonne en trois groupes (4e valeur = début de groupe, trait au-dessus) : rouler · perso · appli
+  var MODES = [['map', '⛽', 'Stations'], ['route', '🧭', 'Trajet'], ['shortage', '🚨', 'Pénurie'], ['notes', '📝', 'Notes', 1], ['car', '🚗', 'Ma voiture'], ['theme', '🎨', 'Thème', 1]];
   var FLOWS = {
     map: [['map', 'Carte'], ['list', 'Liste'], ['station', 'Station'], ['guide', 'Guidage']],
     route: [['dest', 'Destination'], ['fuel', 'Réservoir'], ['stops', 'Arrêts'], ['guide', 'Guidage']],
     shortage: [['list', 'Autour de moi'], ['station', 'Station'], ['guide', 'Guidage']],
+    notes: [['notes', 'Notes']],
     car: [['setup', 'Réglages']],
     theme: [['pick', 'Couleurs']]
   };
@@ -82,7 +84,7 @@
   function destChoices() {
     var out = [], seen = {}, add = function (ico, label, p, tag) { var key = (+p.lat).toFixed(3) + ',' + (+p.lon).toFixed(3); if (seen[key]) return; seen[key] = 1; out.push({ ico: ico, label: label, p: p, tag: tag }); };
     var lr = A.state.lastRoute; if (lr && lr.to && Date.now() - lr.ts < 7 * 86400000) add('📱', lr.to.label, lr.to, 'Dernier trajet');
-    (A.state.places || []).forEach(function (p) { add('⭐', p.name || p.label, p, p.label !== p.name ? p.label : ''); });
+    (A.state.places || []).forEach(function (p) { if (!p.kind) add('⭐', p.name || p.label, p, p.label !== p.name ? p.label : ''); }); // maison / travail : en tête, à part
     return out;
   }
   // agenda du téléphone : rendez-vous des 7 prochains jours qui ont un lieu → destination en un toucher
@@ -106,6 +108,10 @@
     });
     return { list: out, passed: passed, total: R.plan.stops.length, R: R };
   }
+  function keepPlace() {
+    if (!dest || (A.state.places || []).some(function (x) { return Math.abs(x.lat - dest.lat) < 1e-3 && Math.abs(x.lon - dest.lon) < 1e-3; })) return '';
+    return '<button class="csub ckeep" data-keep>⭐ Garder « ' + A.esc(short(dest.label)) + ' » dans mes lieux</button>';
+  }
   function tripHead() { return '<span class="cfrom">📍 Ma position → ' + (dest ? '<b>' + A.esc(short(dest.label)) + '</b>' : '<span class="muted">destination ?</span>') + '</span>'; }
   function fuelBars() {
     var e = A.state.startE, c = A.car(), h = '<p class="cq">Il reste combien dans le réservoir ?</p><div class="cbars">';
@@ -118,7 +124,7 @@
 
   // ---- dessin : colonne, bulles d'étapes, carte flottante, bouton « N stations », bandeau du prochain arrêt
   function renderRail() {
-    rail.innerHTML = '<div class="cbrand"><img src="icons/icon.svg" alt=""><b>FuelMap</b><small>v' + ((window.FUELMAP_CONFIG || {}).version || '') + '</small></div>' + MODES.map(function (m) { return '<button class="' + (mode === m[0] ? 'on' : '') + '" data-rail="' + m[0] + '" aria-label="' + m[2] + '">' + m[1] + '</button>'; }).join('') +
+    rail.innerHTML = '<div class="cbrand"><img src="icons/icon.svg" alt=""><b>FuelMap</b><small>v' + ((window.FUELMAP_CONFIG || {}).version || '') + '</small></div>' + MODES.map(function (m) { return '<button class="' + (mode === m[0] ? 'on' : '') + (m[3] ? ' cgrp' : '') + '" data-rail="' + m[0] + '" aria-label="' + m[2] + '">' + m[1] + '</button>'; }).join('') +
       '<span class="sp"></span><button class="cz" data-rail="zin" aria-label="Zoomer">＋</button><button class="cz" data-rail="zout" aria-label="Dézoomer">−</button>';
   }
   function renderSteps() {
@@ -222,12 +228,17 @@
     } else if (step === 'dest') {
       var ch = destChoices();
       head = '<span>Où va-t-on ?</span>';
-      body = '<button class="crow cchoice" data-search><div class="l1"><span class="nm">🔍 Chercher une adresse</span></div><div class="l2"><span>Clavier ou voix, via Android Auto</span></div></button>' + agendaRows() +
+      var hw = ['home', 'work'].map(function (k) {
+        var p = (A.state.places || []).filter(function (x) { return x.kind === k; })[0], nm = k === 'home' ? '🏠 Maison' : '💼 Travail';
+        return p ? '<button class="crow cchoice" data-hw="' + k + '"><div class="l1"><span class="nm">' + nm + '</span></div><div class="l2"><span>' + A.esc(short(p.label)) + '</span></div></button>'
+          : '<div class="crow cchoice off"><div class="l1"><span class="nm">' + nm + '</span></div><div class="l2"><span>À régler sur le téléphone</span></div></div>';
+      }).join('');
+      body = '<div class="chw">' + hw + '</div><button class="crow cchoice" data-search><div class="l1"><span class="nm">🔍 Chercher une adresse</span></div><div class="l2"><span>Clavier ou voix, via Android Auto</span></div></button>' + agendaRows() +
         ch.map(function (x, i) { return '<button class="crow cchoice" data-dest="' + i + '"><div class="l1"><span class="nm">' + x.ico + ' ' + A.esc(short(x.label)) + '</span></div><div class="l2"><span>' + A.esc(x.tag || x.label) + '</span></div></button>'; }).join('') +
-        (ch.length ? '' : '<p class="cmsg"><small>Ajoute des favoris ⭐ dans FuelMap sur le téléphone : ils apparaissent ici.</small></p>');
+        ((A.state.places || []).length ? '' : '<p class="cmsg"><small>Maison, travail, lieux habituels : sur le téléphone, Véhicules › 📍 Mes lieux. Ils apparaissent ici.</small></p>');
       pane._choices = ch;
     } else if (step === 'fuel') {
-      head = tripHead(); body = fuelBars();
+      head = tripHead(); body = fuelBars() + keepPlace();
       foot = '<button class="cbig" data-calc>⛽ Proposer mes arrêts</button>';
     } else if (step === 'stops') {
       head = tripHead();
@@ -250,17 +261,17 @@
         var adj = function (label, val, key) { return '<div class="cadj"><span>' + label + '</span><button data-adj="' + key + '" data-d="-1" aria-label="Moins">−</button><b>' + val + '</b><button data-adj="' + key + '" data-d="1" aria-label="Plus">＋</button></div>'; };
         var custom = cc.color && !COLORS.some(function (p) { return p[1] === cc.color; });
         head = '<span>🚗 ' + A.esc(cc.name) + '</span>';
-        var fills = (A.state.fillups || []).slice().sort(function (x, y) { return y.ts - x.ts; }), nNotes = (A.state.notes || []).length;
+        var fills = (A.state.fillups || []).slice().sort(function (x, y) { return y.ts - x.ts; });
         var carnet = '<div class="ctg">📒 Carnet de pleins</div>' + (fills.length ? fills.slice(0, 3).map(function (x) { var d = new Date(x.ts); return '<div class="cfl"><span>' + d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) + ' · ' + A.esc(x.name) + '</span><b>' + A.num(x.paid) + ' €' + (x.liters ? ' <small>' + A.num(x.liters, 1) + ' L</small>' : '') + '</b></div>'; }).join('') : '<div class="cnote">Aucun plein noté.</div>') +
-          '<button class="copt cfillnow" data-fillnow>➕ J’ai fait le plein</button>' + (nNotes ? '<div class="cnote">📝 ' + nNotes + ' note' + (nNotes > 1 ? 's' : '') + ' — à relire sur le téléphone (Véhicules)</div>' : '');
-        body = '<div class="c2col"><div>' + carnet + (cars.length > 1 ? '<div class="ctg">Véhicule</div><div class="cgrid">' + cars.map(function (x) { return '<button class="copt' + (x.id === cc.id ? ' on' : '') + '" data-usecar="' + x.id + '">' + A.esc(x.name) + '</button>'; }).join('') + '</div>' : '') +
-          '<div class="ctg">Carburant préféré</div><div class="cgrid">' + A.FUELS.map(function (f) { return '<button class="copt fuel' + (f.key === cc.fuel ? ' on' : '') + '" style="--fc:' + f.color + ';--fi:' + f.ink + '" data-cfuel="' + f.key + '">' + (f.short || f.label) + '</button>'; }).join('') + '</div>' +
+          '<button class="copt cfillnow" data-fillnow>➕ J’ai fait le plein</button>';
+        body = '<div class="c2col"><div>' + (cars.length > 1 ? '<div class="ctg">Véhicule</div><div class="cgrid">' + cars.map(function (x) { return '<button class="copt' + (x.id === cc.id ? ' on' : '') + '" data-usecar="' + x.id + '">' + A.esc(x.name) + '</button>'; }).join('') + '</div>' : '') +
+          '<div class="ctg">⛽ Carburant préféré</div><div class="cgrid">' + A.FUELS.map(function (f) { return '<button class="copt fuel' + (f.key === cc.fuel ? ' on' : '') + '" style="--fc:' + f.color + ';--fi:' + f.ink + '" data-cfuel="' + f.key + '">' + (f.short || f.label) + '</button>'; }).join('') + '</div>' +
           (A.fuelsFor(cc.fuel).indexOf(A.FUEL_INDEX.sp98) >= 0 && cc.fuel !== 'sp98' ? '<div class="ctg">Prendre le SP98 s’il coûte à peine plus</div><div class="cgrid">' + [[0, 'Non'], [0.02, '≤ 2 cts'], [0.05, '≤ 5 cts']].map(function (o) { return '<button class="copt' + ((+cc.prefer98 || 0) === o[0] ? ' on' : '') + '" data-p98="' + o[0] + '">' + o[1] + '</button>'; }).join('') + '</div>' : '') +
-          '</div><div>' + '<div class="cseg"><button class="copt' + (cc.consMode === 'km' ? '' : ' on') + '" data-consmode="l">Réservoir connu</button><button class="copt' + (cc.consMode === 'km' ? ' on' : '') + '" data-consmode="km">Autonomie</button></div>' +
+          carnet + '</div><div>' + '<div class="ctg">📏 Consommation</div><div class="cseg"><button class="copt' + (cc.consMode === 'km' ? '' : ' on') + '" data-consmode="l">Réservoir connu</button><button class="copt' + (cc.consMode === 'km' ? ' on' : '') + '" data-consmode="km">Autonomie</button></div>' +
           adj('Consommation', A.num(cc.cons, 1) + ' L/100', 'cons') +
           (cc.consMode === 'km' ? adj('Par plein ≈', A.num(Math.round((cc.tank - cc.reserve) * 100 / cc.cons / 10) * 10) + ' km', 'range') + '<div class="cnote">→ environ ' + A.num(cc.tank - cc.reserve) + ' L utilisés entre deux pleins</div>'
             : adj('Réservoir', A.num(cc.tank) + ' L', 'tank')) +
-          '<div class="ctg">Couleur du curseur</div><div class="ccols">' + COLORS.map(function (p) { return '<button class="ccol' + (p[1] === cc.color ? ' on' : '') + '" data-ccolor="' + p[1] + '" data-cname="' + A.esc(p[0]) + '" style="background:' + p[1] + '" aria-label="' + A.esc(p[0]) + '"></button>'; }).join('') +
+          '<div class="ctg">🎨 Couleur du curseur</div><div class="ccols">' + COLORS.map(function (p) { return '<button class="ccol' + (p[1] === cc.color ? ' on' : '') + '" data-ccolor="' + p[1] + '" data-cname="' + A.esc(p[0]) + '" style="background:' + p[1] + '" aria-label="' + A.esc(p[0]) + '"></button>'; }).join('') +
           '<button class="ccol cperso' + (custom ? ' on' : '') + '" data-wheelopen aria-label="Couleur perso"' + (custom ? ' style="--cc:' + cc.color + '"' : '') + '></button></div></div></div>';
         if (wheel) { // roue chromatique : teinte et intensité sur la roue, clair / foncé sur la barre ; appliqué au curseur à chaque toucher
           var wx = 50 + 50 * wheel.s * Math.sin(wheel.h * Math.PI / 180), wy = 50 - 50 * wheel.s * Math.cos(wheel.h * Math.PI / 180), hx = hslHex(wheel.h, wheel.s, wheel.l);
@@ -271,6 +282,16 @@
           foot = '<button class="cbig" data-wheelok>✓ Garder cette couleur</button>';
         }
       }
+    } else if (step === 'notes') {
+      var ns = (A.state.notes || []).slice().sort(function (x, y) { return y.ts - x.ts; });
+      head = '<span>' + (ns.length ? ns.length + ' note' + (ns.length > 1 ? 's' : '') + ' · la plus récente en haut' : 'Aucune note') + '</span>';
+      if (!ns.length) body = '<p class="cmsg">Aucune note pour l’instant. « Dicter une note » : la voiture écoute, la note est rangée avec l’heure et la commune, et se relit sur le téléphone.</p>';
+      else if (driving()) body = '<p class="cmsg">🚗 ' + ns.length + ' note' + (ns.length > 1 ? 's' : '') + ' : le texte s’affiche à l’arrêt (les yeux sur la route).</p>';
+      else body = ns.slice(0, 8).map(function (n) {
+        var d = new Date(n.ts), when = d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }) + ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+        return '<div class="cnoteit"><div class="nw">' + A.esc(when) + (n.place ? ' · ' + A.esc(n.place) : '') + '</div><div class="nt">' + A.esc(n.text) + '</div></div>';
+      }).join('') + (ns.length > 8 ? '<div class="cnote">… et ' + (ns.length - 8) + ' autres sur le téléphone (Véhicules).</div>' : '');
+      foot = '<button class="cbig" data-dictate>🎤 Dicter une note</button>';
     } else if (step === 'pick') {
       var T = A.themes || {};
       head = '<span>Couleurs de l\'appli et de la carte</span>';
@@ -518,9 +539,10 @@
         guideBox.innerHTML = '<div class="gi">' + (ARROWS[info.kind] || '⬆') + '</div><div class="gt"><div class="d">' + (arrived ? 'Tu y es' : distText(info.distM)) + (off ? ' <small>hors itinéraire</small>' : '') + '</div><div class="n">' + A.esc(info.cue) + '</div><div class="e">' + km(leftKm) + ' · ' + (mins < 1 ? '< 1 min' : dur(mins)) + ' · arrivée ' + new Date(info.etaMs).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) + '</div></div><button data-stopguide>✕</button>';
       }
       var stops = g.wps.filter(function (w) { return w.stop; });
-      nextBox.innerHTML = !nw ? '🏁 <b>' + A.esc(g.fin.plain) + '</b>' :
-        (nw.s ? '⛽ ' + (nw.stop ? 'Arrêt ' + (stops.indexOf(nw) + 1) + '/' + stops.length + ' · ' : '') + '<b>' + A.esc(nw.plain) + '</b>' + (nw.price ? ' · ' + nw.price + (nw.price.indexOf('⚠') < 0 ? ' €' : '') : '') : '🏁 <b>' + A.esc(nw.plain) + '</b>') +
-        (nw.atM != null ? ' · ' + km(Math.max(0, nw.atM - progM) / 1000) : '') + (nw.stop ? '<button data-skip>⏭ Passer</button>' : '');
+      // deux morceaux : le nom (coupé en « … » si l'écran est étroit) puis prix et distance, toujours lisibles, puis « Passer »
+      nextBox.innerHTML = !nw ? '<span class="nxa">🏁 <b>' + A.esc(g.fin.plain) + '</b></span>' :
+        '<span class="nxa">' + (nw.s ? '⛽ ' + (nw.stop ? (innerWidth < 1000 ? '' : 'Arrêt ') + (stops.indexOf(nw) + 1) + '/' + stops.length + ' · ' : '') : '🏁 ') + '<b>' + A.esc(nw.plain) + '</b></span><span class="nxb">' +
+        (nw.s && nw.price ? ' · ' + nw.price + (nw.price.indexOf('⚠') < 0 ? ' €' : '') : '') + (nw.atM != null ? ' · ' + km(Math.max(0, nw.atM - progM) / 1000) : '') + '</span>' + (nw.stop ? '<button data-skip>⏭ Passer</button>' : '');
     }
     if (force || !g.savedAt || Date.now() - g.savedAt > 15000) { g.savedAt = Date.now(); saveSession(); }
     followCar(false, vf);
@@ -606,7 +628,7 @@
     // la colonne est masquée, la carte couvre tout l'écran et la flèche se place au milieu de la partie libre.
     var root = document.documentElement, st = root.style, cs = getComputedStyle(root), px = function (v) { return parseFloat(cs.getPropertyValue(v)) || 0; };
     var left = Math.max(px('--stable-l'), px('--safe-l')), right = innerWidth - Math.max(px('--stable-r'), px('--safe-r')), h = innerHeight;
-    if (!rail.hidden && rail.getBoundingClientRect().width) left = Math.max(left, rail.getBoundingClientRect().right); // colonne flottante
+    var rr = !rail.hidden && rail.getBoundingClientRect(); if (rr && rr.width) { if (rr.left > innerWidth / 2) right = Math.min(right, rr.left); else left = Math.max(left, rr.right); } // colonne flottante (au bord droit en guidage)
     if (panelStep()) left = Math.max(left, pane.getBoundingClientRect().right); // une étape est ouverte : la flèche reste visible à sa droite
     var cx = left + Math.max(0, right - left) / 2, cy = h * 0.66, R = Math.max(Math.hypot(cx, cy), Math.hypot(innerWidth - cx, cy), Math.hypot(cx, h - cy), Math.hypot(innerWidth - cx, h - cy));
     var S = Math.ceil(2 * R * 1.2); // le carré tourné et incliné doit couvrir tout l'écran, coins compris
@@ -665,6 +687,11 @@
   pane.addEventListener('click', function (e) {
     var t;
     if (e.target.closest('[data-sort]')) { sortAsc = !sortAsc; scrollKeep = 0; render(); return; }
+    if (e.target.closest('[data-dictate]')) { try { if (window.AndroidAuto && window.AndroidAuto.note) window.AndroidAuto.note(); else A.toast('Dictée disponible dans la voiture'); } catch (err) { } return; }
+    if ((t = e.target.closest('[data-hw]'))) { var hp = (A.state.places || []).filter(function (x) { return x.kind === t.getAttribute('data-hw'); })[0]; if (hp) setDest({ label: hp.label, lat: hp.lat, lon: hp.lon }); return; }
+    if (e.target.closest('[data-keep]') && dest) { // garde la destination dans « Mes lieux » (partagé avec le téléphone)
+      (A.state.places = A.state.places || []).push({ name: short(dest.label).slice(0, 18), label: dest.label, lat: dest.lat, lon: dest.lon }); A.save(); A.toast('⭐ ' + short(dest.label) + ' gardé dans tes lieux'); render(); return;
+    }
     if (e.target.closest('[data-search]')) { try { if (window.AndroidAuto && window.AndroidAuto.search) window.AndroidAuto.search(); else A.toast('Recherche disponible dans la voiture'); } catch (err) { } return; }
     if (e.target.closest('[data-askagenda]')) { try { window.AndroidAuto.askAgenda(); } catch (err) { } return; }
     if ((t = e.target.closest('[data-agenda]'))) {

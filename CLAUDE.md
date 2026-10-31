@@ -24,7 +24,7 @@ apk/                                   projet Capacitor ; apk/android = projet G
 apk/android/app/src/main/java/fr/soaresden/fuelmap/
   MainActivity.java                    Capacitor + mise à jour in-app Play + plugins (FuelAlert, Diag)
   auto/FuelCarAppService.java          session Android Auto (catégorie NAVIGATION), permission localisation, NavigationManager
-  auto/MapScreen.java                  NavigationTemplate : boutons Y aller/Arrêter, ma position (icône ic_my_location), 🔍, 📝 ; fiche de manœuvre + ETA
+  auto/MapScreen.java                  NavigationTemplate : Y aller/Arrêter + ma position SEULEMENT (🔍 = Trajet › Destination, 📝 = colonne, via AndroidAuto.note()) ; manœuvre + ETA
   auto/NoteScreen.java                 bloc-notes : écran de saisie de l'hôte (voix en roulant, clavier à l'arrêt) → __fuelmapCar.addNote
   backup/BackupPlugin.java             sauvegarde dans un dossier choisi (SAF) : pickFolder / info / write / read / openFile
   auto/CarWebSurface.java              la page web dessinée sur l'écran voiture (VirtualDisplay + Presentation + WebView)
@@ -36,7 +36,7 @@ apk/android/app/src/main/java/fr/soaresden/fuelmap/
 ## Règles non négociables
 
 - **versionCode jamais réutilisé** : le Play Console grille un code dès qu'un AAB est téléversé, même en brouillon.
-  Dernier utilisé : **54 (1.6.6)**. Chaque livraison = code +1 ET bump de `versionName` dans `apk/android/app/build.gradle`,
+  Dernier utilisé : **55 (1.6.7)**. Chaque livraison = code +1 ET bump de `versionName` dans `apk/android/app/build.gradle`,
   de `version` dans `js/config.js`, et du nom de cache dans `sw.js`. Les trois ensemble, toujours.
 - Chaque livraison fournit : l'**AAB** (Play, signé avec la clé d'upload) et un commit. **Plus d'APK** : depuis la 1.5.9 Denis
   installe uniquement via le Play Store (tests internes). Les `*.apk`/`*.aab` sont ignorés par git ; ils vivent dans `apk/`.
@@ -153,6 +153,15 @@ l'étape est une **carte flottante** à gauche (`#carPane`, 330 px, hauteur selo
   virtuel change de taille). car.js mémorise donc en continu mode, étape, destination, station choisie et guidage (arrêts restants)
   dans `localStorage['fuelmap-carsession']` ; au démarrage, un écran de moins de 10 min est repris et le guidage relancé sans annonce.
 - Étape ouverte pendant un guidage : bulles et carte flottante à droite des cartes de l'hôte (`left: --stable-l`), flèche à leur droite.
+- 1.6.7 (retour voiture du 31/10, écran partagé) : colonne en 3 groupes séparés d'un trait — ⛽ 🧭 🚨 · 📝 Notes 🚗 · 🎨 (boutons 42 px,
+  tout tient sur 480 px). **En guidage la colonne reste collée à GAUCHE** (marge = `--stable-r`, celle de l'hôte), compacte (36 px, sans
+  logo ni zoom) et centrée en hauteur, entre la carte de manœuvre de l'hôte (haut gauche) et sa carte « temps restant » (bas gauche).
+  Denis ne veut PAS qu'elle bouge : ni à droite des cartes de l'hôte (elle finissait au milieu en écran partagé), ni au bord droit.
+  2D/3D au-dessus du bandeau d'arrêt ; bandeau en deux morceaux (`.nxa` nom coupé « … », `.nxb` prix + km + Passer toujours visibles).
+- 📝 Notes : liste (texte masqué en roulant > 8 km/h) + « 🎤 Dicter une note » → `AndroidAuto.note()` → NoteScreen de l'hôte.
+- Lieux : `state.places[].kind` = 'home' | 'work' (un seul de chaque) ou absent (autre lieu). Téléphone : Véhicules › 📍 Mes lieux
+  (saisie avec suggestions, `wireSuggest('pl', savePlace)`) ; puces 🏠 / 💼 / ★ dans Trajet. Voiture : Destination = 🏠 Maison / 💼 Travail
+  côte à côte en tête, puis 🔍, agenda, ⭐ lieux ; « ⭐ Garder ce lieu » à l'étape Réservoir.
 État et journalisation : `__fuelmapCar.state()/dump()`. Plein : question « tu viens de faire le plein ? » (fillup.js) à gauche.
 
 ## Téléphone

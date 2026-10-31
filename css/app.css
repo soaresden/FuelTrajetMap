@@ -521,10 +521,14 @@ html[data-carui].carnav .leaflet-control-container { display: none; }
 #carArrow::after { content: ''; position: absolute; left: -9px; top: 4px; border-left: 9px solid transparent; border-right: 9px solid transparent; border-bottom: 12px solid var(--panel); }
 html[data-carui].carnav #carGuide { left: var(--navleft); }
 /* guidage : les cartes de l'hôte prennent la gauche ; la colonne reste là, en colonne flottante juste à leur droite (sans le logo) */
-html[data-carui].carnav #carRail { left: calc(var(--stable-l) + 8px); top: calc(var(--ctop) + 6px); bottom: auto; border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); padding: 5px; }
-html[data-carui].carnav #carRail .cbrand, html[data-carui].carnav #carRail .sp { display: none; }
-html[data-carui].carnav { --navleft: calc(var(--stable-l) + var(--rail) + 16px); }
-html[data-carui].carnav #carNext { left: calc(var(--navleft) + (100vw - var(--navleft)) / 2); }
+/* guidage : la colonne reste collée au bord GAUCHE, comme au repos (marge = celle de l'hôte, symétrique à droite), compacte et
+   centrée en hauteur : entre la carte de manœuvre de l'hôte (en haut à gauche) et sa carte « temps restant » (en bas à gauche). */
+html[data-carui].carnav #carRail { left: var(--stable-r, 10px); right: auto; top: 50%; bottom: auto; transform: translateY(-50%); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); padding: 4px; gap: 3px; }
+html[data-carui].carnav #carRail button { flex: 0 0 36px; min-height: 36px; font-size: 22px; }
+html[data-carui].carnav #carRail .cbrand, html[data-carui].carnav #carRail .sp, html[data-carui].carnav #carRail .cz { display: none; }
+html[data-carui].carnav { --navleft: calc(var(--stable-l) + 8px); --navright: calc(var(--stable-r, 0px) + 8px); }
+html[data-carui].carnav #carNext { left: calc(var(--navleft) + (100vw - var(--navleft) - var(--navright)) / 2); max-width: calc(100vw - var(--navleft) - var(--navright) - 8px); }
+html[data-carui].carnav #carView { bottom: calc(var(--stable-b) + 72px); } /* 2D / 3D au-dessus du bandeau d'arrêt : le bandeau garde toute la largeur libre */
 
 /* couleur de la voiture (fiche véhicule) : teintes proposées, photo à toucher */
 .paintrow { display: flex; gap: 8px; } .paintrow input[type=text] { flex: 1; min-width: 0; }
@@ -719,3 +723,18 @@ html.cpane-wide .c2col > div + div { margin-top: 0; }
 html.cpane-wide .c2col .cseg { margin-top: 0; }
 /* saisie d'une note : le bouton garde sa taille, la zone de texte prend le reste (le bouton « pleine largeur » l'écrasait) */
 .noteadd button { flex: 0 0 auto; width: auto; padding: 0 16px; }
+/* colonne : boutons un peu plus bas (6 modes + zoom tiennent sur 480 px), un trait entre les groupes */
+#carRail { gap: 4px; } #carRail button { flex: 0 1 42px; min-height: 34px; } #carRail .cz { flex: 0 1 36px; min-height: 30px; }
+#carRail .cgrp { position: relative; margin-top: 7px; } #carRail .cgrp::before { content: ''; position: absolute; top: -6px; left: 8px; right: 8px; border-top: 1px solid var(--line); }
+/* destination : maison / travail côte à côte en tête */
+.chw { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; } .chw .crow.off { opacity: .5; } .ckeep { margin-top: 8px; width: 100%; }
+/* notes dans la voiture */
+.cnoteit { padding: 6px 8px; border-radius: 10px; background: var(--panel2); border: 1px solid var(--line); margin-bottom: 5px; }
+.cnoteit .nw { font-size: 12px; color: var(--muted); } .cnoteit .nt { font-size: 15px; white-space: pre-wrap; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+/* Mes lieux (téléphone) */
+.plrow { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel2); margin-bottom: 6px; }
+.plrow.off { opacity: .6; } .plrow .ico { font-size: 22px; } .plrow .pt { flex: 1; min-width: 0; display: flex; flex-direction: column; } .plrow .pt small { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.plrow .nbtn { width: 34px; height: 34px; border: 0; background: transparent; font-size: 16px; }
+.plnew .chips { margin-bottom: 6px; }
+/* bandeau d'arrêt étroit (écran partagé) : le nom de la station se coupe en « … », le bouton Passer reste visible */
+#carNext .nxa { min-width: 0; overflow: hidden; text-overflow: ellipsis; } #carNext .nxb, #carNext button { flex-shrink: 0; }

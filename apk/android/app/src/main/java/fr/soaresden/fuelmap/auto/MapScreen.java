@@ -49,6 +49,7 @@ public class MapScreen extends Screen {
             @Override public void onSearch() { openSearch(); }
             @Override public void onOpenMaps(double lat, double lon, String label) { openMaps(lat, lon, label); }
             @Override public void onAskAgenda() { askAgenda(); }
+            @Override public void onNote() { openNote(); }
         });
     }
 
@@ -64,8 +65,7 @@ public class MapScreen extends Screen {
                     : new Action.Builder().setTitle("🧭 Y aller").setFlags(Action.FLAG_PRIMARY).setBackgroundColor(CarColor.GREEN).setOnClickListener(this::navigate).build())
                 // « ma position » : cercle avec un point, comme Google Maps
                 .addAction(new Action.Builder().setIcon(myLocation).setOnClickListener(() -> surface.run("window.__fuelmapCar&&window.__fuelmapCar.recenter?window.__fuelmapCar.recenter():window.__fuelmapAPI&&(window.__fuelmapAPI.setFollow(true),window.__fuelmapAPI.locate().catch(function(){}))")).build())
-                .addAction(new Action.Builder().setTitle("🔍").setOnClickListener(this::openSearch).build())
-                .addAction(new Action.Builder().setTitle("📝").setOnClickListener(this::openNote).build()) // bloc-notes : dicté en roulant, clavier à l'arrêt (règles de l'hôte)
+                // 🔍 (Trajet › Destination) et 📝 (colonne de la page) ne sont plus ici : la barre de l'hôte prend moins de place
                 .build())
             .setMapActionStrip(new ActionStrip.Builder().addAction(Action.PAN).build()) // obligatoire pour recevoir les gestes sur la carte…
             .setPanModeListener(inPan -> { })                                            // …et l'hôte n'active le déplacement que si un écouteur existe

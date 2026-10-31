@@ -1321,8 +1321,8 @@
     b.querySelector('small').textContent = '⏳ Recherche du lieu…';
     findPlace(ev.where).then(function (p) { closeModal(); setPlace('to', p); showTab('route'); toast('📅 Destination : ' + p.label); }).catch(function (err) { b.querySelector('small').textContent = '⚠️ ' + err.message; });
   });
-  function wireSuggest(which) {
-    var input = $(which + 'Input'), list = $(which + 'Suggest'), ctrl = null, items = [];
+  function wireSuggest(which, pick) { // pick : que faire du lieu choisi (par défaut, le poser comme départ / arrivée / origine)
+    var input = $(which + 'Input'), list = $(which + 'Suggest'), ctrl = null, items = [], pickIt = pick || function (p) { setPlace(which, p); };
     var run = debounce(function () {
       var q = input.value.trim(); if (q.length < 3) { list.innerHTML = ''; return; }
       if (ctrl) ctrl.abort(); ctrl = new AbortController();
@@ -1331,24 +1331,47 @@
       }).catch(function () { });
     }, 220);
     input.addEventListener('input', function () { places[which] = null; run(); });
-    input.addEventListener('keydown', function (e) { if (e.key === 'Enter' && items.length) { setPlace(which, items[0]); list.innerHTML = ''; input.blur(); } });
+    input.addEventListener('keydown', function (e) { if (e.key === 'Enter' && items.length) { pickIt(items[0]); list.innerHTML = ''; input.blur(); } });
     list.addEventListener('mousedown', function (e) { e.preventDefault(); });
-    list.addEventListener('click', function (e) { var li = e.target.closest('li'); if (!li) return; setPlace(which, items[+li.getAttribute('data-i')]); list.innerHTML = ''; });
+    list.addEventListener('click', function (e) { var li = e.target.closest('li'); if (!li) return; pickIt(items[+li.getAttribute('data-i')]); list.innerHTML = ''; });
     input.addEventListener('blur', function () { setTimeout(function () { list.innerHTML = ''; }, 150); });
   }
   wireSuggest('from'); wireSuggest('to'); wireSuggest('near');
+
+  // « Mes lieux » (onglet Véhicules) : maison, travail (un seul de chaque, champ kind) et autres lieux. Même liste que les ★ de
+  // Trajet (state.places), partagée avec l'écran de la voiture, où maison / travail sont en tête de la destination.
+  var plKind = 'home';
+  function renderPlaces() {
+    var box = $('placesBox'); if (!box) return;
+    var pl = state.places || [], at = function (k) { for (var i = 0; i < pl.length; i++) if (pl[i].kind === k) return i; return -1; };
+    var row = function (i, ico, nm) { var p = pl[i]; return '<div class="plrow' + (p ? '' : ' off') + '"><span class="ico">' + ico + '</span><div class="pt"><b>' + esc(nm) + '</b><small>' + esc(p ? p.label : 'pas encore réglé : choisis « ' + nm + ' » et tape l’adresse') + '</small></div>' + (p ? '<button type="button" class="nbtn" data-plrm="' + i + '" title="Retirer">🗑️</button>' : '') + '</div>'; };
+    box.innerHTML = row(at('home'), '🏠', 'Maison') + row(at('work'), '💼', 'Travail') + pl.map(function (p, i) { return p.kind ? '' : row(i, '⭐', p.name); }).join('');
+    $('plKind').innerHTML = [['home', '🏠 Maison'], ['work', '💼 Travail'], ['other', '⭐ Autre lieu']].map(function (k) { return '<button type="button" class="chip' + (k[0] === plKind ? ' on' : '') + '" data-plkind="' + k[0] + '">' + k[1] + '</button>'; }).join('');
+    $('plInput').placeholder = plKind === 'home' ? 'Adresse de la maison…' : plKind === 'work' ? 'Adresse du travail…' : 'Adresse ou ville à garder…';
+  }
+  function savePlace(p) {
+    var item = { name: plKind === 'home' ? 'Maison' : plKind === 'work' ? 'Travail' : (p.label.split(/[,\d]/)[0].trim().slice(0, 18) || p.label.slice(0, 18)), label: p.label, lat: p.lat, lon: p.lon };
+    state.places = state.places || [];
+    if (plKind === 'other') state.places.push(item);
+    else { item.kind = plKind; state.places = state.places.filter(function (x) { return x.kind !== plKind; }); state.places.unshift(item); } // une seule maison, un seul travail
+    $('plInput').value = ''; save(); renderPlaceChips(); toast('📍 ' + item.name + ' : ' + p.label);
+  }
+  wireSuggest('pl', savePlace);
+  $('plKind').addEventListener('click', function (e) { var b = e.target.closest('[data-plkind]'); if (!b) return; plKind = b.getAttribute('data-plkind'); renderPlaces(); $('plInput').focus(); });
+  $('placesBox').addEventListener('click', function (e) { var b = e.target.closest('[data-plrm]'); if (!b) return; state.places.splice(+b.getAttribute('data-plrm'), 1); save(); renderPlaceChips(); });
   $('fromGps').addEventListener('click', function () { locate().then(function (p) { setPlace('from', { label: 'Ma position', lat: p.lat, lon: p.lon, gps: true }); }).catch(function (e) { toast(e.message); }); });
   $('swapBtn').addEventListener('click', function () { var a = places.from, b = places.to, ta = $('fromInput').value, tb = $('toInput').value; places.from = b; places.to = a; $('fromInput').value = tb; $('toInput').value = ta; renderPlaceChips(); });
 
   function renderPlaceChips() {
-    var html = state.places.map(function (p, i) { return '<button class="chip" data-place="' + i + '">★ ' + esc(p.name) + '<span class="x" data-rm="' + i + '">✕</span></button>'; }).join('');
+    var rk = function (p) { return p.kind === 'home' ? 0 : p.kind === 'work' ? 1 : 2; }; // maison, travail, puis les autres
+    var html = state.places.map(function (p, i) { return { p: p, i: i }; }).sort(function (a, b) { return rk(a.p) - rk(b.p); }).map(function (x) { return '<button class="chip" data-place="' + x.i + '">' + (x.p.kind === 'home' ? '🏠 ' : x.p.kind === 'work' ? '💼 ' : '★ ') + esc(x.p.name) + '<span class="x" data-rm="' + x.i + '">✕</span></button>'; }).join('');
     ['from', 'to'].forEach(function (w) {
       var p = places[w]; if (!p || p.gps) return;
       if (state.places.some(function (x) { return Math.abs(x.lat - p.lat) < 1e-4 && Math.abs(x.lon - p.lon) < 1e-4; })) return;
       html += '<button class="chip" data-star="' + w + '">☆ mémoriser ' + (w === 'from' ? 'le départ' : "l'arrivée") + '</button>';
     });
     if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Agenda) html = '<button class="chip" data-agendaopen>📅 Agenda</button>' + html;
-    $('placeChips').innerHTML = html;
+    $('placeChips').innerHTML = html; renderPlaces();
   }
   $('placeChips').addEventListener('click', function (e) {
     if (e.target.closest('[data-agendaopen]')) { openAgenda(); return; }
