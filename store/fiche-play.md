@@ -116,8 +116,9 @@ Réponses générales :
 - Votre application collecte-t-elle ou partage-t-elle des types de données requis ? → **Oui** (la position et les adresses
   partent vers les services d'itinéraire et d'adresses quand l'utilisateur le demande).
 - Toutes les données sont-elles chiffrées en transit ? → **Oui** (HTTPS partout).
-- Les utilisateurs peuvent-ils demander la suppression de leurs données ? → rien n'est conservé ailleurs que sur le
-  téléphone : répondre **Non** à la création de compte et expliquer « désinstaller l'appli efface tout » si la Console le demande.
+- Comptes : « Mon appli ne permet pas aux utilisateurs de créer un compte » ; connexion avec des comptes créés ailleurs : **Non**.
+- Suppression des données : **Oui** — tout est sur le téléphone (désinstaller efface tout) ; un journal de diagnostic envoyé est
+  supprimé sur demande par e-mail. Lien si demandé : `https://soaresden.github.io/FuelTrajetMap/privacy.html#suppression`
 
 Types de données à cocher :
 

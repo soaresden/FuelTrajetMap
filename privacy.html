@@ -3,23 +3,25 @@
 <style>body{font:16px/1.55 system-ui,sans-serif;max-width:720px;margin:40px auto;padding:0 20px;color:#15202b}h1{font-size:24px}</style></head>
 <body>
 <h1>FuelTrajetMap — Politique de confidentialité</h1>
-<p>Dernière mise à jour : 26 septembre 2026.</p>
+<p>Dernière mise à jour : 31 octobre 2026.</p>
 <p>FuelTrajetMap (« FuelMap ») est une application gratuite et open source qui affiche les prix des carburants et propose des arrêts sur un trajet. Elle est éditée par Soaresden, à titre personnel, sans publicité ni compte utilisateur.</p>
 <h2>Données traitées</h2>
-<p><b>Position</b> : utilisée uniquement sur l'appareil pour centrer la carte, calculer les distances et proposer les stations autour de vous. Elle n'est jamais envoyée à l'éditeur ni stockée ailleurs que sur votre appareil.</p>
-<p><b>Véhicules, favoris, trajets</b> : enregistrés sur votre appareil uniquement (stockage local de l'application). Ils ne sont transmis à personne.</p>
+<p><b>Position</b> : utilisée sur l'appareil pour centrer la carte, calculer les distances et proposer les stations autour de vous. Elle n'est jamais envoyée à l'éditeur et n'est conservée que sur votre appareil. Quand vous demandez un itinéraire, une adresse ou le nom de la commune, elle est transmise, le temps de répondre, aux services tiers listés ci-dessous.</p>
+<p><b>Véhicules, favoris, lieux, trajets</b> : enregistrés sur votre appareil uniquement (stockage local de l'application). Ils ne sont transmis à personne.</p>
 <p><b>Requêtes réseau</b> : pour fonctionner, l'application interroge directement des services tiers, qui reçoivent les informations techniques habituelles d'une requête web (adresse IP) et, selon le cas, la position ou l'adresse recherchée :
 prix-carburants.gouv.fr / data.economie.gouv.fr (prix, France), sources officielles d'Espagne, du Portugal, d'Andorre et d'Italie, OSRM (itinéraires), Géoplateforme IGN et Photon (adresses), OpenStreetMap (fond de carte), Wikimedia Commons (photos de modèles de voiture, seulement si tu cherches la couleur de ta voiture : la recherche contient le texte tapé), GitHub Pages (données préparées par l'application). Aucune de ces requêtes ne contient d'identifiant personnel.</p>
 <p><b>Tes données restent chez toi</b> : véhicules, favoris, carnet de pleins et trajets sont enregistrés uniquement sur ton téléphone. L'application ne les envoie à aucun serveur, et la sauvegarde automatique d'Android (Google Drive) ainsi que la copie automatique vers un nouveau téléphone sont désactivées : c'est toi qui gères ta sauvegarde. Si tu choisis un dossier de sauvegarde, FuelMap y écrit le fichier « FuelMap-sauvegarde.json » (véhicules, pleins, notes, réglages) : il reste sur ton téléphone, ou là où tu le copies. Désinstaller l'application efface les données internes, pas ce fichier.</p>
 <p><b>Notes</b> : les notes (écrites ou dictées dans la voiture) restent sur ton téléphone, avec l'heure, la position et la commune la plus proche, déduite des stations sans rien envoyer. La dictée passe par la reconnaissance vocale d'Android Auto / Google, comme toute saisie vocale dans la voiture.</p>
 <p><b>Écran Android Auto</b> : pour afficher le nom de la commune où tu te trouves, la position est envoyée au service d'adresses (Géoplateforme IGN, sinon Photon) environ tous les 600 m.</p>
 <p><b>Agenda</b> (appli Android, seulement si tu l'autorises) : FuelMap lit les rendez-vous des 7 prochains jours qui ont un lieu, pour te les proposer comme destination. Ils restent sur le téléphone ; seul le lieu du rendez-vous que tu touches est envoyé au service d'adresses (Géoplateforme IGN, Photon) pour le placer sur la carte.</p>
+<h2 id="journal">Journal de diagnostic</h2>
+<p>L'application tient sur le téléphone un journal technique (écran voiture, alertes, erreurs). Il ne part que si tu appuies sur « Envoyer le journal de diagnostic » : tu choisis alors toi-même l'application et le destinataire (e-mail, Drive…). S'il est envoyé à l'éditeur, il sert uniquement à corriger les problèmes et est supprimé sur simple demande.</p>
 <h2>Ce que l'application ne fait pas</h2>
-<p>Pas de compte, pas de collecte de données par l'éditeur, pas de suivi publicitaire, pas d'outil d'analyse, pas de partage ni de vente de données.</p>
+<p>Pas de compte, pas de collecte de données par l'éditeur en dehors du journal que tu choisis d'envoyer, pas de suivi publicitaire, pas d'outil d'analyse, pas de partage ni de vente de données.</p>
 <h2>Alerte carburant (application Android)</h2>
 <p>Si vous activez l'alerte, l'application mémorise sur l'appareil la zone choisie (coordonnées et rayon) et interroge toutes les 15 minutes l'API publique de prix-carburants.gouv.fr pour cette zone, afin de vous notifier localement. Aucune position n'est suivie en arrière-plan et rien n'est envoyé à un serveur de l'application. La notification peut être désactivée à tout moment dans l'application ou dans les réglages Android.</p>
-<h2>Suppression</h2>
-<p>Désinstaller l'application supprime toutes les données qu'elle a enregistrées sur l'appareil.</p>
+<h2 id="suppression">Suppression</h2>
+<p>Désinstaller l'application supprime toutes les données qu'elle a enregistrées sur l'appareil (le fichier de sauvegarde que tu as placé dans un dossier reste à toi : supprime-le si tu le souhaites). L'éditeur ne conserve aucune donnée sur toi ; si tu lui as envoyé un journal de diagnostic, écris à l'adresse ci-dessous pour qu'il soit supprimé.</p>
 <h2>Contact</h2>
 <p>soaresden@gmail.com — code source : <a href="https://github.com/soaresden/FuelTrajetMap">github.com/soaresden/FuelTrajetMap</a></p>
 </body></html>
