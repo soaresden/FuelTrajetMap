@@ -1007,8 +1007,16 @@
     $('carName').value = c ? c.name : ''; $('carFuel').value = c ? c.fuel : state.fuel;
     $('carTank').value = c ? c.tank : 50; $('carCons').value = c ? c.cons : 6.5; $('carReserve').value = c ? c.reserve : 5;
     $('carPaint').value = c && c.paint || ''; $('carColor').value = c && c.color || '#3b82f6'; $('paintSug').innerHTML = '';
+    $('carIcon').value = c && c.icon || 'arrow'; renderCarIcons();
     $('carName').focus();
   }
+  function renderCarIcons() { // curseur du guidage (voiture) : aperçu à la couleur choisie
+    var box = $('carIcons'); if (!box || !window.FuelCursors) return; var cur = $('carIcon').value || 'arrow';
+    box.style.setProperty('--car', $('carColor').value || '#3b82f6');
+    box.innerHTML = FuelCursors.list.map(function (x) { return '<button type="button" class="' + (x[0] === cur ? 'on' : '') + '" data-icon="' + x[0] + '">' + FuelCursors.svg(x[0]) + '<span>' + x[1] + '</span></button>'; }).join('');
+  }
+  $('carIcons').addEventListener('click', function (e) { var b = e.target.closest('[data-icon]'); if (!b) return; $('carIcon').value = b.getAttribute('data-icon'); renderCarIcons(); });
+  $('carColor').addEventListener('input', renderCarIcons);
   $('carFuel').innerHTML = FUELS.map(function (f) { return '<option value="' + f.key + '">' + f.label + '</option>'; }).join('');
   $('carList').addEventListener('click', function (e) {
     var b = e.target.closest('button'); if (!b) return;
@@ -1021,9 +1029,9 @@
   $('carCancel').addEventListener('click', function () { $('carForm').hidden = true; });
   $('carForm').addEventListener('submit', function (e) {
     e.preventDefault();
-    var tank = +$('carTank').value, c = { id: $('carId').value || 'c' + Date.now(), name: $('carName').value.trim() || 'Véhicule', fuel: $('carFuel').value, tank: tank, cons: +$('carCons').value, reserve: Math.min(+$('carReserve').value || 0, tank / 2), color: $('carColor').value, paint: $('carPaint').value.trim() };
+    var tank = +$('carTank').value, c = { id: $('carId').value || 'c' + Date.now(), name: $('carName').value.trim() || 'Véhicule', fuel: $('carFuel').value, tank: tank, cons: +$('carCons').value, reserve: Math.min(+$('carReserve').value || 0, tank / 2), color: $('carColor').value, paint: $('carPaint').value.trim(), icon: $('carIcon').value };
     var idx = state.cars.map(function (x) { return x.id; }).indexOf(c.id);
-    if (idx >= 0) state.cars[idx] = c; else state.cars.push(c);
+    if (idx >= 0) state.cars[idx] = Object.assign({}, state.cars[idx], c); else state.cars.push(c); // garde les réglages faits dans la voiture (SP98, autonomie…)
     $('carForm').hidden = true; useCar(c.id);
   });
 

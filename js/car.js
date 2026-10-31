@@ -25,7 +25,7 @@
     route: [['dest', 'Destination'], ['fuel', 'Réservoir'], ['stops', 'Arrêts'], ['guide', 'Guidage']],
     shortage: [['list', 'Autour de moi'], ['station', 'Station'], ['guide', 'Guidage']],
     notes: [['notes', 'Notes']],
-    car: [['setup', 'Réglages']],
+    car: [['setup', 'Réglages'], ['look', 'Curseur']],
     theme: [['pick', 'Couleurs']]
   };
   var mode = 'map', step = 'map', selected = null, sortAsc = true, dest = null, computing = false, routeErr = null, routeReady = false, wantRoute = false;
@@ -176,7 +176,7 @@
     if (!ready() || pane.hidden && rail.hidden) return;
     if (listEl) scrollKeep = listEl.scrollTop;
     var all = mode !== 'route'; if (all !== !!window.__carShowAll) { window.__carShowAll = all; A.refreshMap(); } // hors trajet : toutes les stations sur la carte, pas seulement celles du trajet
-    renderRail(); renderSteps(); renderFavs(); renderChip(); saveSession();
+    renderRail(); renderSteps(); renderFavs(); renderChip(); saveSession(); arrowIcon();
     if (!chip.hidden && !favBox.hidden) { // on mesure : si le bouton du bas touche les favorites, elles passent au-dessus (quelle que soit la largeur d'écran)
       var cr = chip.getBoundingClientRect(), fr = favBox.getBoundingClientRect();
       if (cr.right > fr.left - 6 && cr.bottom > fr.top + 2 && cr.top < fr.bottom - 2) { document.documentElement.classList.add('cfavs-up'); renderChip(); }
@@ -192,7 +192,7 @@
     }
     viewBox.innerHTML = '<button data-view="2"' + (view3d ? '' : ' class="on"') + '>2D</button><button data-view="3"' + (view3d ? ' class="on"' : '') + '>3D</button>';
     var show = panelStep(); pane.classList.toggle('open', show);
-    var wide = show && step === 'setup' && !wheel && innerWidth >= 900; document.documentElement.classList.toggle('cpane-wide', wide); // Ma voiture : deux colonnes, tout tient sans défiler
+    var wide = show && (step === 'setup' && !wheel || step === 'pick') && innerWidth >= 900; document.documentElement.classList.toggle('cpane-wide', wide); // Ma voiture : deux colonnes, tout tient sans défiler
     var pl = (nav.on ? Math.max(rail.getBoundingClientRect().right, 0) : rail.getBoundingClientRect().right) + 8; // carte flottante sous les boutons de l'hôte si elle atteint leur zone
     document.documentElement.classList.toggle('cpane-low', show && pl + (wide ? 620 : 330) > innerWidth - 430); document.documentElement.classList.toggle('carpane-open', show);
     if (!selected && selMarker) { try { selMarker.remove(); } catch (e) { } selMarker = null; window.__carSel = null; A.refreshMap(); } // plus de station choisie : plus de marqueur
@@ -271,7 +271,7 @@
           adj('Consommation', A.num(cc.cons, 1) + ' L/100', 'cons') +
           (cc.consMode === 'km' ? adj('Par plein ≈', A.num(Math.round((cc.tank - cc.reserve) * 100 / cc.cons / 10) * 10) + ' km', 'range') + '<div class="cnote">→ environ ' + A.num(cc.tank - cc.reserve) + ' L utilisés entre deux pleins</div>'
             : adj('Réservoir', A.num(cc.tank) + ' L', 'tank')) +
-          '<div class="ctg">🎨 Couleur du curseur</div><div class="ccols">' + COLORS.map(function (p) { return '<button class="ccol' + (p[1] === cc.color ? ' on' : '') + '" data-ccolor="' + p[1] + '" data-cname="' + A.esc(p[0]) + '" style="background:' + p[1] + '" aria-label="' + A.esc(p[0]) + '"></button>'; }).join('') +
+          '<div class="ctg">🎨 Curseur du guidage</div><button class="copt clookbtn" data-look>' + FuelCursors.svg(cc.icon || 'arrow') + '<span>' + FuelCursors.label(cc.icon || 'arrow') + ' · changer ›</span></button><div class="ccols">' + COLORS.map(function (p) { return '<button class="ccol' + (p[1] === cc.color ? ' on' : '') + '" data-ccolor="' + p[1] + '" data-cname="' + A.esc(p[0]) + '" style="background:' + p[1] + '" aria-label="' + A.esc(p[0]) + '"></button>'; }).join('') +
           '<button class="ccol cperso' + (custom ? ' on' : '') + '" data-wheelopen aria-label="Couleur perso"' + (custom ? ' style="--cc:' + cc.color + '"' : '') + '></button></div></div></div>';
         if (wheel) { // roue chromatique : teinte et intensité sur la roue, clair / foncé sur la barre ; appliqué au curseur à chaque toucher
           var wx = 50 + 50 * wheel.s * Math.sin(wheel.h * Math.PI / 180), wy = 50 - 50 * wheel.s * Math.cos(wheel.h * Math.PI / 180), hx = hslHex(wheel.h, wheel.s, wheel.l);
@@ -282,6 +282,11 @@
           foot = '<button class="cbig" data-wheelok>✓ Garder cette couleur</button>';
         }
       }
+    } else if (step === 'look') { // icône du curseur pendant le guidage
+      var ci = A.car().icon || 'arrow';
+      head = '<span>Curseur pendant le guidage</span>';
+      body = '<div class="cicons">' + FuelCursors.list.map(function (x) { return '<button class="' + (x[0] === ci ? 'on' : '') + '" data-icon="' + x[0] + '">' + FuelCursors.svg(x[0]) + '<span>' + x[1] + '</span></button>'; }).join('') + '</div>';
+      foot = '<button class="cbig" data-lookok>✓ OK</button>';
     } else if (step === 'notes') {
       var ns = (A.state.notes || []).slice().sort(function (x, y) { return y.ts - x.ts; });
       head = '<span>' + (ns.length ? ns.length + ' note' + (ns.length > 1 ? 's' : '') + ' · la plus récente en haut' : 'Aucune note') + '</span>';
@@ -296,7 +301,7 @@
       var T = A.themes || {};
       head = '<span>Couleurs de l\'appli et de la carte</span>';
       var thm = function (dark) { return '<div class="cthemes">' + Object.keys(T).filter(function (k2) { return !!T[k2].dark === dark; }).map(function (k2) { var t = T[k2], on = k2 === A.state.theme; return '<button class="cth' + (on ? ' on' : '') + '" data-theme="' + k2 + '" style="background:' + t.bg + ';color:' + t.text + ';border-color:' + (on ? t.accent : t.line) + '"><i style="background:' + t.accent + '"></i>' + t.emoji + ' ' + t.name + '</button>'; }).join('') + '</div>'; };
-      body = '<div class="ctg">☀️ Clairs</div>' + thm(false) + '<div class="ctg">🌙 Foncés</div>' + thm(true);
+      body = '<div class="c2col"><div><div class="ctg">☀️ Clairs</div>' + thm(false) + '</div><div><div class="ctg">🌙 Sombres</div>' + thm(true) + '</div></div>';
     }
     pane.innerHTML = (head ? '<div class="chead">' + head + '</div>' : '') + '<div class="clist">' + body + '</div>' + (foot ? '<div class="cfoot">' + foot + '</div>' : '');
     listEl = pane.querySelector('.clist'); listEl.scrollTop = scrollKeep;
@@ -617,6 +622,10 @@
   // ---- vue navigation : la carte devient un grand carré centré sur la voiture, tourné dans le sens de la marche et incliné (CSS) ;
   // la voiture est dessinée par une flèche fixe au tiers bas de l'écran. Le carré déborde de l'écran : rien ne manque quand il tourne.
   var arrow = el('carArrow');
+  function arrowIcon() { // la flèche du guidage, ou l'icône choisie dans la fiche du véhicule (citadine, scooter, fusée…)
+    var k = A.car().icon || 'arrow'; if (arrow._k === k || !window.FuelCursors) return; arrow._k = k;
+    arrow.classList.toggle('ico', k !== 'arrow'); arrow.innerHTML = k === 'arrow' ? '' : FuelCursors.svg(k);
+  }
   // vue du guidage : 3D = carte inclinée (on voit loin devant), 2D = à plat ; toujours tournée dans le sens de la marche. Choix mémorisé.
   var view3d = true; try { view3d = localStorage.getItem('fuelmap-car3d') !== '0'; } catch (e) { }
   function applyView() { document.documentElement.style.setProperty('--nav-tilt', view3d ? '32deg' : '0deg'); }
@@ -687,6 +696,9 @@
   pane.addEventListener('click', function (e) {
     var t;
     if (e.target.closest('[data-sort]')) { sortAsc = !sortAsc; scrollKeep = 0; render(); return; }
+    if (e.target.closest('[data-look]')) { setStep('look'); return; }
+    if (e.target.closest('[data-lookok]')) { setStep('setup'); return; }
+    if ((t = e.target.closest('[data-icon]'))) { A.updateCar({ icon: t.getAttribute('data-icon') }); render(); return; }
     if (e.target.closest('[data-dictate]')) { try { if (window.AndroidAuto && window.AndroidAuto.note) window.AndroidAuto.note(); else A.toast('Dictée disponible dans la voiture'); } catch (err) { } return; }
     if ((t = e.target.closest('[data-hw]'))) { var hp = (A.state.places || []).filter(function (x) { return x.kind === t.getAttribute('data-hw'); })[0]; if (hp) setDest({ label: hp.label, lat: hp.lat, lon: hp.lon }); return; }
     if (e.target.closest('[data-keep]') && dest) { // garde la destination dans « Mes lieux » (partagé avec le téléphone)

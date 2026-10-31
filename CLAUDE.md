@@ -17,7 +17,8 @@ js/car.js                              écran Android Auto (?aa=1) : rail + pann
 js/fillup.js                           carnet de pleins (question au démarrage près d'une station, pavé, km, stats)
 js/diag.js                             journal côté page (FM.log), export du zip de diagnostic
 js/sources.js, js/optimizer.js         chargement/normalisation des données ; algorithme d'arrêts (testé : tests/optimizer.test.js)
-js/themes.js, js/update.js             12 thèmes (6 clairs, 6 foncés ; anciens noms → FUELMAP_THEME_ALIASES) ; mise à jour obligatoire
+js/themes.js, js/update.js             14 thèmes (7 clairs, 7 sombres ; anciens noms → FUELMAP_THEME_ALIASES) ; mise à jour obligatoire
+js/cursors.js                          icônes du curseur de guidage (SVG maison vus de dessus, `car.icon`)
 js/paints.js                           teintes constructeur approchées (couleur du curseur de la voiture)
 tools/build-data.mjs                   génère data/<pays>.json, brands, hist, fr-habits.json (habitudes de mise à jour)
 apk/                                   projet Capacitor ; apk/android = projet Gradle (Java) ; apk/dhu = écran de voiture virtuel
@@ -36,7 +37,7 @@ apk/android/app/src/main/java/fr/soaresden/fuelmap/
 ## Règles non négociables
 
 - **versionCode jamais réutilisé** : le Play Console grille un code dès qu'un AAB est téléversé, même en brouillon.
-  Dernier utilisé : **56 (1.6.8)**. Chaque livraison = code +1 ET bump de `versionName` dans `apk/android/app/build.gradle`,
+  Dernier utilisé : **57 (1.6.9)**. Chaque livraison = code +1 ET bump de `versionName` dans `apk/android/app/build.gradle`,
   de `version` dans `js/config.js`, et du nom de cache dans `sw.js`. Les trois ensemble, toujours.
 - Chaque livraison fournit : l'**AAB** (Play, signé avec la clé d'upload) et un commit. **Plus d'APK** : depuis la 1.5.9 Denis
   installe uniquement via le Play Store (tests internes). Les `*.apk`/`*.aab` sont ignorés par git ; ils vivent dans `apk/`.
@@ -121,7 +122,7 @@ apk/android/app/src/main/java/fr/soaresden/fuelmap/
 
 Denis veut un écran **épuré** : la carte d'abord, le reste **par étapes**. Colonne fine (60 px) à gauche : en tête l'icône de l'appli,
 « FuelMap » et la version (pour savoir qu'on est dans l'appli), puis icônes seules ⛽ Stations, 🧭 Trajet, 🚨 Pénurie, 🚗 Ma voiture, 🎨 Thème, et
-zoom ＋/− en bas (secours si le pincer n'arrive pas). Colonne masquée pendant le guidage. Carte au repos : **favorites** (⭐ du téléphone)
+zoom ＋/− en bas (secours si le pincer n'arrive pas). En guidage : colonne compacte collée à gauche (voir 1.6.7). Carte au repos : **favorites** (⭐ du téléphone)
 en bas à droite (`#carFavs`, 4 max, prix + heure de mise à jour, toucher = fiche station). Chaque mode est un parcours
 (`FLOWS`) dont les étapes s'affichent en **bulles** en haut (`#carSteps`, ✓ = étape faite, touchable pour revenir) ; le contenu de
 l'étape est une **carte flottante** à gauche (`#carPane`, 330 px, hauteur selon le contenu).
@@ -136,8 +137,8 @@ l'étape est une **carte flottante** à gauche (`#carPane`, 330 px, hauteur selo
   (± 1 L), couleur du curseur : 9 teintes courantes + « perso » = roue chromatique (teinte/intensité sur la roue, clair/foncé sur la barre). Écrit dans la fiche véhicule partagée avec le téléphone (`__fuelmapAPI.updateCar/useCar`).
 - Vue du guidage 2D / 3D (`#carView`, en bas à gauche de la partie libre) : 3D = carte inclinée (`--nav-tilt: 32deg`), 2D = à plat ;
   toujours tournée dans le sens de la marche ; choix mémorisé (`localStorage['fuelmap-car3d']`).
-- 🎨 Thème : 6 clairs (Jour, GéMap, Sable, Menthe, Lavande, Contraste) et 6 foncés (Nuit, Wéyze, Ardoise, Océan, Ambre, Nuit noire),
-  appliqués tout de suite (`__fuelmapAPI.setTheme`). « GéMap » / « Wéyze » : inspirés de Google Maps / Waze, jamais leur vrai nom (marques).
+- 🎨 Thème : 7 clairs (Jour, GéMap clair, Wéyze clair, Sable, Menthe, Lavande, Contraste) et 7 sombres (Nuit, GéMap sombre, Wéyze sombre,
+  Ardoise, Océan, Ambre, Nuit noire), sur deux colonnes, appliqués tout de suite (`__fuelmapAPI.setTheme`). « GéMap » / « Wéyze » : inspirés de Google Maps / Waze, jamais leur vrai nom (marques).
 - Guidage FuelMap **multi-arrêts** : OSRM avec tous les points (arrêts carburant puis destination), instructions de toutes les
   étapes, « Arrêt carburant, X » à chaque arrêt, bandeau bas « Arrêt 1/2 · station · prix · km [⏭ Passer] » (`#carNext`),
   avancement sur l'itinéraire sans retour en arrière, recalcul si > 500 m hors route, arrêt auto 20 s après l'arrivée. Vue derrière
@@ -162,6 +163,11 @@ l'étape est une **carte flottante** à gauche (`#carPane`, 330 px, hauteur selo
 - Lieux : `state.places[].kind` = 'home' | 'work' (un seul de chaque) ou absent (autre lieu). Téléphone : Véhicules › 📍 Mes lieux
   (saisie avec suggestions, `wireSuggest('pl', savePlace)`) ; puces 🏠 / 💼 / ★ dans Trajet. Voiture : Destination = 🏠 Maison / 💼 Travail
   côte à côte en tête, puis 🔍, agenda, ⭐ lieux ; « ⭐ Garder ce lieu » à l'étape Réservoir.
+- 1.6.9 : curseur du guidage au choix (`car.icon`, js/cursors.js) : Flèche (défaut), Citadine, Break, 4x4, Cabriolet, Décapotable
+  (roadster type MX-5, sans logo), Formule 1, Moto de course, Scooter, Quad, Camion, Fusée, Paquebot, Souris, Géocoucou — SVG vus de
+  dessus, avant en haut (la carte tourne, le curseur reste droit), carrosserie `--car`. Pas de personnages de dessins animés
+  (Speedy / Bip Bip = marques Warner) : souris et géocoucou génériques. Choix : voiture Ma voiture › « Curseur du guidage » (étape
+  « Curseur ») ; téléphone : fiche véhicule. La fiche véhicule du téléphone FUSIONNE avec l'existant (sinon elle effaçait SP98 / autonomie).
 État et journalisation : `__fuelmapCar.state()/dump()`. Plein : question « tu viens de faire le plein ? » (fillup.js) à gauche.
 
 ## Téléphone
@@ -200,7 +206,8 @@ la section « Sécurité des données » (lu sur l'appareil, seul le lieu choisi
 - Fiche station (voiture) : historique 30 jours en SVG — station (couleur du texte), moyenne à 10 km (rouge pointillé), × = prix déclarés.
 - Cadres moins cher / plus cher : seulement autour d'une vraie pastille (zoom ≥ 10,5, pastille effectivement placée) ; redressés en guidage.
 - Favorites (voiture) : une ligne par station (nom, prix, âge) ; repliables.
-- Guidage : la colonne reste visible, en colonne flottante à droite des cartes de l'hôte (`--navleft`).
+- Guidage : la colonne reste visible, compacte, collée à GAUCHE (1.6.7) ; ce qui est à droite des cartes de l'hôte part de `--navleft`
+  = max(cartes de l'hôte, colonne) + 8 px.
 - Fiche station (voiture) : prix + « (SP98 x,xxx) » à droite si la voiture l'accepte ; « Plein N L ≈ … € · compléter M L ≈ … € » d'après
   le niveau Trajet › Réservoir (`state.startE`) ; ligne 💡 SP98 (« à ce prix, tu peux prendre du 98 » si écart ≤ 3 cts).
 - Carnet (fillup.js) : le carburant reste modifiable sur l'écran du montant (montant conservé, litres recalculés) ; station sans prix

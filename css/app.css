@@ -526,7 +526,7 @@ html[data-carui].carnav #carGuide { left: var(--navleft); }
 html[data-carui].carnav #carRail { left: var(--stable-r, 10px); right: auto; top: 50%; bottom: auto; transform: translateY(-50%); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); padding: 4px; gap: 3px; }
 html[data-carui].carnav #carRail button { flex: 0 0 36px; min-height: 36px; font-size: 22px; }
 html[data-carui].carnav #carRail .cbrand, html[data-carui].carnav #carRail .sp, html[data-carui].carnav #carRail .cz { display: none; }
-html[data-carui].carnav { --navleft: calc(var(--stable-l) + 8px); --navright: calc(var(--stable-r, 0px) + 8px); }
+html[data-carui].carnav { --navleft: calc(max(var(--stable-l), var(--stable-r, 0px) + var(--rail)) + 8px); --navright: calc(var(--stable-r, 0px) + 8px); } /* jamais sur la colonne, même si les cartes de l'hôte sont étroites */
 html[data-carui].carnav #carNext { left: calc(var(--navleft) + (100vw - var(--navleft) - var(--navright)) / 2); max-width: calc(100vw - var(--navleft) - var(--navright) - 8px); }
 html[data-carui].carnav #carView { bottom: calc(var(--stable-b) + 72px); } /* 2D / 3D au-dessus du bandeau d'arrêt : le bandeau garde toute la largeur libre */
 
@@ -738,3 +738,17 @@ html.cpane-wide .c2col .cseg { margin-top: 0; }
 .plnew .chips { margin-bottom: 6px; }
 /* bandeau d'arrêt étroit (écran partagé) : le nom de la station se coupe en « … », le bouton Passer reste visible */
 #carNext .nxa { min-width: 0; overflow: hidden; text-overflow: ellipsis; } #carNext .nxb, #carNext button { flex-shrink: 0; }
+/* curseur du guidage : icônes vues de dessus (js/cursors.js), carrosserie à la couleur de la voiture */
+.fcur .b { fill: var(--car, var(--accent)); } .fcur .s { fill: #000; opacity: .18; } .fcur .k { fill: #1b1f24; } .fcur .d { fill: #2a3846; }
+.fcur .w { fill: #f5f7fa; } .fcur .g { fill: #cfd6dd; } .fcur .r { fill: #e53935; } .fcur .y { fill: #fbbf24; } .fcur .p { fill: #f9a8d4; } .fcur .t { fill: #4a5562; }
+#carArrow.ico::before, #carArrow.ico::after { display: none; }
+#carArrow .fcur { position: absolute; left: -17px; top: -27px; width: 34px; height: 54px; filter: drop-shadow(0 0 1px #fff) drop-shadow(0 0 1px #fff) drop-shadow(0 2px 4px rgba(0,0,0,.55)); }
+.cicons { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; }
+.cicons button { height: 66px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 2px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); font-size: 10px; line-height: 1.1; }
+.cicons button.on { border-color: var(--accent); box-shadow: inset 0 0 0 2px var(--accent); }
+.cicons .fcur { width: 22px; height: 36px; flex: 0 0 auto; } .cicons span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.cicons.tel { grid-template-columns: repeat(auto-fill, minmax(62px, 1fr)); } .cicons.tel button { height: 74px; font-size: 11px; } .cicons.tel .fcur { width: 24px; height: 40px; }
+.clookbtn { width: 100%; height: 40px; display: flex; align-items: center; justify-content: flex-start; gap: 8px; padding: 0 10px; margin-bottom: 6px; font-size: 14px; }
+.clookbtn .fcur { width: 16px; height: 26px; flex: 0 0 auto; }
+/* thèmes sur deux colonnes (clairs | sombres) quand l'écran est assez large : 7 + 7 tiennent sans défiler */
+html.cpane-wide .c2col .cthemes { grid-template-columns: 1fr 1fr; } html.cpane-wide .c2col .cth { height: 46px; }
