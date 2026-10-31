@@ -125,6 +125,7 @@ Types de données à cocher :
 | Type | Collecté | Partagé | Éphémère | Obligatoire ? | Finalité |
 |---|---|---|---|---|---|
 | Position › **Position exacte** | Oui | Non | **Oui** | Facultatif (on peut taper une adresse) | Fonctionnalités de l'appli |
+| Position › **Position approximative** (si l'utilisateur choisit « approximative » dans la demande d'Android) | Oui | Non | **Oui** | Facultatif | Fonctionnalités de l'appli |
 | Infos personnelles › **Adresse** (adresses tapées, lieux, lieu d'un rendez-vous choisi) | Oui | Non | **Oui** | Facultatif | Fonctionnalités de l'appli |
 | Infos et performances de l'appli › **Journaux de plantage** et **Diagnostics** | Oui | Non | Non | Facultatif (seulement si l'utilisateur appuie sur « Envoyer le journal ») | Analyse |
 
