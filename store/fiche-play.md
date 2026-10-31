@@ -104,7 +104,8 @@ langage, substances, jeux d'argent : Non partout. « Les utilisateurs peuvent-il
 position de l'utilisateur avec d'autres utilisateurs ? » : Non. **Achats d'articles numériques : Non** (sinon « Achats in-app »
 apparaît partout et le Brésil passe à 14 ans). → résultat attendu : PEGI 3 / Tout public, sans élément interactif.
 
-**Public cible** : 18 ans et plus (application pour conducteurs). Ça évite les règles « Familles ».
+**Public cible** : 16-17 ans et 18 ans et plus (conduite accompagnée, permis B dès 17 ans). Pas de moins de 13 ans : les
+règles « Familles » ne s'appliquent pas. « L'application pourrait-elle attirer involontairement des enfants ? » : Non.
 
 **Applications d'actualités** : Non. **Applications de santé** : Non. **Services financiers** : Non.
 **Application gouvernementale** : Non (application indépendante ; la description le dit et cite les sources).
