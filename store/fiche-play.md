@@ -85,7 +85,8 @@ acceptées parmi les captures téléphone, et c'est ce qui montre Android Auto s
 ## 2. Paramètres de la fiche
 
 - **Catégorie** : Application › **Cartes et navigation**
-- **Tags** (jusqu'à 5) : Navigation, Voiture, Économies, Cartes, Outils
+- **Tags** (5 max, choisis dans la liste de la Console) : Cartes et navigation, Auto et véhicules, Voyages et infos locales,
+  Entretien de véhicules. Éviter « Finances personnelles » (range l'appli avec les banques) et les tags secondaires.
 - Mail, site, politique de confidentialité : voir ci-dessus et § 3.
 
 ---
