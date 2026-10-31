@@ -233,6 +233,9 @@ nouveaux comptes, et les sites tiers interdisent la lecture des pixels.
 Compte développeur vérifié, appli `fr.soaresden.fuelmap`, tests internes actifs (famille via lien). AAB signé avec la clé
 d'upload (Play App Signing). Risque connu pour la production : la catégorie NAVIGATION est examinée de près par Google.
 Le README décrit la publication.
+`store/` : `fiche-play.md` (textes à copier-coller : titre, descriptions, notes de version, sécurité des données, classification,
+Android Auto), `banniere.html` (image 1024×500), `release-vX.md` (texte de la release GitHub). Images HD : `node tests/captures-store.mjs`
+(Edge, sur le PC de Denis) → `store/captures/` (ignoré par git). À chaque version : mettre à jour les notes de version de la fiche.
 
 ## Pistes en attente (par priorité ressentie)
 

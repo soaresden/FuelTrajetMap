@@ -25,3 +25,5 @@ apk/aa-log.txt
 # Tests d'écran : modules et captures
 tests/node_modules/
 tests/captures/
+# Images du Play Store : refaites par node tests/captures-store.mjs
+store/captures/
