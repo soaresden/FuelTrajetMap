@@ -299,10 +299,14 @@
       }).join('') + (ns.length > 8 ? '<div class="cnote">… et ' + (ns.length - 8) + ' autres sur le téléphone (Véhicules).</div>' : '');
       foot = '<button class="cbig" data-dictate>🎤 Dicter une note</button>';
     } else if (step === 'pick') {
-      var T = A.themes || {};
+      var T = A.themes || {}, au = A.state.themeAuto || {}, auto = !!au.on, okP = A.plusThemes();
       head = '<span>Couleurs de l\'appli et de la carte</span>';
-      var thm = function (dark) { return '<div class="cthemes">' + Object.keys(T).filter(function (k2) { return !!T[k2].dark === dark; }).map(function (k2) { var t = T[k2], on = k2 === A.state.theme; return '<button class="cth' + (on ? ' on' : '') + '" data-theme="' + k2 + '" style="background:' + t.bg + ';color:' + t.text + ';border-color:' + (on ? t.accent : t.line) + '"><i style="background:' + t.accent + '"></i>' + t.emoji + ' ' + t.name + '</button>'; }).join('') + '</div>'; };
-      body = '<div class="c2col"><div><div class="ctg">☀️ Clairs</div>' + thm(false) + '</div><div><div class="ctg">🌙 Sombres</div>' + thm(true) + '</div></div>';
+      // Statique : un thème ; Automatique : le clair touché sert le jour, le sombre touché la nuit (lever / coucher du soleil)
+      var thm = function (dark) { return '<div class="cthemes">' + Object.keys(T).filter(function (k2) { return !!T[k2].dark === dark && (!T[k2].perso || okP); }).map(function (k2) {
+        var t = T[k2], on = auto ? k2 === (au.day || 'jour') || k2 === (au.night || 'nuit') : k2 === A.state.theme;
+        return '<button class="cth' + (on ? ' on' : '') + '" data-theme="' + k2 + '" style="background:' + t.bg + ';color:' + t.text + ';border-color:' + (on ? t.accent : t.line) + '"><i style="background:' + t.accent + '"></i>' + t.emoji + ' ' + t.name + (auto && on ? (dark ? ' · nuit' : ' · jour') : '') + '</button>'; }).join('') + '</div>'; };
+      body = '<div class="cmode2"><button class="copt' + (auto ? '' : ' on') + '" data-tmode="static">Statique</button><button class="copt' + (auto ? ' on' : '') + '" data-tmode="auto">🌗 Automatique</button></div>' +
+        '<div class="c2col"><div><div class="ctg">☀️ Clairs' + (auto ? ' · le jour' : '') + '</div>' + thm(false) + '</div><div><div class="ctg">🌙 Sombres' + (auto ? ' · la nuit' : '') + '</div>' + thm(true) + '</div></div>';
     }
     pane.innerHTML = (head ? '<div class="chead">' + head + '</div>' : '') + '<div class="clist">' + body + '</div>' + (foot ? '<div class="cfoot">' + foot + '</div>' : '');
     listEl = pane.querySelector('.clist'); listEl.scrollTop = scrollKeep;
@@ -749,6 +753,7 @@
     }
     if ((t = e.target.closest('[data-ccolor]'))) { A.updateCar({ color: t.getAttribute('data-ccolor'), paint: t.getAttribute('data-cname') }); render(); return; }
     if ((t = e.target.closest('[data-theme]'))) { A.setTheme(t.getAttribute('data-theme')); render(); return; }
+    if ((t = e.target.closest('[data-tmode]'))) { A.setThemeAuto(t.getAttribute('data-tmode') === 'auto'); render(); return; }
     if ((t = e.target.closest('[data-sid]'))) { var s = A.stations.filter(function (x) { return String(x.id) === t.getAttribute('data-sid'); })[0]; if (s) pick(s); }
   });
   steps.addEventListener('click', function (e) {

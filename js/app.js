@@ -322,25 +322,108 @@
   L.control.zoom({ position: 'bottomleft' }).addTo(map);
   var tiles = null;
   var THEMES = window.FUELMAP_THEMES || {};
-  function theme() { return THEMES[state.theme] || THEMES.nuit; }
+  // ---- thèmes perso (FuelMap Plus) : un clair et un sombre, 4 couleurs choisies + traitement de la carte, le reste en est déduit.
+  // Mode « Automatique » (state.themeAuto) : un thème de jour et un thème de nuit, bascule au lever / coucher du soleil, ici.
+  var CUSTOM_DEF = { light: { bg: '#f4f6f8', panel: '#ffffff', text: '#16202a', accent: '#e0571d', map: 'douce' }, dark: { bg: '#10141a', panel: '#1a2029', text: '#e9eef4', accent: '#f5a524', map: 'sombre' } };
+  var MAP_LOOKS = [['normale', 'Normale'], ['douce', 'Douce'], ['grise', 'Grise'], ['sombre', 'Sombre']];
+  var MAP_FILTERS = { normale: 'none', douce: 'saturate(.55) brightness(1.04) contrast(.94)', grise: 'grayscale(1) brightness(1.03) contrast(.9)', sombre: 'invert(1) hue-rotate(185deg) brightness(.82) contrast(.9) saturate(.45)' };
+  function hexRgb(h) { h = String(h || '#000').replace('#', ''); if (h.length === 3) h = h.replace(/./g, '$&$&'); var n = parseInt(h, 16) || 0; return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
+  function mixHex(a, b, t) { var x = hexRgb(a), y = hexRgb(b); return '#' + [0, 1, 2].map(function (i) { return ('0' + Math.round(x[i] + (y[i] - x[i]) * t).toString(16)).slice(-2); }).join(''); }
+  function lum(h) { var c = hexRgb(h).map(function (v) { v /= 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); }); return .2126 * c[0] + .7152 * c[1] + .0722 * c[2]; }
+  function customOf(side) { var c = (state.custom || {})[side] || {}, d = CUSTOM_DEF[side]; return { bg: c.bg || d.bg, panel: c.panel || d.panel, text: c.text || d.text, accent: c.accent || d.accent, map: c.map || d.map }; }
+  function buildCustom() {
+    ['light', 'dark'].forEach(function (side) {
+      var c = customOf(side), dark = side === 'dark';
+      THEMES[dark ? 'persosombre' : 'persoclair'] = { name: dark ? 'Perso sombre' : 'Perso clair', emoji: dark ? '🌟' : '✨', dark: dark, perso: true,
+        bg: c.bg, panel: c.panel, panel2: mixHex(c.panel, c.text, dark ? .07 : .05), line: mixHex(c.panel, c.text, dark ? .18 : .14), text: c.text, muted: mixHex(c.text, c.bg, .42),
+        accent: c.accent, accent2: mixHex(c.accent, dark ? '#ffffff' : '#000000', .18), ink: lum(c.accent) > .45 ? '#111111' : '#ffffff',
+        warn: dark ? '#ffb547' : '#c26a00', bad: dark ? '#ff5f6d' : '#d93025', mapBg: c.bg, tiles: MAP_FILTERS[c.map] || 'none' };
+    });
+  }
+  function plusThemes() { var P = window.__fuelmapPlus; return !P || P.has('themes'); }
+  // lever / coucher du soleil (équation du lever de soleil, précision ± 2 min), pour la position actuelle ou le centre de la carte
+  var sunCache = {};
+  function sunTimes(lat, lon, now) {
+    var key = lat.toFixed(1) + ',' + lon.toFixed(1) + ',' + new Date(now).toDateString(); if (sunCache.k === key) return sunCache.v;
+    var r = Math.PI / 180, J = now / 864e5 + 2440587.5, n = Math.ceil(J - 2451545.0 + 0.0008), Js = n - lon / 360;
+    var M = (357.5291 + 0.98560028 * Js) % 360, C = 1.9148 * Math.sin(M * r) + 0.02 * Math.sin(2 * M * r) + 0.0003 * Math.sin(3 * M * r);
+    var L = (M + C + 180 + 102.9372) % 360, Jt = 2451545.0 + Js + 0.0053 * Math.sin(M * r) - 0.0069 * Math.sin(2 * L * r);
+    var sd = Math.sin(L * r) * Math.sin(23.4397 * r), cd = Math.cos(Math.asin(sd));
+    var cw = (Math.sin(-0.833 * r) - Math.sin(lat * r) * sd) / (Math.cos(lat * r) * cd);
+    var v = cw <= -1 ? { rise: -Infinity, set: Infinity } : cw >= 1 ? { rise: Infinity, set: -Infinity } : (function () { var w = Math.acos(cw) / r / 360; return { rise: (Jt - w - 2440587.5) * 864e5, set: (Jt + w - 2440587.5) * 864e5 }; })();
+    sunCache = { k: key, v: v }; return v;
+  }
+  function here() { var f = lastFix || mePos; return f ? { lat: f.lat, lon: f.lon } : { lat: state.view.lat, lon: state.view.lon }; }
+  function isNightNow() { var p = here(), s = sunTimes(p.lat, p.lon, Date.now()), t = Date.now(); return t < s.rise || t > s.set; }
+  var previewKey = null, themeEdit = null, appliedKey = null;
+  function themeKey() {
+    if (previewKey) return previewKey;
+    var k = state.theme, a = state.themeAuto; if (a && a.on) k = isNightNow() ? a.night || 'nuit' : a.day || 'jour';
+    if (THEMES[k] && THEMES[k].perso && !plusThemes()) k = THEMES[k].dark ? 'nuit' : 'jour'; // thème perso sans Plus : le thème de base
+    return THEMES[k] ? k : 'nuit';
+  }
+  function theme() { return THEMES[themeKey()] || THEMES.nuit; }
   function isDark() { return !!theme().dark; }
   function applyTheme() {
+    buildCustom();
     var alias = window.FUELMAP_THEME_ALIASES || {}; if (!THEMES[state.theme] && alias[state.theme]) state.theme = alias[state.theme]; if (!THEMES[state.theme]) state.theme = 'nuit';
     var t = theme(), st = document.documentElement.style, vars = { bg: '--bg', panel: '--panel', panel2: '--panel2', line: '--line', text: '--text', muted: '--muted', accent: '--accent', accent2: '--accent2', ink: '--accent-ink', warn: '--warn', bad: '--bad', mapBg: '--map-bg' };
     Object.keys(vars).forEach(function (k) { st.setProperty(vars[k], t[k]); });
     st.setProperty('--tile-filter', t.tiles || 'none'); st.setProperty('--shadow', t.dark ? '0 8px 30px rgba(0,0,0,.45)' : '0 8px 30px rgba(20,30,50,.18)');
-    document.documentElement.setAttribute('data-theme', state.theme); document.documentElement.setAttribute('data-dark', t.dark ? '1' : '0');
+    appliedKey = themeKey(); document.documentElement.setAttribute('data-theme', appliedKey); document.documentElement.setAttribute('data-dark', t.dark ? '1' : '0');
     document.querySelector('meta[name=theme-color]').setAttribute('content', t.bg);
     if (!tiles) useTiles(0);
     applyCarColor();
   }
+  setInterval(function () { if (state.themeAuto && state.themeAuto.on && !previewKey && themeKey() !== appliedKey) { applyTheme(); refreshMap(); } }, 120000); // lever / coucher du soleil
+  document.addEventListener('fuelmap:plus', function () { if (themeKey() !== appliedKey) { applyTheme(); refreshMap(); } });
   function applyCarColor() { document.documentElement.style.setProperty('--car', car().color || '#3b82f6'); } // curseur (point de position, flèche du guidage) à la couleur de la voiture
+  function hhmm(t) { return isFinite(t) ? new Date(t).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '—'; }
   function openThemePicker() {
-    var card = function (k) { var t = THEMES[k]; return '<button class="theme-card' + (k === state.theme ? ' on' : '') + '" data-theme-pick="' + k + '" style="background:' + t.bg + ';color:' + t.text + ';border-color:' + (k === state.theme ? t.accent : t.line) + '"><span class="sw" style="background:' + t.panel + ';border-color:' + t.line + '"><i style="background:' + t.accent + '"></i><i style="background:' + t.accent2 + '"></i><i style="background:' + t.bad + '"></i></span><b>' + t.emoji + ' ' + t.name + '</b></button>'; };
+    buildCustom();
+    var a = state.themeAuto || {}, auto = !!a.on, P = window.__fuelmapPlus, pst = P ? P.status() : 'off', cur = auto ? null : state.theme;
+    var card = function (k) {
+      var t = THEMES[k], locked = t.perso && !plusThemes(), on = k === cur || (auto && (k === (a.day || 'jour') || k === (a.night || 'nuit')));
+      return '<div class="tcwrap"><button class="theme-card' + (on ? ' on' : '') + (locked ? ' plocked' : '') + '" data-theme-pick="' + k + '" style="background:' + t.bg + ';color:' + t.text + ';border-color:' + (on ? t.accent : t.line) + '"><span class="sw" style="background:' + t.panel + ';border-color:' + t.line + '"><i style="background:' + t.accent + '"></i><i style="background:' + t.accent2 + '"></i><i style="background:' + t.bad + '"></i></span><b>' + t.emoji + ' ' + t.name + '</b>' +
+        (auto && k === (a.day || 'jour') ? '<small class="tauto">☀️ le jour</small>' : auto && k === (a.night || 'nuit') ? '<small class="tauto">🌙 la nuit</small>' : '') + (locked && P ? P.veil() : '') + '</button>' +
+        (t.perso && !locked ? '<button class="tedit" data-theme-edit="' + k + '" title="Modifier les couleurs">✏️</button>' : '') + '</div>';
+    };
     var keys = Object.keys(THEMES), group = function (dark) { return '<div class="themes">' + keys.filter(function (k) { return !!THEMES[k].dark === dark; }).map(card).join('') + '</div>'; };
-    openModal('<h2>🎨 Thème</h2><p class="hint">Couleurs de l\'appli et du fond de carte. Les couleurs des prix (vert = pas cher, rouge = cher) ne changent pas.</p><h3 class="tgrp">☀️ Clairs</h3>' + group(false) + '<h3 class="tgrp">🌙 Foncés</h3>' + group(true));
+    var p = here(), s = sunTimes(p.lat, p.lon, Date.now());
+    openModal('<h2>🎨 Thème</h2><p class="hint">Couleurs de l\'appli et du fond de carte. Les couleurs des prix (vert = pas cher, rouge = cher) ne changent pas.</p>' +
+      '<div class="tmode"><button class="' + (auto ? '' : 'on') + '" data-theme-mode="static">Statique</button><button class="' + (auto ? 'on' : '') + '" data-theme-mode="auto">Automatique</button></div>' +
+      '<p class="hint">' + (auto ? '🌗 Touche un thème clair pour le jour et un thème sombre pour la nuit. Bascule au lever (' + hhmm(s.rise) + ') et au coucher du soleil (' + hhmm(s.set) + ') là où tu es.' : 'Le thème choisi reste affiché jour et nuit.') + '</p>' +
+      '<h3 class="tgrp">☀️ Clairs</h3>' + group(false) + '<h3 class="tgrp">🌙 Sombres</h3>' + group(true) +
+      (pst !== 'off' ? '<p class="hint">' + (P ? P.badge() : '') + ' Les thèmes ✨ Perso clair et 🌟 Perso sombre : tes couleurs, avec ✏️.</p>' : ''));
   }
-  $('modalBody').addEventListener('click', function (e) { var b = e.target.closest('[data-theme-pick]'); if (!b) return; state.theme = b.getAttribute('data-theme-pick'); save(); applyTheme(); refreshMap(); openThemePicker(); });
+  // éditeur d'un thème perso : chaque couleur change l'appli en direct ; Annuler (ou fermer la fenêtre) remet les couleurs d'avant
+  function openThemeEditor(key) {
+    var side = key === 'persosombre' ? 'dark' : 'light', c = customOf(side);
+    if (!themeEdit) themeEdit = { key: key, side: side, before: JSON.stringify(state.custom || null) };
+    previewKey = key; applyTheme(); refreshMap();
+    var row = function (k, lbl) { return '<label class="tcol"><span>' + lbl + '</span><input type="color" data-tc="' + k + '" value="' + c[k] + '"></label>'; };
+    openModal('<h2>' + THEMES[key].emoji + ' ' + THEMES[key].name + '</h2><p class="hint">Touche une couleur : l\'appli change en direct.</p><div class="tcols">' + row('bg', 'Fond') + row('panel', 'Panneaux') + row('text', 'Texte') + row('accent', 'Boutons et accents') + '</div>' +
+      '<h3 class="tgrp">🗺️ Fond de carte</h3><div class="chips wrap">' + MAP_LOOKS.map(function (m) { return '<button class="chip' + (c.map === m[0] ? ' on' : '') + '" data-tmap="' + m[0] + '">' + m[1] + '</button>'; }).join('') + '</div>' +
+      '<div class="row tbtns"><button class="primary" data-tsave>✓ Utiliser ce thème</button><button class="secondary" data-tcancel>Annuler</button></div><button class="linkbtn" data-treset>↺ Couleurs de départ</button>');
+  }
+  function setCustom(k, v) { var side = themeEdit.side; state.custom = state.custom || {}; state.custom[side] = Object.assign(customOf(side), state.custom[side] || {}); state.custom[side][k] = v; applyTheme(); }
+  function themeCancel() { if (!themeEdit) return; state.custom = JSON.parse(themeEdit.before); themeEdit = null; previewKey = null; applyTheme(); refreshMap(); }
+  $('modalBody').addEventListener('input', function (e) { var t = e.target; if (themeEdit && t.matches && t.matches('[data-tc]')) setCustom(t.getAttribute('data-tc'), t.value); });
+  $('modalBody').addEventListener('click', function (e) {
+    var b;
+    if ((b = e.target.closest('[data-theme-mode]'))) { var on = b.getAttribute('data-theme-mode') === 'auto'; state.themeAuto = Object.assign({ day: THEMES[state.theme] && !THEMES[state.theme].dark ? state.theme : 'jour', night: THEMES[state.theme] && THEMES[state.theme].dark ? state.theme : 'nuit' }, state.themeAuto || {}, { on: on }); save(); applyTheme(); refreshMap(); openThemePicker(); return; }
+    if ((b = e.target.closest('[data-theme-edit]'))) { var ek = b.getAttribute('data-theme-edit'); window.__fuelmapPlus ? window.__fuelmapPlus.require('themes', function () { openThemeEditor(ek); }) : openThemeEditor(ek); return; }
+    if ((b = e.target.closest('[data-tmap]'))) { setCustom('map', b.getAttribute('data-tmap')); refreshMap(); openThemeEditor(themeEdit.key); return; }
+    if (e.target.closest('[data-tsave]')) { var k = themeEdit.key; themeEdit = null; previewKey = null; if (state.themeAuto && state.themeAuto.on) state.themeAuto[THEMES[k].dark ? 'night' : 'day'] = k; else state.theme = k; save(); applyTheme(); refreshMap(); openThemePicker(); return; }
+    if (e.target.closest('[data-tcancel]')) { themeCancel(); openThemePicker(); return; }
+    if (e.target.closest('[data-treset]')) { state.custom = state.custom || {}; delete state.custom[themeEdit.side]; applyTheme(); refreshMap(); openThemeEditor(themeEdit.key); return; }
+    if (!(b = e.target.closest('[data-theme-pick]'))) return;
+    var key = b.getAttribute('data-theme-pick'), pick = function () {
+      if (state.themeAuto && state.themeAuto.on) state.themeAuto[THEMES[key].dark ? 'night' : 'day'] = key; else state.theme = key;
+      save(); applyTheme(); refreshMap(); openThemePicker();
+    };
+    if (THEMES[key].perso && window.__fuelmapPlus) window.__fuelmapPlus.require('themes', pick); else pick();
+  });
   var TILE_SOURCES = [
     { url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', att: '© contributeurs OpenStreetMap' },
     { url: 'https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png', att: '© contributeurs OpenStreetMap · OSM France', sub: 'abc' },
@@ -852,7 +935,7 @@
 
   // ------------------------------------------------------------------ fenêtre modale
   function openModal(html) { $('modalBody').innerHTML = html; $('modal').hidden = false; $('modal').querySelector('.sheet').scrollTop = 0; }
-  function closeModal() { $('modal').hidden = true; $('modalBody').innerHTML = ''; }
+  function closeModal() { if (themeEdit) themeCancel(); $('modal').hidden = true; $('modalBody').innerHTML = ''; } // éditeur de thème fermé sans « Utiliser » : on remet les couleurs
   $('modalClose').addEventListener('click', closeModal);
   $('modal').addEventListener('click', function (e) { if (e.target === this) closeModal(); });
 
@@ -1845,7 +1928,7 @@
   // Téléphone et écran voiture partagent les réglages (même stockage), mais chacun en garde une copie en mémoire : sans ceci, l'un
   // écraserait à sa prochaine sauvegarde ce que l'autre vient de changer (couleur, carburant, véhicule…). On relit donc les réglages
   // partagés dès que l'autre écran les modifie, et en revenant au premier plan. La vue de la carte reste propre à chaque écran.
-  var SHARED = ['cars', 'activeCar', 'fuel', 'theme', 'places', 'favs', 'brand', 'startE', 'neighbours', 'lastRoute', 'fillups', 'fillLog', 'notes', 'noteStyle'];
+  var SHARED = ['cars', 'activeCar', 'fuel', 'theme', 'places', 'favs', 'brand', 'startE', 'neighbours', 'lastRoute', 'fillups', 'fillLog', 'notes', 'noteStyle', 'custom', 'themeAuto'];
   function syncShared(raw) {
     var n; try { n = JSON.parse(raw || 'null'); } catch (e) { return; } if (!n || typeof n !== 'object') return;
     var changed = SHARED.filter(function (k) { return n[k] !== undefined && JSON.stringify(n[k]) !== JSON.stringify(state[k]); });
@@ -1875,7 +1958,9 @@
     haversine: haversine, fuelsFor: fuelsFor, car: car, FUELS: FUELS, FUEL_INDEX: FUEL_INDEX, state: state, setFollow: setFollow, locate: locate, titleCase: titleCase, esc: esc, num: num, progressKm: progressKm, DETOUR_FACTOR: DETOUR_FACTOR, colorFor: colorFor, save: save, eighths: eighths, toast: toast, osrmRoute: osrmRoute, decodePolyline: decodePolyline, agoText: agoText, price3: price3,
     useCar: useCar, updateCar: function (patch) { var c = car(); if (!c.id) return; Object.keys(patch).forEach(function (k) { c[k] = patch[k]; }); if (patch.fuel) state.fuel = patch.fuel; save(); applyCarColor(); renderFuelChips(); renderCars(); refreshMap(); }, // réglages « Ma voiture » de l'écran voiture
     findPlace: findPlace, agendaWhen: agendaWhen, franceAvg: franceAvg, addNote: addNote, histSeries: histSeries, histSeries: histSeries, staleDays: staleDays, refreshPrices: function () { return refreshPrices(); }, refreshQuiet: function () { return fetchData(true); }, // sans message : vérification à l'approche d'un arrêt
-    refreshMap: refreshMap, themes: THEMES, setTheme: function (k) { if (!THEMES[k]) return; state.theme = k; save(); applyTheme(); refreshMap(); }
+    refreshMap: refreshMap, themes: THEMES, themeKey: function () { return themeKey(); }, plusThemes: plusThemes,
+    setTheme: function (k) { if (!THEMES[k]) return; if (state.themeAuto && state.themeAuto.on) state.themeAuto[THEMES[k].dark ? 'night' : 'day'] = k; else state.theme = k; save(); applyTheme(); refreshMap(); },
+    setThemeAuto: function (on) { state.themeAuto = Object.assign({ day: 'jour', night: 'nuit' }, state.themeAuto || {}, { on: !!on }); save(); applyTheme(); refreshMap(); }
   };
   window.__fuelmap = { carPan: carPan, carZoom: carZoom, carInsets: carInsets, carStable: carStable, restoreLastRoute: restoreLastRoute, setCarMode: setCarMode, updateHud: updateHud, get fix() { return lastFix; }, set fix(p) { lastFix = mePos = p; updateHud(); }, setPlan: setPlan, alternativesFor: alternativesFor, tryPlan: tryPlan, state: state, compute: computeRoute, setPlace: setPlace, get route() { return routeCtx; }, get count() { return stations.length; }, get stations() { return stations; }, map: map, openStation: openStation }; // pour les tests
 })();

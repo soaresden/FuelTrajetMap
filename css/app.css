@@ -786,3 +786,15 @@ html.wide #plus .sheet, html.wide #update .sheet { border-radius: 18px; }
 .pcodebox { display: flex; gap: 8px; margin-top: 10px; } .pcodebox[hidden] { display: none; }
 .pcodebox input { flex: 1; min-width: 0; height: 42px; padding: 0 12px; border-radius: 10px; border: 1px solid #d9a520; background: var(--panel2); color: var(--text); font: 600 15px/1 ui-monospace, Consolas, monospace; letter-spacing: .5px; text-transform: uppercase; }
 .pcodebox button { flex: 0 0 auto; width: auto; padding: 0 16px; }
+/* thèmes : Statique / Automatique, thèmes perso (✏️) et leur éditeur de couleurs */
+.tmode { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; margin: 6px 0 4px; border-radius: 12px; background: var(--panel2); border: 1px solid var(--line); }
+.tmode button { height: 38px; border: 0; border-radius: 9px; background: transparent; color: var(--text); font-weight: 700; font-size: 14px; }
+.tmode button.on { background: var(--accent); color: var(--accent-ink); }
+.tcwrap { position: relative; } .tcwrap .theme-card { width: 100%; position: relative; overflow: hidden; }
+.theme-card .tauto { font-size: 11px; font-weight: 700; opacity: .8; }
+.tedit { position: absolute; top: 6px; right: 6px; width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: 14px; box-shadow: var(--shadow); }
+.tcols { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0; }
+.tcol { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel2); font-size: 14px; font-weight: 600; }
+.tcol input[type=color] { width: 44px; height: 34px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: none; }
+.tbtns { margin-top: 14px; } .linkbtn { display: block; margin: 10px auto 0; border: 0; background: none; color: var(--muted); text-decoration: underline; font-size: 13px; }
+.cmode2 { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 6px; } .cmode2 .copt { height: 34px; font-size: 14px; }

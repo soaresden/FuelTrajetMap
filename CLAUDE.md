@@ -17,7 +17,8 @@ js/car.js                              écran Android Auto (?aa=1) : rail + pann
 js/fillup.js                           carnet de pleins (question au démarrage près d'une station, pavé, km, stats)
 js/diag.js                             journal côté page (FM.log), export du zip de diagnostic
 js/sources.js, js/optimizer.js         chargement/normalisation des données ; algorithme d'arrêts (testé : tests/optimizer.test.js)
-js/themes.js, js/update.js             14 thèmes (7 clairs, 7 sombres ; anciens noms → FUELMAP_THEME_ALIASES) ; mise à jour obligatoire
+js/themes.js, js/update.js             14 thèmes (7 clairs, 7 sombres ; anciens noms → FUELMAP_THEME_ALIASES) + 2 « Perso » construits
+                                       dans app.js (buildCustom) ; mise à jour obligatoire
 js/cursors.js                          icônes du curseur de guidage (SVG maison vus de dessus, `car.icon`)
 js/paints.js                           teintes constructeur approchées (couleur du curseur de la voiture)
 tools/build-data.mjs                   génère data/<pays>.json, brands, hist, fr-habits.json (habitudes de mise à jour)
@@ -37,7 +38,7 @@ apk/android/app/src/main/java/fr/soaresden/fuelmap/
 ## Règles non négociables
 
 - **versionCode jamais réutilisé** : le Play Console grille un code dès qu'un AAB est téléversé, même en brouillon.
-  Dernier utilisé : **59 (1.7.1)**. Chaque livraison = code +1 ET bump de `versionName` dans `apk/android/app/build.gradle`,
+  Dernier utilisé : **60 (1.7.2)**. Chaque livraison = code +1 ET bump de `versionName` dans `apk/android/app/build.gradle`,
   de `version` dans `js/config.js`, et du nom de cache dans `sw.js`. Les trois ensemble, toujours.
 - Chaque livraison fournit : l'**AAB** (Play, signé avec la clé d'upload) et un commit. **Plus d'APK** : depuis la 1.5.9 Denis
   installe uniquement via le Play Store (tests internes). Les `*.apk`/`*.aab` sont ignorés par git ; ils vivent dans `apk/`.
@@ -182,6 +183,12 @@ l'étape est une **carte flottante** à gauche (`#carPane`, 330 px, hauteur selo
   dessus, avant en haut (la carte tourne, le curseur reste droit), carrosserie `--car`. Pas de personnages de dessins animés
   (Speedy / Bip Bip = marques Warner) : souris et géocoucou génériques. Choix : voiture Ma voiture › « Curseur du guidage » (étape
   « Curseur ») ; téléphone : fiche véhicule. La fiche véhicule du téléphone FUSIONNE avec l'existant (sinon elle effaçait SP98 / autonomie).
+- 1.7.2 : thèmes PERSO (Plus) — ✨ Perso clair / 🌟 Perso sombre (`state.custom.light|dark` = fond, panneaux, texte, accent + fond de
+  carte normale / douce / grise / sombre ; le reste est déduit), éditeur sur le téléphone (✏️ sur la carte du thème) avec aperçu EN DIRECT
+  (`previewKey`), Annuler ou fermer = couleurs d'avant. Sélecteur « Statique | Automatique » (`state.themeAuto` {on, day, night}, gratuit) :
+  en automatique, le thème clair touché sert le jour, le sombre la nuit ; bascule au lever / coucher du soleil calculés pour la position
+  (ou le centre de la carte), vérifiée toutes les 2 min. Mêmes réglages dans la voiture (écran Thème). `custom` et `themeAuto` sont dans SHARED.
+  Sans Plus, un thème perso choisi retombe sur Jour / Nuit.
 État et journalisation : `__fuelmapCar.state()/dump()`. Plein : question « tu viens de faire le plein ? » (fillup.js) à gauche.
 
 ## Téléphone

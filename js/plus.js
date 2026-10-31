@@ -5,7 +5,7 @@
  *                'trial' abonnement dans ses 7 premiers jours d'essai : tout ouvert, badge doré « Trial » ;
  *                'plus'  abonné : tout ouvert, badge doré « Plus ».
  * Fonctions Plus : l'écran Android Auto ('auto'), les icônes du curseur hors flèche / citadine / scooter ('icons'), l'analyse du
- * carnet ('stats' : km, conso réelle, €/100 km). Le reste est gratuit.
+ * carnet ('stats' : km, conso réelle, €/100 km), les thèmes perso clair / sombre ('themes'). Le reste est gratuit (dont la bascule automatique jour / nuit).
  * Codes bêta (Plus permanent, sans Google) : « 🎟️ J'ai un code » → l'empreinte SHA-256 du code est comparée à la liste BETA ci-dessous
  *   (les codes eux-mêmes ne sont pas dans le dépôt : .plus-archive/codes-beta.txt). Retirer une empreinte = révoquer le code.
  * Mode test (pour voir les voiles sans abonnement) : toucher 5 fois le numéro de version en haut → Gratuit / Trial / Plus / normal.
@@ -55,6 +55,7 @@
     auto: '🚗 FuelMap sur l\'écran de la voiture (Android Auto) fait partie de FuelMap Plus.',
     icons: '🏎️ Ce curseur fait partie de FuelMap Plus (la flèche, la citadine et le scooter restent gratuits).',
     stats: '📈 L\'analyse du carnet (consommation réelle, €/100 km, kilomètres) fait partie de FuelMap Plus.',
+    themes: '🎨 Les thèmes perso (tes couleurs, en clair et en sombre) font partie de FuelMap Plus.',
     promo: '⭐ Passe à FuelMap Plus : 7 jours d\'essai gratuit.'
   };
   function paywall(show, why) {
@@ -134,7 +135,7 @@
     var el = $('plusCard'); if (!el) return; var s = status();
     el.hidden = s === 'off'; if (s === 'off') return;
     el.className = 'pcard ' + s;
-    el.innerHTML = s === 'free' ? '<div class="ph"><span class="pbadge">Plus</span><b>FuelMap Plus</b></div><p>L\'écran de la voiture (Android Auto), 12 curseurs de plus et l\'analyse du carnet. <b>7 jours d\'essai gratuit.</b></p><button class="primary" data-plusopen="promo">Découvrir FuelMap Plus</button>'
+    el.innerHTML = s === 'free' ? '<div class="ph"><span class="pbadge">Plus</span><b>FuelMap Plus</b></div><p>L\'écran de la voiture (Android Auto), 12 curseurs de plus, tes thèmes perso et l\'analyse du carnet. <b>7 jours d\'essai gratuit.</b></p><button class="primary" data-plusopen="promo">Découvrir FuelMap Plus</button>'
       : s === 'trial' ? '<div class="ph"><span class="pbadge">Trial</span><b>Essai FuelMap Plus</b></div><p>Tout est débloqué pendant encore <b>' + trialDays() + ' jour' + (trialDays() > 1 ? 's' : '') + '</b>. L\'abonnement continue ensuite, sauf résiliation dans le Play Store.</p><button class="secondary" id="plusManage">Gérer l\'abonnement</button>'
         : beta() ? '<div class="ph"><span class="pbadge">Plus</span><b>FuelMap Plus · bêta-testeur</b></div><p>Accès offert, sans limite de durée. Merci de tester FuelMap !</p>'
         : '<div class="ph"><span class="pbadge">Plus</span><b>FuelMap Plus</b></div><p>Merci ! Tout est débloqué.</p><button class="secondary" id="plusManage">Gérer l\'abonnement</button>';
