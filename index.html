@@ -198,6 +198,8 @@
       <div class="field"><label>⛽ 2 · Carburant <a href="#" data-help="fuels" style="color:var(--accent);font-weight:700">ℹ️ lequel choisir ?</a></label><div id="obFuel" class="chips wrap ob-fuels"></div></div>
       <div class="field"><label for="obTank">🛢️ 3 · Capacité du réservoir (litres)</label><input id="obTank" type="number" min="5" max="200" step="1" required inputmode="decimal" placeholder="ex. 45"></div>
       <div class="field"><label for="obCons">📊 4 · Consommation (L/100 km)</label><input id="obCons" type="number" min="1" max="40" step="0.1" required inputmode="decimal" placeholder="ex. 7,5"></div>
+      <div class="field" id="obBk" hidden><label>💾 5 · Dossier de sauvegarde <small style="font-weight:400;color:var(--muted)">(conseillé)</small></label>
+        <p class="hint" id="obBkInfo" style="margin:2px 0 8px"></p><button type="button" id="obBkPick" class="secondary">📁 Choisir le dossier</button></div>
       <p class="hint" id="obErr" style="color:var(--bad)" hidden></p>
       <button type="submit" class="primary">🗺️ Afficher la carte</button>
       <p class="hint">Tu pourras ajouter d'autres véhicules ensuite. Tes véhicules restent sur ton appareil.</p>

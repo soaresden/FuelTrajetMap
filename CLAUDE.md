@@ -36,7 +36,7 @@ apk/android/app/src/main/java/fr/soaresden/fuelmap/
 ## Règles non négociables
 
 - **versionCode jamais réutilisé** : le Play Console grille un code dès qu'un AAB est téléversé, même en brouillon.
-  Dernier utilisé : **55 (1.6.7)**. Chaque livraison = code +1 ET bump de `versionName` dans `apk/android/app/build.gradle`,
+  Dernier utilisé : **56 (1.6.8)**. Chaque livraison = code +1 ET bump de `versionName` dans `apk/android/app/build.gradle`,
   de `version` dans `js/config.js`, et du nom de cache dans `sw.js`. Les trois ensemble, toujours.
 - Chaque livraison fournit : l'**AAB** (Play, signé avec la clé d'upload) et un commit. **Plus d'APK** : depuis la 1.5.9 Denis
   installe uniquement via le Play Store (tests internes). Les `*.apk`/`*.aab` sont ignorés par git ; ils vivent dans `apk/`.
@@ -246,7 +246,8 @@ Le README décrit la publication.
 1d. FAIT en 1.6.3 (à valider sur le téléphone / dans la voiture) : carnet dans 🚗 Ma voiture (3 derniers pleins, « ➕ J'ai fait le plein » =
    station la plus proche < 2 km) ; dossier de sauvegarde (Véhicules › 💾 : « FuelMap-sauvegarde.json », remis à jour 4 s après chaque
    changement et quand l'appli passe en arrière-plan ; restaurer depuis le dossier ou un fichier ; « J'ai déjà FuelMap : restaurer » à
-   l'accueil ; navigateur = exporter / importer) ; bloc-notes (`state.notes`, bouton 📝 de l'hôte, liste dans Véhicules ; 5 styles : défaut `state.noteStyle`, ou par note `note.style`
+   l'accueil ; depuis la 1.6.8 l'accueil a une étape « 💾 5 · Dossier de sauvegarde » (conseillée, facultative, appli Android seulement :
+   `#obBk`, `renderObBackup`) — si le dossier contient déjà une sauvegarde, proposition de la restaurer ; navigateur = exporter / importer) ; bloc-notes (`state.notes`, bouton 📝 de l'hôte, liste dans Véhicules ; 5 styles : défaut `state.noteStyle`, ou par note `note.style`
    via 🎨 (post-it : couleur au choix, `note.color`) ; simple, bloc-notes ligné, post-it, cahier 24×32 Seyès, petits carreaux ; traits en filigrane, texte posé sur les lignes grâce
    à `--bl` mesuré dans chaque note, car le pied des lettres dépend de la police du téléphone) :
    à la voix toujours ; au clavier SEULEMENT à l'arrêt dans la voiture (règles Android Auto : pas de saisie en roulant, risque de refus

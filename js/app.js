@@ -1203,7 +1203,14 @@
     try { localStorage.setItem(STORE_KEY, JSON.stringify(st)); } catch (e) { toast('⚠️ Restauration impossible'); return; }
     toast('♻️ Sauvegarde restaurée'); setTimeout(function () { location.reload(); }, 700);
   }
+  function renderObBackup() { // accueil, étape 5 : où FuelMap gardera sa copie (appli Android seulement)
+    var box = $('obBk'); if (!box) return; box.hidden = !BK(); if (box.hidden) return;
+    $('obBkInfo').textContent = backupFolder ? '✅ « ' + backupFolder + ' » : FuelMap y gardera une copie de tes véhicules, pleins, notes et réglages, remise à jour toute seule.'
+      : 'Choisis un dossier du téléphone (par exemple Documents/FuelMap, crée-le au besoin) : FuelMap y gardera une copie de tes données. Rien ne part chez Google. Tu pourras aussi le faire plus tard (Véhicules › 💾).';
+    $('obBkPick').textContent = backupFolder ? '📁 Changer de dossier' : '📁 Choisir le dossier';
+  }
   function renderBackup() {
+    renderObBackup();
     var P = BK(), info = $('backupInfo'), btns = $('backupBtns'); if (!info) return;
     if (!P) { // navigateur : fichier à exporter / importer
       info.textContent = 'Tes données restent dans ce navigateur. Garde une copie : exporte le fichier de sauvegarde, et réimporte-le sur un autre appareil.';
@@ -1234,6 +1241,14 @@
     else if (a === 'import') $('backupFile').click();
   });
   $('backupFile').addEventListener('change', function () { var f = this.files && this.files[0]; this.value = ''; if (!f) return; var r = new FileReader(); r.onload = function () { restoreFrom(String(r.result), true); }; r.readAsText(f); });
+  $('obBkPick').addEventListener('click', function () { // accueil : choisir le dossier avant même d'avoir un véhicule
+    var P = BK(); if (!P) return;
+    P.pickFolder().then(function (r) {
+      backupFolder = r.folder; renderBackup();
+      if (r.hasBackup && window.confirm('Ce dossier contient déjà une sauvegarde FuelMap. La restaurer (véhicules, pleins, notes, réglages) ?')) P.read().then(function (x) { restoreFrom(x.data, false); });
+      else toast('💾 Sauvegarde dans « ' + r.folder + ' » dès que ton véhicule est enregistré');
+    }).catch(function (e) { if (!/Aucun dossier/.test(e.message || '')) toast('⚠️ ' + e.message); });
+  });
   $('obRestore').addEventListener('click', function () { if (BK()) pickFolder(true); else $('backupFile').click(); }); // premier démarrage : « nouveau » (le formulaire) ou restaurer
   if (BK()) BK().info().then(function (r) { backupFolder = r.folder; renderBackup(); }).catch(renderBackup); else renderBackup();
   document.addEventListener('visibilitychange', function () { if (document.hidden && backupFolder) backupNow(true); }); // l'appli passe en arrière-plan : copie à jour
@@ -1241,7 +1256,7 @@
   // ------------------------------------------------------------------ premier lancement : véhicule obligatoire
   var obFuel = null;
   function showOnboarding() {
-    $('onboard').hidden = false;
+    $('onboard').hidden = false; renderObBackup();
     $('obFuel').innerHTML = FUELS.map(function (f) { return '<button type="button" class="chip" data-f="' + f.key + '">' + f.label + '</button>'; }).join('');
   }
   $('obFuel').addEventListener('click', function (e) {
