@@ -6,6 +6,8 @@
  *                'plus'  abonné : tout ouvert, badge doré « Plus ».
  * Fonctions Plus : l'écran Android Auto ('auto'), les icônes du curseur hors flèche / citadine / scooter ('icons'), l'analyse du
  * carnet ('stats' : km, conso réelle, €/100 km). Le reste est gratuit.
+ * Codes bêta (Plus permanent, sans Google) : « 🎟️ J'ai un code » → l'empreinte SHA-256 du code est comparée à la liste BETA ci-dessous
+ *   (les codes eux-mêmes ne sont pas dans le dépôt : .plus-archive/codes-beta.txt). Retirer une empreinte = révoquer le code.
  * Mode test (pour voir les voiles sans abonnement) : toucher 5 fois le numéro de version en haut → Gratuit / Trial / Plus / normal.
  * L'état est recopié pour l'écran voiture (localStorage « fuelmap-plus ») et pour Android Auto côté Android (Preferences « license »).
  */
@@ -20,12 +22,15 @@
   var ls = function (k, v) { try { if (v === undefined) return localStorage.getItem(k); if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { } return null; };
   var carScreen = /[?&]aa=1/.test(location.search);
 
+  var BETA = ["cc9a391ab695f6cb2e22cf825df697c0c11b5b356c7cfd9d5ec8378ae16dde20", "094ff7db804b916b0757d4bc9e69292c87e8e75bd0b139397b0f3f9fbfab02de", "ff31613e79bbbb4b89896c44072dd650c08ef13b6f0a2b26b5ce47189667f050", "90fa952ca1f3aa22973c9273fe9e142ad7aa4a11e10192b5de4dc49c6ed68d62", "dd798bdd87a0765df69054f56bc26fb6f172c4ad50bbd3d2c346bc64e17412ca", "bbf091acb1386e77904b367fc16b679708b4bfd85ae9f6a8a8085e205164b5f2", "c82080c317391bb4bc40c02f7f53cc749a8f1fa61e637f4db8da005ed34d8142", "31dd172652c0125650f4519c9ad615191e3bb1ebf16166a71fc66633e49845b4", "063501d3d7d84801c97099408c8dd971885bae7346fecfd9359db26736f4d57d", "841f01b3382cb055d768dd73377084a44fa8c5bbf490cf5302d0d84ec6a572dc", "e0b02201e73d726e3645ca99d4de6025ac65a83d735265f05f2aa5f2d2565955", "834e2b09be0cc616f9a01913431331fa9c470cac57a0fb63fa71583375fd5853", "15a4936812b3658a288ea1f1abd98261a884f7f74b351b72e8d51a2d90c53dc9", "9fff094cbfa16846ac964c6f19b3411616fd822514ec58063fc5f5f822f15e6d", "7c5707feb2d3bf374c635f877626a230b1f62834b57e512b382de6bda30631bf", "5ec0662a851711abfb98a8ea89069adba032e05e0b2ddbdff7263c2c8f2446bc", "de1a916c6830c613a2939cf0a1d12574be352c04f03a8aabc67b3ecf38c81681", "25a7d69418c81e7e0a894f157fdd00ffb362bd8d0fe7b80e43dca92c7c444e81", "869a5aa91841061acefb8ea1deb8f941a99e41fd18c7bec2ba782435e53b2222", "288fb1403873b8b86d78d65388ab1558bd7740ea878dcbfc81603a9a10df3682", "e1b5b7fda88bbfd141cad8142061d50bae6b4ee6c2fd8ae9540913527800f315", "4f32233adf67715c03ee2db1e6ba170cae7b006f1e2228008aea40f4af1c69b5", "2343316ecae36ecae57ed1d77e3f3137d1fb9ab665ed3db1cf51f3bd67ba4c12", "17af30505ff51c77155f2c67d0bac8b645ac95c9dcc669f3bf433df2c82a2d74", "9229da0e370e127b536de3872eb21fd0ceeeeacc3936dc9587a5a6aa4ea45d0d", "54d0ed6d1199cdbfbb602eb56a6d0ef682f10c94e2afd7bbc437bc23ee3cd4cc", "a836fc049aa2578815d83434a0751695345ba07a427d02c4622e4b8ef99e268b", "d78ecae44def44f43803521d3631eb675ffefcc070d615f5375962eca2c9c904", "aaaf19aeae668842a201aff65ad186a9260f71904bbc647afebe288af9c4edca", "3c1a32e27658a10c395d7cd6727021ccfa327d96696ad55c0854cbc5437cb6d9"];
+  function beta() { return BETA.indexOf(ls('fuelmap-beta')) >= 0; } // code bêta accepté sur ce téléphone
   function testMode() { var t = ls('fuelmap-plustest'); return t === 'free' || t === 'trial' || t === 'plus' ? t : null; }
   function trialStart() { return +ls('fuelmap-trialstart') || 0; }
   function status() {
     var t = testMode(); if (t) return t;
     if (carScreen) { try { var s = JSON.parse(ls('fuelmap-plus') || 'null'); if (s && s.status) return s.status; } catch (e) { } return 'off'; } // la page de la voiture lit ce que le téléphone a écrit
     if (!isApp || !PLUS_ON) return 'off';
+    if (beta()) return 'plus';
     if (!owned) return 'free';
     return trialStart() && Date.now() - trialStart() < TRIAL_MS ? 'trial' : 'plus';
   }
@@ -107,9 +112,22 @@
     if (e.target.closest('[data-plusopen]')) { paywall(true, e.target.closest('[data-plusopen]').getAttribute('data-plusopen')); return; }
     if (e.target.closest('#plusRestore')) { if (store) store.restorePurchases().then(function () { refresh(); if (!owned) toast('Aucun abonnement trouvé pour ce compte Google'); }); return; }
     if (e.target.closest('#plusManage')) { if (store) store.manageSubscriptions(CdvPurchase.Platform.GOOGLE_PLAY); return; }
-    if (e.target.closest('#plusCode')) { try { window.open('https://play.google.com/redeem', '_system'); } catch (err) { } return; } // codes promo de la Play Console
+    if (e.target.closest('#plusCode')) { var cb = $('plusCodeBox'); cb.hidden = !cb.hidden; if (!cb.hidden) $('plusCodeIn').focus(); return; }
+    if (e.target.closest('#plusCodeOk')) { checkCode($('plusCodeIn').value); return; }
     if (e.target.closest('#plusClose') || e.target.closest('#plusLater') || e.target.id === 'plus') { pending = null; paywall(false); return; }
   });
+
+  // ---------------------------------------------------------------- codes : bêta FuelMap (permanent) ou, sinon, code promo Google Play
+  function norm(c) { var n = String(c || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); return /^FM[A-Z0-9]{12}$/.test(n) ? n.slice(2) : n; }
+  function sha256(t) { return crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)).then(function (b) { return Array.prototype.map.call(new Uint8Array(b), function (x) { return ('0' + x.toString(16)).slice(-2); }).join(''); }); }
+  function checkCode(raw) {
+    var n = norm(raw); if (n.length < 8) { toast('Code trop court'); return; }
+    sha256('fuelmap-beta:' + n).then(function (h) {
+      if (BETA.indexOf(h) >= 0) { ls('fuelmap-beta', h); $('plusCodeIn').value = ''; $('plusCodeBox').hidden = true; paywall(false); publish(); toast('🎉 Code accepté : FuelMap Plus est débloqué, merci de tester !'); if (pending) { var fn = pending; pending = null; fn(); } return; }
+      toast('Code inconnu de FuelMap : on essaie sur Google Play'); try { window.open('https://play.google.com/redeem?code=' + encodeURIComponent(n), '_system'); } catch (e) { }
+    }).catch(function () { toast('Vérification du code impossible sur cet appareil'); });
+  }
+  document.addEventListener('keydown', function (e) { if (e.key === 'Enter' && e.target && e.target.id === 'plusCodeIn') { e.preventDefault(); checkCode(e.target.value); } });
 
   // ---------------------------------------------------------------- carte « FuelMap Plus » (onglet Véhicules)
   function renderCard() {
@@ -118,6 +136,7 @@
     el.className = 'pcard ' + s;
     el.innerHTML = s === 'free' ? '<div class="ph"><span class="pbadge">Plus</span><b>FuelMap Plus</b></div><p>L\'écran de la voiture (Android Auto), 12 curseurs de plus et l\'analyse du carnet. <b>7 jours d\'essai gratuit.</b></p><button class="primary" data-plusopen="promo">Découvrir FuelMap Plus</button>'
       : s === 'trial' ? '<div class="ph"><span class="pbadge">Trial</span><b>Essai FuelMap Plus</b></div><p>Tout est débloqué pendant encore <b>' + trialDays() + ' jour' + (trialDays() > 1 ? 's' : '') + '</b>. L\'abonnement continue ensuite, sauf résiliation dans le Play Store.</p><button class="secondary" id="plusManage">Gérer l\'abonnement</button>'
+        : beta() ? '<div class="ph"><span class="pbadge">Plus</span><b>FuelMap Plus · bêta-testeur</b></div><p>Accès offert, sans limite de durée. Merci de tester FuelMap !</p>'
         : '<div class="ph"><span class="pbadge">Plus</span><b>FuelMap Plus</b></div><p>Merci ! Tout est débloqué.</p><button class="secondary" id="plusManage">Gérer l\'abonnement</button>';
   }
 

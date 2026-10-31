@@ -102,8 +102,8 @@ portrait et paysage mélangés. Ordre retenu : 1 `tel-1-carte`, 2 `voiture-1-car
 **Classification du contenu** (questionnaire IARC) : catégorie « Toutes les autres applications » ; violence, sexualité,
 langage, substances, jeux d'argent : Non partout. « Les utilisateurs peuvent-ils interagir ou échanger du contenu ? » : Non.
 « Contenu en ligne » : Oui (prix, fond de carte, photos Wikimedia de « Trouver ma couleur »). « L'application partage-t-elle la
-position de l'utilisateur avec d'autres utilisateurs ? » : Non. **Achats d'articles numériques : Non** (sinon « Achats in-app »
-apparaît partout et le Brésil passe à 14 ans). → résultat attendu : PEGI 3 / Tout public, sans élément interactif.
+position de l'utilisateur avec d'autres utilisateurs ? » : Non. **Achats d'articles numériques : OUI depuis la 1.7.1** (abonnement FuelMap Plus ;
+« Achats in-app » apparaît alors dans la classification, c'est normal). → résultat attendu : PEGI 3 / Tout public, sans élément interactif.
 
 **Public cible** : 16-17 ans et 18 ans et plus (conduite accompagnée, permis B dès 17 ans). Pas de moins de 13 ans : les
 règles « Familles » ne s'appliquent pas. « L'application pourrait-elle attirer involontairement des enfants ? » : Non.
@@ -159,17 +159,16 @@ Si la revue refuse la catégorie navigation, repli possible en « points d'inté
 
 ## 5. Version (Tests → Test interne, puis Production)
 
-AAB : `apk/FuelMap-1.7.0.aab` (versionCode 58). **Nom de la version** : `1.7.0`
+AAB : `apk/FuelMap-1.7.1.aab` (versionCode 59). **Nom de la version** : `1.7.1`
 
 **Notes de version** (500 max) :
 
 ```
 <fr-FR>
-• Guidage : choisis ton curseur (citadine, scooter, décapotable, formule 1, fusée…) à la couleur de ta voiture
-• Thèmes : GéMap et Wéyze en clair et en sombre (14 thèmes)
-• Lieux : maison, travail et lieux favoris en un toucher
-• Voiture : bouton Notes, colonne fixe à gauche pendant le guidage
-• Correctifs : la fiche du véhicule ne perd plus les réglages faits dans la voiture
+• Nouveau : FuelMap Plus, avec 7 jours d'essai gratuit : la carte et le guidage sur l'écran de la voiture, 12 curseurs en plus, l'analyse du carnet
+• La carte des prix, le trajet optimisé, Proximité, le carnet et les notes restent gratuits
+• Bêta-testeurs : saisis ton code dans FuelMap Plus › « J'ai un code »
+• Curseurs de guidage, thèmes GéMap et Wéyze clair / sombre, lieux maison et travail
 </fr-FR>
 ```
 

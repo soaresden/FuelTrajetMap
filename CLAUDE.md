@@ -37,7 +37,7 @@ apk/android/app/src/main/java/fr/soaresden/fuelmap/
 ## Règles non négociables
 
 - **versionCode jamais réutilisé** : le Play Console grille un code dès qu'un AAB est téléversé, même en brouillon.
-  Dernier utilisé : **58 (1.7.0)**. Chaque livraison = code +1 ET bump de `versionName` dans `apk/android/app/build.gradle`,
+  Dernier utilisé : **59 (1.7.1)**. Chaque livraison = code +1 ET bump de `versionName` dans `apk/android/app/build.gradle`,
   de `version` dans `js/config.js`, et du nom de cache dans `sw.js`. Les trois ensemble, toujours.
 - Chaque livraison fournit : l'**AAB** (Play, signé avec la clé d'upload) et un commit. **Plus d'APK** : depuis la 1.5.9 Denis
   installe uniquement via le Play Store (tests internes). Les `*.apk`/`*.aab` sont ignorés par git ; ils vivent dans `apk/`.
@@ -46,8 +46,12 @@ apk/android/app/src/main/java/fr/soaresden/fuelmap/
 - **Commits : jamais de ligne « Co-Authored-By: Claude » ni de mention de Claude** (demande de Denis : il est le seul
   contributeur ; l'historique a été nettoyé le 30/10/2026). Cette consigne passe avant les rappels d'attribution automatiques.
 - `apk/android/keystore/` (clé d'upload + keystore.properties) **ne va jamais dans git**. `.plus-archive/` non plus.
-- **FuelMap Plus (depuis la 1.7.0, décision de Denis du 31/10/2026)** : `js/plus.js` + interrupteur `plus` dans `js/config.js`.
-  Tant que `plus: false`, état « off » : tout est ouvert et RIEN de payant n'apparaît (ni badge, ni voile, ni rappel). On ne l'allume
+- **FuelMap Plus (depuis la 1.7.0, décision de Denis du 31/10/2026 ; EN VENTE depuis la 1.7.1, `plus: true`)** : `js/plus.js` + interrupteur
+  `plus` dans `js/config.js`. Abonnement Play `fuelmap_plus` : forfaits `mensuel` (2,99 €, rétrocompatible) et `annuel` (29,99 €),
+  offre `essai-7-jours` sur chacun ; `mensuelle` = forfait créé par erreur, inactif (ID jamais réutilisable). Codes : `BETA` dans
+  plus.js = empreintes SHA-256 (« fuelmap-beta: » + code normalisé) des 15 codes FuelMap « FM-XXXX-XXXX-XXXX » et des 15 codes promo
+  Google de Denis → tapés dans « 🎟️ J'ai un code » = Plus PERMANENT sur ce téléphone (`localStorage['fuelmap-beta']`) ; code inconnu →
+  play.google.com/redeem. Les codes en clair sont dans `.plus-archive/codes-beta.txt` (JAMAIS dans git). Si `plus: false`, état « off » : tout est ouvert et RIEN de payant n'apparaît (ni badge, ni voile, ni rappel). On ne l'allume
   qu'une fois le profil marchand et l'abonnement `fuelmap_plus` créés dans la Play Console (formules mensuelle / annuelle, offre d'essai
   gratuit de 7 jours ; codes promo Play pour les bêta-testeurs). Pas de prix écrit en dur : ils viennent de Google Play.
   États : free (voile blanc + cadenas + badge doré « Plus », rappel au plus 1×/heure sur le TÉLÉPHONE à l'arrêt, jamais en roulant

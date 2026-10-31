@@ -782,3 +782,7 @@ html.wide #plus .sheet, html.wide #update .sheet { border-radius: 18px; }
 .cpl { width: min(520px, 90vw); text-align: center; padding: 22px 26px; border-radius: 22px; background: var(--panel); border: 2px solid #d9a520; box-shadow: 0 20px 60px rgba(0,0,0,.6); }
 .cpl .cplpad { font-size: 54px; line-height: 1; margin-bottom: 6px; } .cpl h2 { margin: 10px 0 6px; font-size: 26px; } .cpl p { margin: 6px 0 14px; font-size: 17px; line-height: 1.4; color: var(--text); }
 .cpl .cbig { width: 100%; background: linear-gradient(135deg, #f5cf55, #d9a520 60%, #b9860f); color: #2b1d00; } .cpl .cplsub { font-size: 14px; color: var(--muted); margin: 10px 0 0; }
+/* saisie d'un code (bêta-testeur ou Google Play) dans l'écran FuelMap Plus */
+.pcodebox { display: flex; gap: 8px; margin-top: 10px; } .pcodebox[hidden] { display: none; }
+.pcodebox input { flex: 1; min-width: 0; height: 42px; padding: 0 12px; border-radius: 10px; border: 1px solid #d9a520; background: var(--panel2); color: var(--text); font: 600 15px/1 ui-monospace, Consolas, monospace; letter-spacing: .5px; text-transform: uppercase; }
+.pcodebox button { flex: 0 0 auto; width: auto; padding: 0 16px; }
