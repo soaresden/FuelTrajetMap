@@ -12,7 +12,7 @@
   function ready() { A = A || window.__fuelmapAPI; F = F || window.__fuelmap; return !!(A && F); }
   function st() { var s = A.state; if (!s.fillups) s.fillups = []; return s; }
   function esc(x) { return A.esc(String(x == null ? '' : x)); }
-  function fuelName(fi) { return A.FUELS[fi].label; }
+  function fuelName(fi) { var f = A.FUELS[fi]; return f ? f.label : ''; } // plein venu d'une vieille sauvegarde : jamais d'erreur
   function amountText(digits) { return (digits || '0').replace('.', ',') + ' €'; }
 
   // ---- détection : à l'arrêt, tout près d'une station
@@ -122,7 +122,7 @@
       var d = new Date(x.ts), when = d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }) + ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
       var prev = list[i + 1], gap = prev ? Math.round((x.ts - prev.ts) / 86400000) : null;
       return '<div class="fl-row"><div class="fl-l"><b>' + esc(x.name) + '</b><small>' + esc(when) + (x.carName ? ' · ' + esc(x.carName) : '') + (x.km ? ' · ' + A.num(x.km) + ' km' : '') + (x._km ? ' · <b>' + A.num(x._km) + ' km</b> en ' + gap + ' j · <b>' + A.num(x._cons, 1) + ' L/100</b>' : gap != null ? ' · ' + gap + ' j après le précédent' : '') + '</small></div>' +
-        '<div class="fl-r"><b>' + A.num(x.paid) + ' €</b><small>' + (x.liters ? A.num(x.liters, 1) + ' L · ' : '') + fuelName(x.fi) + ' ' + A.price3(x.price) + '</small></div><button class="fl-del" data-fill-del="' + x.ts + '" title="Supprimer">🗑️</button></div>';
+        '<div class="fl-r"><b>' + A.num(x.paid) + ' €</b><small>' + (x.liters ? A.num(x.liters, 1) + ' L · ' : '') + fuelName(x.fi != null ? x.fi : A.FUEL_INDEX[x.fuel]) + ' ' + A.price3(x.price) + '</small></div><button class="fl-del" data-fill-del="' + x.ts + '" title="Supprimer">🗑️</button></div>';
     }).join('');
     el.innerHTML = h;
   }

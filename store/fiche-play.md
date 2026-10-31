@@ -100,8 +100,9 @@ acceptées parmi les captures téléphone, et c'est ce qui montre Android Auto s
 
 **Classification du contenu** (questionnaire IARC) : catégorie « Toutes les autres applications » ; violence, sexualité,
 langage, substances, jeux d'argent : Non partout. « Les utilisateurs peuvent-ils interagir ou échanger du contenu ? » : Non.
-« L'application partage-t-elle la position de l'utilisateur avec d'autres utilisateurs ? » : Non. Achats numériques : Non.
-→ résultat attendu : PEGI 3 / Tout public.
+« Contenu en ligne » : Oui (prix, fond de carte, photos Wikimedia de « Trouver ma couleur »). « L'application partage-t-elle la
+position de l'utilisateur avec d'autres utilisateurs ? » : Non. **Achats d'articles numériques : Non** (sinon « Achats in-app »
+apparaît partout et le Brésil passe à 14 ans). → résultat attendu : PEGI 3 / Tout public, sans élément interactif.
 
 **Public cible** : 18 ans et plus (application pour conducteurs). Ça évite les règles « Familles ».
 

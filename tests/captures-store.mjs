@@ -33,7 +33,7 @@ const ETAT = {
   notes: [{ ts: now - H, text: 'Rappeler le garage demain 9 h', place: 'Tours', style: 'postit', color: '#fff59d' },
     { ts: now - D, text: 'Code portail : voir avec Paul', place: 'Angers', style: 'seyes' },
     { ts: now - 2 * D, text: 'Pneus à regonfler avant les vacances', place: '', style: 'lined' }],
-  fillups: [{ ts: now - 5 * D, name: 'TotalEnergies Tours', paid: 62.4, liters: 31.2, fuel: 'e10', car: 'c1', price: 2.0 }]
+  fillups: [{ ts: now - 5 * D, name: 'TotalEnergies Tours', paid: 62.4, liters: 31.2, fuel: 'e10', fi: 2, car: 'c1', price: 2.0 }]
 };
 
 const browser = await chromium.launch({ channel: 'msedge' });
@@ -59,9 +59,11 @@ console.log('• Téléphone');
   await tab('route');
   await page.evaluate((n) => { __fuelmap.setPlace('from', { label: 'Tours', lat: 47.3941, lon: 0.6848 }); __fuelmap.setPlace('to', n); __fuelmap.compute(); }, NANTES);
   await page.waitForFunction(() => document.querySelector('#routeResult .summary'), null, { timeout: 60000 });
-  await page.evaluate(() => { document.getElementById('panel').classList.add('collapsed'); });
+  const handleTap = () => page.evaluate(() => { const h = document.getElementById('panelHandle'); ['pointerdown', 'pointerup'].forEach((t) => h.dispatchEvent(new PointerEvent(t, { clientY: 300, bubbles: true }))); });
+  await pause(1500); await handleTap(); // un toucher sur la poignée : panneau replié, la carte recadre le trajet
   await shot(page, 'tel-2-trajet-carte.jpg', 2500);
-  await page.evaluate(() => { const p = document.getElementById('panel'); p.classList.remove('collapsed'); const pb = document.getElementById('panelBody'); pb.scrollTop = document.getElementById('routeResult').offsetTop - 70; });
+  await handleTap();
+  await page.evaluate(() => { const pb = document.getElementById('panelBody'); pb.scrollTop = document.getElementById('routeResult').offsetTop - 70; });
   await shot(page, 'tel-3-trajet-arrets.jpg');
   await tab('near');
   await page.evaluate(() => { const pb = document.getElementById('panelBody'); pb.scrollTop = document.getElementById('nearList').offsetTop - 10; });
