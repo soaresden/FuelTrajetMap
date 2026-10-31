@@ -73,10 +73,10 @@ Les prix sont déclarés par les gérants : un écart avec la pompe reste possib
 | Image de présentation | `store/captures/banniere-1024x500.jpg` | 1024×500, JPEG ou PNG sans transparence |
 | Captures téléphone (2 à 8) | `store/captures/tel-*.jpg` (5) + `voiture-*.jpg` (6) | côtés 320 à 3 840 px, grand côté < 2 × petit |
 
-Ordre conseillé pour les 8 captures : tel-1 carte, voiture-1 carte, tel-3 trajet et arrêts, voiture-4 arrêts,
-voiture-5 guidage, voiture-2 fiche station, tel-4 proximité, tel-5 notes. Les captures voiture sont en 16:9 : elles sont
-acceptées parmi les captures téléphone, et c'est ce qui montre Android Auto sur la fiche.
-(Les captures « Android Automotive » de la Console concernent les voitures avec Android intégré, pas Android Auto : rien à y mettre.)
+Pas d'emplacement Android Auto dans la Console (seulement Android Automotive) : tout passe par les **8 captures téléphone**,
+portrait et paysage mélangés. Ordre retenu : 1 `tel-1-carte`, 2 `voiture-1-carte`, 3 `tel-2-trajet-carte`, 4 `voiture-4-arrets`,
+5 `voiture-5-guidage`, 6 `voiture-2-station`, 7 `tel-4-proximite`, 8 `tel-5-notes`. Pas de captures voiture dans les emplacements
+« tablette » (Google y attend l'appli sur tablette).
 
 **Coordonnées** : e-mail de contact (obligatoire, visible publiquement), site web `https://soaresden.github.io/FuelTrajetMap/`.
 
