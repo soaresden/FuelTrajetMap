@@ -230,7 +230,7 @@ l'étape est une **carte flottante** à gauche (`#carPane`, 330 px, hauteur selo
 - 1.7.8 : même contenu que la 1.7.7, première release du TEST FERMÉ (Play exige 12 testeurs pendant 14 jours avant la production).
   Testeurs : Google Group `fuelmapandroidfr@googlegroups.com` (rejoindre aussi par e-mail vide à `fuelmapandroidfr+subscribe@googlegroups.com`),
   lien Play https://play.google.com/apps/testing/fr.soaresden.fuelmap. Codes Plus envoyés tout seuls à chaque nouveau membre par un
-  Google Apps Script sur le compte de Denis (`.plus-archive/envoi-codes.gs`, feuille « Codes » importée de `.plus-archive/codes-testeurs.csv`,
+  Google Apps Script sur le compte de Denis (`.plus-archive/envoi-codes.gs`, feuille (onglet « fuelmap ») importée de `.plus-archive/codes-testeurs.csv`,
   toutes les 5 min). Plus de codes → il faut en générer de nouveaux (empreintes dans `BETA` de plus.js) et une nouvelle version.
 - 1.7.9 (premier vrai trajet de Denis en 1.7.7, photos) : BOGUE après 📝 Notes en guidage, 🧭 ramenait à « Réservoir » / « Arrêts » avec
   « Démarrer le guidage » alors que le guidage tournait → `startOf('route')` = 'stops' en guidage, et l'étape Arrêts en guidage montre
