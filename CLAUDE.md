@@ -39,7 +39,7 @@ apk/android/app/src/main/java/fr/soaresden/fuelmap/
 ## Règles non négociables
 
 - **versionCode jamais réutilisé** : le Play Console grille un code dès qu'un AAB est téléversé, même en brouillon.
-  Dernier utilisé : **61 (1.7.3)**. Chaque livraison = code +1 ET bump de `versionName` dans `apk/android/app/build.gradle`,
+  Dernier utilisé : **62 (1.7.4)**. Chaque livraison = code +1 ET bump de `versionName` dans `apk/android/app/build.gradle`,
   de `version` dans `js/config.js`, et du nom de cache dans `sw.js`. Les trois ensemble, toujours.
 - Chaque livraison fournit : l'**AAB** (Play, signé avec la clé d'upload) et un commit. **Plus d'APK** : depuis la 1.5.9 Denis
   installe uniquement via le Play Store (tests internes). Les `*.apk`/`*.aab` sont ignorés par git ; ils vivent dans `apk/`.
@@ -204,6 +204,12 @@ l'étape est une **carte flottante** à gauche (`#carPane`, 330 px, hauteur selo
   (fraction fixe par radar). Guidage : zones peintes rouge plein + bleu pointillé (`FuelSafety.paint`), bandeau `#carZone` 800 m avant,
   voix ~400 m avant. Hors guidage : radar devant soi (±25°, < 80 m de côté), bandeau + voix, sans dessin. Écran partagé
   (`html.cnav-narrow`, partie libre < 520 px) : compteur et zone passent à gauche, au-dessus de 2D / 3D.
+- 1.7.4 (demande de Denis) : la zone CLIGNOTE rouge ↔ bleu « comme un gyrophare » (toute la zone change de couleur toutes les 500 ms,
+  `lit` + setInterval dans safety.js ; bandeau `@keyframes cgyro`) ; texte et voix « Zone de radar » (plus « zone de danger »).
+  Suivi hors guidage : le bouton « ma position » de l'hôte → `trackOn()` : la carte suit la voiture (vue voiture = classe `crot`,
+  le grand carré tourné, que le guidage utilise aussi avec `carnav`) ; glisser la carte ou toucher une station → `trackOff()`.
+  Orientation `orient` 'cap' (sens de la marche en haut, défaut) / 'nord' (nord en haut, la flèche tourne), boutons N / Cap à côté
+  de 2D / 3D (`#carView`), mémorisée dans `localStorage['fuelmap-carorient']`, valable en guidage et en suivi.
 État et journalisation : `__fuelmapCar.state()/dump()`. Plein : question « tu viens de faire le plein ? » (fillup.js) à gauche.
 
 ## Téléphone

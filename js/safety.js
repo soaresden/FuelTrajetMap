@@ -7,7 +7,8 @@
  * Radars : data/radars.json (carte officielle radars.securite-routiere.gouv.fr, refaite par la GitHub Action).
  * En France, signaler l'emplacement d'un radar est interdit depuis 2012 : comme Waze ou Coyote, on n'annonce que des « zones de
  * danger » qui contiennent le radar quelque part (pas forcément au milieu) — 300 m en ville, 2 km sur route, 4 km sur autoroute.
- * Sur l'itinéraire du guidage, la zone est peinte sur la route en rouge et bleu ; hors guidage, seul le bandeau la signale.
+ * Sur l'itinéraire du guidage, la zone clignote sur la route en rouge et bleu (gyrophare) ; hors guidage, seul le bandeau la signale.
+ * Annonce : « Zone de radar » (choix de Denis).
  */
 (function () {
   'use strict';
@@ -79,13 +80,20 @@
     }
     return out;
   }
-  // rouge et bleu en alternance : un trait rouge plein, un trait bleu en pointillés par-dessus
+  // façon gyrophare : toute la zone passe du rouge au bleu et inversement, deux fois par seconde (liseré sombre dessous, pour la voir
+  // sur tous les fonds de carte)
+  var lit = [], blinkOn = false, blinkT = 0;
   function paint(layer, pts, cum, zones) {
     zones.forEach(function (z) {
       var p = slice(pts, cum, z.a, z.b); if (p.length < 2) return;
-      layer.addLayer(L.polyline(p, { color: '#e3262f', weight: 10, opacity: 1, lineCap: 'butt', interactive: false }));
-      layer.addLayer(L.polyline(p, { color: '#1e5bff', weight: 10, opacity: 1, lineCap: 'butt', dashArray: '16 16', interactive: false }));
+      layer.addLayer(L.polyline(p, { color: '#0b0f1a', weight: 14, opacity: .6, lineCap: 'butt', interactive: false }));
+      var l = L.polyline(p, { color: '#e3262f', weight: 10, opacity: 1, lineCap: 'butt', interactive: false }); layer.addLayer(l); lit.push(l);
     });
+    if (lit.length && !blinkT) blinkT = setInterval(function () {
+      lit = lit.filter(function (l) { return !!l._map; }); // zones d'un guidage terminé : oubliées
+      if (!lit.length) { clearInterval(blinkT); blinkT = 0; return; }
+      blinkOn = !blinkOn; lit.forEach(function (l) { l.setStyle({ color: blinkOn ? '#1e5bff' : '#e3262f' }); });
+    }, 500);
   }
 
   // ---- hors guidage : un radar devant soi (cône de ±25° autour du cap, à moins de 80 m de côté), dans la longueur de sa zone

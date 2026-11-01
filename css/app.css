@@ -363,7 +363,7 @@ html.wide #update .sheet { border-radius: 18px; }
 /* prix tout frais (≤ 2 h) : halo animé sur la carte, carte Proximité surlignée */
 .fresh-ring { position: absolute; left: 0; top: 0; width: 58px; height: 27px; margin: -13.5px 0 0 -29px; border-radius: 14px; border: 2px solid #39ff14; opacity: 0; animation: freshring 2.2s ease-out infinite; pointer-events: none; }
 html[data-carui] .fresh-ring { width: 74px; height: 32px; margin: -16px 0 0 -37px; border-radius: 16px; }
-html.carnav .fresh-ring { transform: rotate(calc(-1 * var(--nav-rot, 0deg))); }
+html.crot .fresh-ring { transform: rotate(calc(-1 * var(--nav-rot, 0deg))); }
 @keyframes freshring { 0% { transform: scale(.35); opacity: .95; } 70% { transform: scale(1.15); opacity: 0; } 100% { opacity: 0; } }
 .card.fresh { border-color: color-mix(in srgb, var(--accent) 60%, var(--line)); box-shadow: 0 0 0 0 rgba(57,255,20,.35); animation: freshcard 2.4s ease-out infinite; }
 @keyframes freshcard { 0% { box-shadow: 0 0 0 0 rgba(57,255,20,.35); } 60% { box-shadow: 0 0 0 8px rgba(57,255,20,0); } 100% { box-shadow: 0 0 0 0 rgba(57,255,20,0); } }
@@ -449,7 +449,7 @@ html[data-carui] #mapButtons, html[data-carui] #carBtn, html[data-carui] #themeB
 .cdot.c3 { background: var(--accent); } .cdot.c2 { background: #ffd60a; } .cdot.c1 { background: #ff8c42; } .cdot.c0 { background: var(--muted); } .cdot.c-1 { background: var(--bad); }
 .cmsg { margin: 8px 4px; font-size: 16px; line-height: 1.35; color: var(--muted); } .cmsg small { font-size: 13px; }
 .csel-marker { position: absolute; left: 0; top: 0; width: 84px; height: 40px; margin: -20px 0 0 -42px; border-radius: 20px; border: 4px solid var(--accent); box-shadow: 0 0 0 2px rgba(0,0,0,.6), 0 0 16px var(--accent); animation: cselPulse 1.6s ease-in-out infinite; pointer-events: none; }
-html.carnav .csel-marker { transform: rotate(calc(-1 * var(--nav-rot, 0deg))); }
+html.crot .csel-marker { transform: rotate(calc(-1 * var(--nav-rot, 0deg))); }
 @keyframes cselPulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } } /* clignote doucement, sans grossir */
 .cstop-marker { width: 30px; height: 30px; border-radius: 50%; background: var(--panel); border: 3px solid var(--accent); display: flex; align-items: center; justify-content: center; font-size: 15px; box-shadow: 0 0 0 2px rgba(0,0,0,.4); }
 /* bouton « N stations » (étape Carte) et bandeau du prochain arrêt (guidage) */
@@ -513,8 +513,8 @@ html[data-carui] .fs-pad { gap: 4px; } html[data-carui] .fs-pad button { height:
 .cguide-line { stroke: var(--accent); }
 
 /* ---- vue navigation (guidage) : carte orientée dans le sens de la marche, légèrement inclinée, la voiture au tiers bas */
-html[data-carui].carnav #map { left: var(--nav-x) !important; top: var(--nav-y) !important; right: auto !important; bottom: auto !important; width: var(--nav-s); height: var(--nav-s); transform-origin: 50% 50%; transform: perspective(1200px) rotateX(var(--nav-tilt, 32deg)) rotate(var(--nav-rot, 0deg)); transition: transform .5s linear; will-change: transform; }
-html[data-carui].carnav .leaflet-control-container { display: none; }
+html[data-carui].crot #map { left: var(--nav-x) !important; top: var(--nav-y) !important; right: auto !important; bottom: auto !important; width: var(--nav-s); height: var(--nav-s); transform-origin: 50% 50%; transform: perspective(1200px) rotateX(var(--nav-tilt, 32deg)) rotate(var(--nav-rot, 0deg)); transition: transform .5s linear; will-change: transform; }
+html[data-carui].crot .leaflet-control-container { display: none; }
 #carArrow { position: fixed; z-index: 702; width: 0; height: 0; pointer-events: none; }
 #carArrow[hidden] { display: none; }
 #carArrow::before { content: ''; position: absolute; left: -16px; top: -22px; border-left: 16px solid transparent; border-right: 16px solid transparent; border-bottom: 34px solid var(--car, var(--accent)); filter: drop-shadow(0 0 1px #fff) drop-shadow(0 0 1px #fff) drop-shadow(0 0 4px rgba(0,0,0,.8)); }
@@ -622,7 +622,7 @@ html[data-carui].carnav #carView { left: var(--navleft); }
 html[data-carui] #toast { top: calc(max(var(--stable-t), 78px) + 8px); bottom: auto; left: calc(var(--stable-l) + var(--rail) + (100vw - var(--stable-l) - var(--rail)) / 2); font-size: 16px; padding: 10px 16px; }
 .stat.stale { border-color: var(--warn); color: var(--warn); font-weight: 700; }
 /* guidage : la carte tourne, les prix sont redressés — le cadre du moins cher / plus cher aussi */
-html.carnav .pulse { transform: translate(-50%, -50%) rotate(calc(-1 * var(--nav-rot, 0deg))); }
+html.crot .pulse { transform: translate(-50%, -50%) rotate(calc(-1 * var(--nav-rot, 0deg))); }
 /* encart de guidage de la page (sans Android Auto) : la commune passe dessous */
 html[data-carui]:has(#carGuide:not([hidden])) #carTown { top: calc(var(--stable-t) + 112px); }
 /* écran étroit : la carte flottante ne remonte pas sous les boutons de l'hôte (en haut à droite) */
@@ -807,11 +807,11 @@ html.wide #plus .sheet, html.wide #update .sheet { border-radius: 18px; }
 #carSpeed .spd.over { border-color: #e3262f; background: #e3262f; } #carSpeed .spd.over b, #carSpeed .spd.over small { color: #fff; }
 #carSpeed .lim { width: 64px; height: 64px; border-radius: 50%; background: #fff; border: 8px solid #e3262f; box-sizing: border-box; box-shadow: var(--shadow); color: #111; font-size: 26px; font-weight: 900; display: flex; align-items: center; justify-content: center; font-variant-numeric: tabular-nums; letter-spacing: -1px; }
 #carSpeed .lim.l3 { font-size: 21px; }
-#carZone { position: fixed; z-index: 713; right: calc(var(--safe-r) + 10px); bottom: calc(var(--stable-b) + 96px); padding: 5px; border-radius: 16px; background: repeating-linear-gradient(135deg, #e3262f 0 12px, #1e5bff 12px 24px); box-shadow: var(--shadow); display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 150px; pointer-events: none; }
+#carZone { position: fixed; z-index: 713; right: calc(var(--safe-r) + 10px); bottom: calc(var(--stable-b) + 96px); padding: 5px; border-radius: 16px; background: #e3262f; box-shadow: var(--shadow); display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 150px; pointer-events: none; animation: cgyro 1s infinite; }
 #carZone[hidden] { display: none; }
 #carZone b, #carZone span { background: var(--panel); color: var(--text); padding: 2px 10px; border-radius: 9px; white-space: nowrap; }
 #carZone b { font-size: 16px; font-weight: 800; } #carZone span { font-size: 14px; font-weight: 700; }
-#carZone.in { animation: czone 1.2s ease-in-out infinite alternate; } @keyframes czone { to { filter: brightness(1.25); } }
+@keyframes cgyro { 0%, 49% { background: #e3262f; box-shadow: 0 0 18px 4px rgba(227, 38, 47, .75); } 50%, 100% { background: #1e5bff; box-shadow: 0 0 18px 4px rgba(30, 91, 255, .75); } } /* gyrophare : rouge / bleu, comme la zone sur la carte */
 html[data-carui].cspeed #carChip { max-width: calc(100vw - var(--cleft) - 60px - 180px - var(--safe-r)); }
 html[data-carui].carnav.cspeed { --navright: calc(var(--stable-r, 0px) + 8px + 170px); }
 html[data-carui].carnav #carRail { top: auto; bottom: calc(var(--stable-b) + 8px); transform: none; }
@@ -820,3 +820,7 @@ html[data-carui].carnav #carRail { top: auto; bottom: calc(var(--stable-b) + 8px
 html[data-carui].carnav.cnav-narrow.cspeed { --navright: calc(var(--stable-r, 0px) + 8px); }
 html[data-carui].carnav.cnav-narrow #carSpeed { right: auto; left: var(--navleft); bottom: calc(var(--stable-b) + 136px); } /* au-dessus de 2D / 3D, à gauche de la flèche */
 html[data-carui].carnav.cnav-narrow #carZone { right: auto; left: var(--navleft); bottom: calc(var(--stable-b) + 220px); }
+/* 1.7.4 : 2D / 3D + N / Cap ; en suivi hors guidage (crot sans carnav), le sélecteur se pose au-dessus du bouton du bas */
+#carView .vsep { width: 1px; align-self: stretch; margin: 6px 2px; background: var(--line); }
+html[data-carui].crot:not(.carnav) #carView { left: var(--cleft); bottom: calc(var(--stable-b) + 72px); }
+#carArrow { transition: transform .5s linear; }

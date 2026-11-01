@@ -182,16 +182,17 @@
       var cr = chip.getBoundingClientRect(), fr = favBox.getBoundingClientRect();
       if (cr.right > fr.left - 6 && cr.bottom > fr.top + 2 && cr.top < fr.bottom - 2) { document.documentElement.classList.add('cfavs-up'); renderChip(); }
     }
-    nextBox.hidden = viewBox.hidden = !(guide && step === 'guide');
+    nextBox.hidden = !(guide && step === 'guide'); viewBox.hidden = !(guide && step === 'guide') && !(track.on && !guide && !panelStep());
     // en haut à gauche : la commune, puis la taille de la zone affichée (largeur ↔, hauteur ↕), puis les favorites dessous
-    var sc = !nav.on && A.map ? viewSize() : '';
+    var sc = !rot() && A.map ? viewSize() : '';
     townBox.hidden = !(town.name || sc) || panelStep();
     townBox.innerHTML = (town.name ? '<b>📍 ' + A.esc(town.name) + '</b>' : '') + (sc ? '<small><i class="crect"></i>' + sc + '</small>' : '');
     if (!favBox.hidden) { // favorites juste sous la commune (colonne de gauche, stable, jamais sous les boutons de l'hôte)
       var tb = townBox.hidden ? null : townBox.getBoundingClientRect();
       favBox.style.top = Math.round((tb && tb.height ? tb.bottom : rail.getBoundingClientRect().top + 6) + 8) + 'px';
     }
-    viewBox.innerHTML = '<button data-view="2"' + (view3d ? '' : ' class="on"') + '>2D</button><button data-view="3"' + (view3d ? ' class="on"' : '') + '>3D</button>';
+    viewBox.innerHTML = '<button data-view="2"' + (view3d ? '' : ' class="on"') + '>2D</button><button data-view="3"' + (view3d ? ' class="on"' : '') + '>3D</button><i class="vsep"></i>' +
+      '<button data-orient="nord"' + (orient === 'nord' ? ' class="on"' : '') + '>N</button><button data-orient="cap"' + (orient === 'cap' ? ' class="on"' : '') + '>Cap</button>';
     var show = panelStep(); pane.classList.toggle('open', show);
     var wide = show && (step === 'setup' && !wheel || step === 'pick') && innerWidth >= 900; document.documentElement.classList.toggle('cpane-wide', wide); // Ma voiture : deux colonnes, tout tient sans défiler
     var pl = (nav.on ? Math.max(rail.getBoundingClientRect().right, 0) : rail.getBoundingClientRect().right) + 8; // carte flottante sous les boutons de l'hôte si elle atteint leur zone
@@ -387,7 +388,7 @@
     if (m && m !== mode) { mode = m; scrollKeep = 0; }
     if (st !== step) scrollKeep = 0;
     step = st; render();
-    if (nav.on) { navGeometry(); followCar(true); }
+    if (rot()) { navGeometry(); followCar(true); }
     log('voiture : ' + mode + ' › ' + step);
   }
   function startOf(m) { // où l'on arrive en touchant un bouton de la colonne
@@ -405,7 +406,7 @@
       else selMarker.setLatLng([s.lat, s.lon]);
     } catch (e) { }
     try { if (window.AndroidAuto && window.AndroidAuto.setTarget) { var k = A.pick(s, A.fuelsFor(A.car().fuel)); window.AndroidAuto.setTarget(s.lat, s.lon, plainName(s) + (k >= 0 ? ' · ' + A.price3(s.p[k]) + ' €' : '')); } } catch (e) { }
-    if (fly && !nav.on) { A.setFollow(false); var z = Math.max(A.map.getZoom(), 13); A.map.setView(shifted([s.lat, s.lon], z), z, { animate: false }); }
+    if (fly && !nav.on) { trackOff(); A.setFollow(false); var z = Math.max(A.map.getZoom(), 13); A.map.setView(shifted([s.lat, s.lon], z), z, { animate: false }); }
   }
   function pick(s) { // station touchée (ligne de liste ou pastille sur la carte)
     log('voiture : station choisie ' + s.id + ' ' + s.ville);
@@ -518,7 +519,7 @@
       if (window.FuelSafety) FuelSafety.load().then(function () {
         if (guide !== g || !guideLayer) return;
         g.zones = FuelSafety.routeZones(pts, cum, segInfo); FuelSafety.paint(guideLayer, pts, cum, g.zones);
-        log('voiture : ' + g.zones.length + ' zone(s) de danger sur l’itinéraire');
+        log('voiture : ' + g.zones.length + ' zone(s) de radar sur l’itinéraire');
       });
       A.setFollow(false); followCar(true);
       if (!g.spoken.start) {
@@ -534,11 +535,11 @@
     var z = null; (g.zones || []).some(function (q) { if (q.b > progM && q.a - 800 < progM) { z = q; return true; } return false; });
     if (!z) { showZone(null); return; }
     var inside = progM >= z.a, key = 'z' + Math.round(z.a);
-    if (!g.spoken[key] && z.a - progM < 420) { g.spoken[key] = 1; speak(inside ? 'Attention, zone de danger.' : 'Zone de danger dans ' + distSpeech(z.a - progM) + '.'); log('voiture : zone de danger à ' + Math.round(z.a - progM) + ' m'); }
+    if (!g.spoken[key] && z.a - progM < 420) { g.spoken[key] = 1; speak(inside ? 'Attention, zone de radar.' : 'Zone de radar dans ' + distSpeech(z.a - progM) + '.'); log('voiture : zone de radar à ' + Math.round(z.a - progM) + ' m'); }
     showZone(inside ? 'encore ' + distText(z.b - progM) : 'dans ' + distText(z.a - progM), inside);
   }
   function showZone(sub, inside) {
-    var html = sub ? '<b>⚠️ Zone de danger</b><span>' + sub + '</span>' : '';
+    var html = sub ? '<b>⚠️ Zone de radar</b><span>' + sub + '</span>' : '';
     if (zoneBox._h === html) return; zoneBox._h = html;
     zoneBox.hidden = !sub; zoneBox.innerHTML = html; zoneBox.classList.toggle('in', !!inside);
   }
@@ -560,7 +561,7 @@
     if (guide) return; // en guidage : zones de l'itinéraire (zoneGuide)
     if (!S.ready()) { S.load(); return; }
     var z = kmh != null && kmh > 15 ? S.freeZone(f, hd, l.motorway, lv) : null;
-    if (z && (!spdState.said[z.id] || now - spdState.said[z.id] > 10 * 60000)) { spdState.said[z.id] = now; speak('Attention, zone de danger.'); log('voiture : zone de danger (hors guidage)'); }
+    if (z && (!spdState.said[z.id] || now - spdState.said[z.id] > 10 * 60000)) { spdState.said[z.id] = now; speak('Attention, zone de radar.'); log('voiture : zone de radar (hors guidage)'); }
     showZone(z ? 'encore ' + distText(z.left) : null, true);
   }
 
@@ -686,10 +687,17 @@
   }
   // vue du guidage : 3D = carte inclinée (on voit loin devant), 2D = à plat ; toujours tournée dans le sens de la marche. Choix mémorisé.
   var view3d = true; try { view3d = localStorage.getItem('fuelmap-car3d') !== '0'; } catch (e) { }
+  // Orientation : « Cap » = la carte tourne, le sens de la marche toujours en haut ; « N » = le nord toujours en haut, la flèche tourne
+  var orient = 'cap'; try { orient = localStorage.getItem('fuelmap-carorient') === 'nord' ? 'nord' : 'cap'; } catch (e) { }
   function applyView() { document.documentElement.style.setProperty('--nav-tilt', view3d ? '32deg' : '0deg'); }
   applyView();
-  viewBox.addEventListener('click', function (e) { var b = e.target.closest('[data-view]'); if (!b) return; view3d = b.getAttribute('data-view') === '3'; try { localStorage.setItem('fuelmap-car3d', view3d ? '1' : '0'); } catch (err) { } applyView(); render(); log('voiture : vue ' + (view3d ? '3D' : '2D')); });
-  var nav = { on: false, heading: 0, freeUntil: 0 };
+  viewBox.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-view]'), o = e.target.closest('[data-orient]');
+    if (o) { orient = o.getAttribute('data-orient'); try { localStorage.setItem('fuelmap-carorient', orient); } catch (err) { } navGeometry(); followCar(true); render(); log('voiture : orientation ' + orient); return; }
+    if (!b) return; view3d = b.getAttribute('data-view') === '3'; try { localStorage.setItem('fuelmap-car3d', view3d ? '1' : '0'); } catch (err) { } applyView(); render(); log('voiture : vue ' + (view3d ? '3D' : '2D'));
+  });
+  var nav = { on: false, heading: 0, freeUntil: 0 }, track = { on: false }, lastHd = null;
+  function rot() { return nav.on || track.on; } // carte en « vue voiture » (grand carré tourné / incliné, flèche fixe)
   function navGeometry() {
     // Pendant le guidage, l'hôte pose ses cartes (manœuvre, temps restant) à gauche et annonce une zone libre qui commence à leur droite :
     // la colonne est masquée, la carte couvre tout l'écran et la flèche se place au milieu de la partie libre.
@@ -698,21 +706,39 @@
     var rr = !rail.hidden && rail.getBoundingClientRect(); if (rr && rr.width) { if (rr.left > innerWidth / 2) right = Math.min(right, rr.left); else left = Math.max(left, rr.right); } // colonne flottante (au bord droit en guidage)
     if (panelStep()) left = Math.max(left, pane.getBoundingClientRect().right); // une étape est ouverte : la flèche reste visible à sa droite
     root.classList.toggle('cnav-narrow', right - left < 520); // écran partagé : le compteur monte au-dessus du bandeau, qui garde toute la largeur
-    var cx = left + Math.max(0, right - left) / 2, cy = h * 0.66, R = Math.max(Math.hypot(cx, cy), Math.hypot(innerWidth - cx, cy), Math.hypot(cx, h - cy), Math.hypot(innerWidth - cx, h - cy));
+    var cx = left + Math.max(0, right - left) / 2, cy = h * (orient === 'nord' ? 0.5 : 0.66) /* cap : on voit plus loin devant */, R = Math.max(Math.hypot(cx, cy), Math.hypot(innerWidth - cx, cy), Math.hypot(cx, h - cy), Math.hypot(innerWidth - cx, h - cy));
     var S = Math.ceil(2 * R * 1.2); // le carré tourné et incliné doit couvrir tout l'écran, coins compris
     st.setProperty('--nav-s', S + 'px'); st.setProperty('--nav-x', Math.round(cx - S / 2) + 'px'); st.setProperty('--nav-y', Math.round(cy - S / 2) + 'px');
     arrow.style.left = cx + 'px'; arrow.style.top = cy + 'px';
   }
-  function navOn() {
-    if (nav.on) return; nav.on = true; nav.freeUntil = 0;
-    document.documentElement.classList.add('carnav'); navGeometry(); arrow.hidden = false;
+  // « vue voiture » (classe crot) : utilisée par le guidage (carnav, qui change aussi la disposition) et par le suivi hors guidage
+  function viewOn() {
+    var r = document.documentElement; if (r.classList.contains('crot')) { navGeometry(); return; }
+    r.classList.add('crot'); navGeometry(); arrow.hidden = false;
     A.map.invalidateSize({ animate: false }); window.addEventListener('resize', navGeometry);
   }
+  function viewOff() {
+    var r = document.documentElement; if (!r.classList.contains('crot')) return;
+    r.classList.remove('crot'); arrow.hidden = true; arrow.style.transform = ''; window.removeEventListener('resize', navGeometry);
+    window.__mapRotation = 0; nav.heading = 0; r.style.removeProperty('--nav-rot'); A.map.invalidateSize({ animate: false });
+  }
+  function navOn() {
+    if (nav.on) return; nav.on = true; nav.freeUntil = 0;
+    document.documentElement.classList.add('carnav'); viewOn();
+  }
   function navOff() {
-    if (!nav.on) return; nav.on = false; window.__mapRotation = 0;
-    document.documentElement.classList.remove('carnav'); arrow.hidden = true; window.removeEventListener('resize', navGeometry);
-    document.documentElement.style.removeProperty('--nav-rot');
-    var f = A.fix; A.map.invalidateSize({ animate: false }); if (f) A.map.setView(shifted([f.lat, f.lon], 14), 14, { animate: false });
+    if (!nav.on) return; nav.on = false;
+    document.documentElement.classList.remove('carnav');
+    if (track.on) { viewOn(); followCar(true); return; } // on suivait la voiture avant : on continue
+    viewOff();
+    var f = A.fix; if (f) A.map.setView(shifted([f.lat, f.lon], 14), 14, { animate: false });
+  }
+  // Suivi hors guidage : le bouton « ma position » de l'hôte accroche la carte sur la voiture (elle la suit, dans l'orientation
+  // choisie) ; déplacer la carte du doigt ou toucher une station la décroche.
+  function trackOn() { track.on = true; nav.freeUntil = 0; A.setFollow(false); followCar(true); render(); log('voiture : suivi de la position'); }
+  function trackOff() {
+    if (!track.on) return; track.on = false; if (nav.on) return;
+    var m = A.map, c = m.getCenter(), z = m.getZoom(); viewOff(); m.setView(shifted([c.lat, c.lng], z), z, { animate: false }); render();
   }
   function routeBearing(f) { // cap de la route au niveau de la voiture (quand le GPS n'en donne pas : arrêt, vitesse faible)
     if (!guide || !guide.pts) return null;
@@ -727,15 +753,20 @@
     document.documentElement.style.setProperty('--nav-rot', (-nav.heading) + 'deg');
   }
   function followCar(force, vf) {
-    var f = vf || A.fix; if (!f || !guide) return;
-    if (!nav.on) navOn();
-    var kmh = f.speed != null ? f.speed * 3.6 : 0, hd = f.heading != null && !isNaN(f.heading) && kmh > 6 ? f.heading : routeBearing(f);
-    setHeading(hd);
+    var f = vf || A.fix; if (!f || !(guide || track.on)) return;
+    if (guide) { if (!nav.on) navOn(); } else viewOn();
+    var kmh = f.speed != null ? f.speed * 3.6 : 0, hd = f.heading != null && !isNaN(f.heading) && kmh > 6 ? f.heading : guide ? routeBearing(f) : null;
+    if (hd != null) lastHd = hd;
+    if (orient === 'nord') { setHeading(0); arrow.style.transform = lastHd != null ? 'rotate(' + Math.round(lastHd) + 'deg)' : ''; } // la flèche montre le sens de la marche
+    else { setHeading(hd != null ? hd : lastHd); arrow.style.transform = ''; }
     if (Date.now() < nav.freeUntil) return; // l'utilisateur a déplacé ou zoomé la carte : on la lui laisse quelques secondes
-    var m = A.map, z = kmh > 80 ? 14 : kmh > 45 ? 15 : 16, c = L.latLng(f.lat, f.lon);
+    var m = A.map, c = L.latLng(f.lat, f.lon), z = guide ? (kmh > 80 ? 14 : kmh > 45 ? 15 : 16) : Math.max(13, m.getZoom()); // hors guidage : le zoom choisi
     if (force || m.getZoom() !== z) m.setView(c, z, { animate: false }); else m.panTo(c, { animate: true, duration: 0.5, easeLinearity: 1 });
   }
-  function recenter() { nav.freeUntil = 0; if (guide) followCar(true); else { A.setFollow(true); A.locate().catch(function () { }); } }
+  function recenter() {
+    nav.freeUntil = 0; if (guide) { followCar(true); return; }
+    if (A.fix) trackOn(); else A.locate().then(function () { if (A.fix) trackOn(); }).catch(function () { });
+  }
 
   // ---- trajet : calcul depuis la position de la voiture, une fois la destination et le niveau de carburant donnés
   function compute() {
@@ -847,6 +878,7 @@
   // une liste est affichée → le glisser la fait défiler ; sinon il déplace la carte. Le pincer zoome toujours la carte.
   var pdx = 0, pdy = 0, panRaf = 0, panEnd = null;
   function panMap(dx, dy) {
+    if (track.on && !nav.on) trackOff(); // déplacer la carte du doigt : on arrête de suivre la voiture
     if (nav.on) { var a = nav.heading * Math.PI / 180, rx = dx * Math.cos(a) - dy * Math.sin(a), ry = dx * Math.sin(a) + dy * Math.cos(a); dx = rx; dy = ry; nav.freeUntil = Date.now() + 8000; }
     pdx += dx; pdy += dy;
     if (!panRaf) panRaf = requestAnimationFrame(function () {
@@ -870,7 +902,7 @@
     var m = A.map;
     if (!pz) {
       var dpr = window.devicePixelRatio || 1, r = m.getContainer().getBoundingClientRect();
-      var p = nav.on || x == null ? m.getSize().divideBy(2) : L.point(x / dpr - r.left, y / dpr - r.top); // carte tournée : on zoome autour du centre
+      var p = rot() || x == null ? m.getSize().divideBy(2) : L.point(x / dpr - r.left, y / dpr - r.top); // carte tournée ou suivie : on zoome autour de la voiture
       pz = { z: m.getZoom(), p: p, ll: m.containerPointToLatLng(p) };
       A.setFollow(false); if (m._stop) m._stop(); m._moveStart(true, false);
     }
@@ -915,7 +947,7 @@
     // Espace vide au démarrage : la page naît parfois avant que l'écran virtuel ait sa taille définitive, et la carte garde
     // l'ancienne taille. On la recale dès que son cadre change, quelle qu'en soit la cause.
     var sizes = 0;
-    try { new ResizeObserver(function () { var c = m.getContainer(); if (sizes++ < 6) log('voiture : cadre carte ' + c.clientWidth + '×' + c.clientHeight + ' (fenêtre ' + innerWidth + '×' + innerHeight + ')'); m.invalidateSize({ animate: false }); if (nav.on) navGeometry(); }).observe(m.getContainer()); } catch (e) { }
+    try { new ResizeObserver(function () { var c = m.getContainer(); if (sizes++ < 6) log('voiture : cadre carte ' + c.clientWidth + '×' + c.clientHeight + ' (fenêtre ' + innerWidth + '×' + innerHeight + ')'); m.invalidateSize({ animate: false }); if (rot()) navGeometry(); }).observe(m.getContainer()); } catch (e) { }
     var centered = false, center = function () { // au premier point GPS : la carte sur la voiture
       if (centered) return; var f = A.fix;
       if (f) { centered = true; m.setView(shifted([f.lat, f.lon], 13), 13); }
@@ -924,7 +956,7 @@
     document.addEventListener('fuelmap:stations', function () { schedule(); if (wantRoute && !computing && !routeReady && !routeErr) compute(); });
     document.addEventListener('fuelmap:fix', function () {
       lastFixAt = Date.now(); if (guide) guide.drLogged = 0;
-      center(); resumeGuide(); updateGuide(); updateTown(); plusCheck(); speedTick();
+      center(); resumeGuide(); updateGuide(); if (track.on && !guide) followCar(false); updateTown(); plusCheck(); speedTick();
       if (wantRoute && !computing && !routeReady && !routeErr) compute();
       else if (step === 'list' && (!listEl || listEl.scrollTop < 10)) schedule();
     });
@@ -938,7 +970,7 @@
     m.on('moveend', function () { if (mode === 'map' && (step === 'map' || step === 'list')) schedule(); });
     window.addEventListener('resize', schedule);
     document.addEventListener('fuelmap:state', schedule); // réglages changés sur le téléphone (véhicule, couleur, thème…)
-    document.addEventListener('fuelmap:insets', function () { if (nav.on) navGeometry(); }); // l'hôte déplace sa zone libre (début / fin du guidage) sans redimensionner la page
+    document.addEventListener('fuelmap:insets', function () { if (rot()) navGeometry(); }); // l'hôte déplace sa zone libre (début / fin du guidage) sans redimensionner la page
     setInterval(render, 60000); // les âges « il y a x h » vieillissent
     setTimeout(function () { if (!A.fix) render(); }, 12500);
     // trajet préparé sur le téléphone il y a peu : on le propose d'office, en commençant par le niveau du réservoir
