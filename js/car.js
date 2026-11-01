@@ -13,7 +13,7 @@
   if (!/[?&]aa=1/.test(location.search)) return;
   var A = null, F = null, pane = document.getElementById('carPane'), timer = null;
   function el(id, tag) { var e = document.createElement(tag || 'div'); e.id = id; e.hidden = true; document.body.appendChild(e); return e; }
-  var plusBox = el('carPlus'), rail = el('carRail', 'nav'), steps = el('carSteps'), chip = el('carChip', 'button'), nextBox = el('carNext'), lockBox = el('carLock'), favBox = el('carFavs'), viewBox = el('carView'), townBox = el('carTown'), refreshBox = el('carRefresh', 'button'), speedBox = el('carSpeed'), zoneBox = el('carZone');
+  var plusBox = el('carPlus'), rail = el('carRail', 'nav'), steps = el('carSteps'), chip = el('carChip', 'button'), nextBox = el('carNext'), lockBox = el('carLock'), favBox = el('carFavs'), viewBox = el('carView'), townBox = el('carTown'), refreshBox = el('carRefresh', 'button'), speedBox = el('carSpeed'), zoneBox = el('carZone'), lanesBox = el('carLanes'), voiceBox = el('carVoice');
   refreshBox.setAttribute('aria-label', 'Actualiser les prix'); refreshBox.innerHTML = '<svg viewBox="0 0 24 24" width="24" height="24"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3.5v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><rect x="8.6" y="8" width="4.6" height="8" rx=".8" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="9.7" y="9.2" width="2.4" height="2" fill="currentColor"/><path d="M13.2 10l1.7 1.4v3.1a.7.7 0 0 0 1.4 0V11" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   refreshBox.addEventListener('click', function () { log('voiture : actualisation des prix'); A.refreshPrices().then(schedule); });
   function log(m) { try { window.FM && window.FM.log(m); } catch (e) { } }
@@ -128,6 +128,15 @@
     rail.innerHTML = '<div class="cbrand"><img src="icons/icon.svg" alt=""><b>FuelMap</b><small>v' + ((window.FUELMAP_CONFIG || {}).version || '') + '</small>' + (pst === 'trial' || pst === 'plus' ? P.badge() : '') + '</div>' + MODES.map(function (m) { return '<button class="' + (mode === m[0] ? 'on' : '') + (m[3] ? ' cgrp' : '') + '" data-rail="' + m[0] + '" aria-label="' + m[2] + '">' + m[1] + '</button>'; }).join('') +
       '<span class="sp"></span><button class="cz" data-rail="zin" aria-label="Zoomer">＋</button><button class="cz" data-rail="zout" aria-label="Dézoomer">−</button>';
   }
+  // en haut à gauche : la commune ; en guidage, dessous, la destination puis l'heure de départ et l'avancement du trajet entier
+  function renderTown(sc) {
+    if (sc == null) sc = !rot() && A.map ? viewSize() : '';
+    var g = guide && guide.pts ? guide : null, hm = function (t) { return new Date(t).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }); };
+    townBox.hidden = !(town.name || sc || g) || panelStep();
+    townBox.innerHTML = (town.name ? '<b>📍 ' + A.esc(town.name) + '</b>' : '') +
+      (g ? '<span class="cdst">🏁 ' + A.esc(g.fin.plain) + '</span>' + (g.trip ? '<small>🚩 parti à ' + hm(g.trip.t0) + (g.pct != null ? ' · <b>' + g.pct + ' %</b>' : '') + '</small>' : '') : '') +
+      (sc ? '<small><i class="crect"></i>' + sc + '</small>' : '');
+  }
   function renderSteps() {
     var fl = FLOWS[mode], cur = idx(step), md = MODES.filter(function (m) { return m[0] === mode; })[0];
     steps.hidden = !panelStep(); if (steps.hidden) return;
@@ -137,7 +146,8 @@
     }).join('') : '') + '<button class="cstx" data-step="close" aria-label="Fermer">✕</button>';
     // Les boutons de l'hôte, en haut à droite, prennent ≈ 430 px. Pas la place (écran partagé avec le lecteur) : version compacte
     // « ‹ 2/4 Réservoir ✕ » (le mode se voit dans la colonne) ; et seulement si même ça ne tient pas, les bulles passent dessous.
-    var room = innerWidth - steps.getBoundingClientRect().left - 430;
+    var csr = getComputedStyle(document.documentElement), rgt = Math.max(parseFloat(csr.getPropertyValue('--stable-r')) || 0, parseFloat(csr.getPropertyValue('--safe-r')) || 0);
+    var room = innerWidth - rgt - steps.getBoundingClientRect().left - 320; // « Arrêter » + ma position (~300 px), au bord droit de la partie carte (pas de l'écran)
     if (steps.scrollWidth > room && fl.length > 1) steps.innerHTML = (cur > 0 ? '<button class="cstep cback" data-step="' + fl[cur - 1][0] + '" aria-label="Étape précédente">‹</button>' : '') +
       '<span class="cstep on">' + (cur + 1) + '/' + fl.length + ' ' + fl[cur][1] + '</span><button class="cstx" data-step="close" aria-label="Fermer">✕</button>';
     document.documentElement.classList.toggle('csteps-low', steps.scrollWidth > room);
@@ -185,15 +195,17 @@
     nextBox.hidden = !(guide && step === 'guide'); viewBox.hidden = !(guide && step === 'guide') && !(track.on && !guide && !panelStep());
     // en haut à gauche : la commune, puis la taille de la zone affichée (largeur ↔, hauteur ↕), puis les favorites dessous
     var sc = !rot() && A.map ? viewSize() : '';
-    townBox.hidden = !(town.name || sc) || panelStep();
-    townBox.innerHTML = (town.name ? '<b>📍 ' + A.esc(town.name) + '</b>' : '') + (sc ? '<small><i class="crect"></i>' + sc + '</small>' : '');
+    renderTown(sc);
+    document.documentElement.classList.toggle('cpanel', panelStep()); // carte flottante ouverte : la vitesse passe à droite (elle la recouvrait)
+    if (panelStep()) { lanesBox.hidden = true; lanesBox._h = null; }
     if (!favBox.hidden) { // favorites juste sous la commune (colonne de gauche, stable, jamais sous les boutons de l'hôte)
       var tb = townBox.hidden ? null : townBox.getBoundingClientRect();
       favBox.style.top = Math.round((tb && tb.height ? tb.bottom : rail.getBoundingClientRect().top + 6) + 8) + 'px';
     }
     viewBox.innerHTML = '<button data-view="2"' + (view3d ? '' : ' class="on"') + '>2D</button><button data-view="3"' + (view3d ? ' class="on"' : '') + '>3D</button><i class="vsep"></i>' +
       '<button data-orient="nord"' + (orient === 'nord' ? ' class="on"' : '') + '>N</button><button data-orient="cap"' + (orient === 'cap' ? ' class="on"' : '') + '>Cap</button>' +
-      (guide ? '<i class="vsep"></i><button data-ov class="cov"></button>' : '');
+      (guide ? '<i class="vsep"></i><button data-ov class="cov"></button>' : '') + '<i class="vsep"></i><button data-voice class="cov" aria-label="Voix du guidage">' + voiceIco() + '</button>';
+    if (viewBox.hidden) voiceBox.hidden = true;
     updOv();
     var show = panelStep(); pane.classList.toggle('open', show);
     var wide = show && (step === 'setup' && !wheel || step === 'pick') && innerWidth >= 900; document.documentElement.classList.toggle('cpane-wide', wide); // Ma voiture : deux colonnes, tout tient sans défiler
@@ -227,8 +239,8 @@
       if (k >= 0 && !charts[s.id + ':' + k]) loadChart(s, k);
       // trajet guidé en cours vers une destination : cette station remplace le prochain arrêt (ou s'ajoute), la destination est gardée
       var trip = guide && !guide.fin.s, nstop = trip ? guide.wps.filter(function (w) { return w.stop && !w.done; })[0] : null;
-      foot = trip ? '<button class="cbig" data-swap>⛽ ' + (nstop ? 'Remplacer l’arrêt ' + A.esc(nstop.plain) : 'Ajouter cet arrêt au trajet') + '</button><button class="csub" data-go>🧭 Y aller directement</button>'
-        : '<button class="cbig" data-go>🧭 Y aller</button>';
+      foot = (trip ? '<button class="cbig" data-swap>⛽ ' + (nstop ? 'Remplacer l’arrêt ' + A.esc(nstop.plain) : 'Ajouter cet arrêt au trajet') + '</button><button class="csub" data-go>🧭 Y aller directement</button>'
+        : '<button class="cbig" data-go>🧭 Y aller</button>') + '<button class="csub" data-refresh>🔄 Actualiser les prix</button>';
     } else if (step === 'dest') {
       var ch = destChoices();
       head = '<span>Où va-t-on ?</span>';
@@ -244,6 +256,12 @@
     } else if (step === 'fuel') {
       head = tripHead(); body = fuelBars() + keepPlace();
       foot = '<button class="cbig" data-calc>⛽ Proposer mes arrêts</button>';
+    } else if (step === 'stops' && guide && guide.gmode === 'route') {
+      head = '<span class="cfrom">📍 Ma position → <b>' + A.esc(guide.fin.plain) + '</b></span>';
+      body = '<div class="ctrip">🧭 Guidage en cours' + (guide.pct != null ? ' · ' + guide.pct + ' % du trajet' : '') + '</div>' + guide.wps.filter(function (w) { return !w.done; }).map(function (w) {
+        return '<div class="crow cstatic"><div class="l1"><span class="nm">' + (w.stop ? '⛽ ' : '🏁 ') + A.esc(w.plain) + '</span>' + (w.price ? '<span class="pr">' + A.esc(w.price) + (w.price.indexOf('⚠') < 0 ? ' €' : '') + '</span>' : '') + '</div></div>';
+      }).join('');
+      foot = '<button class="cbig" data-resume>🧭 Retour au guidage</button>';
     } else if (step === 'stops') {
       head = tripHead();
       var rr = routeReady ? routeRows() : null;
@@ -318,10 +336,10 @@
 
   // L'écran voiture est recréé quand sa taille change (passage en écran partagé avec le lecteur de musique…) : on mémorise
   // en continu le mode, l'étape, la destination et le guidage en cours, et la page reprend là où elle en était.
-  var SESSION = 'fuelmap-carsession', pendingGuide = null, resumeQuiet = false;
+  var SESSION = 'fuelmap-carsession', pendingGuide = null, pendingTrip = null, resumeQuiet = false;
   function saveSession() {
     try {
-      var g = guide ? { gmode: guide.gmode, back: guide.back, wps: remaining().map(function (w) { return { lat: w.lat, lon: w.lon, plain: w.plain, price: w.price, stop: w.stop, sid: w.s ? w.s.id : null }; }) } : null;
+      var g = guide ? { gmode: guide.gmode, back: guide.back, trip: guide.trip ? { t0: guide.trip.t0, done: (guide.trip.done || 0) + (guide.realKm || 0) } : null, wps: remaining().map(function (w) { return { lat: w.lat, lon: w.lon, plain: w.plain, price: w.price, stop: w.stop, sid: w.s ? w.s.id : null }; }) } : null;
       localStorage.setItem(SESSION, JSON.stringify({ t: Date.now(), mode: mode, step: step, dest: dest, wantStops: routeReady || computing || wantRoute, sel: selected ? selected.id : null, guide: g }));
     } catch (e) { }
   }
@@ -332,7 +350,7 @@
     if (S.sel != null) { var s = A.stations.filter(function (x) { return String(x.id) === String(S.sel); })[0]; if (s) select(s, false); else if (step === 'station') step = FLOWS[mode][0][0]; }
     if (dest && S.wantStops && (step === 'stops' || S.guide)) wantRoute = true; // les arrêts sont recalculés depuis la position actuelle
     if (S.guide && S.guide.wps.length) {
-      mode = S.guide.back.mode; step = S.guide.back.step;
+      mode = S.guide.back.mode; step = S.guide.back.step; pendingTrip = S.guide.trip || null;
       pendingGuide = S.guide.wps.map(function (w) { var st = w.sid != null ? A.stations.filter(function (x) { return String(x.id) === String(w.sid); })[0] || { id: w.sid } : null; return { lat: w.lat, lon: w.lon, plain: w.plain, price: w.price, stop: w.stop, s: st }; });
     }
     log('voiture : écran repris (' + mode + ' › ' + step + (pendingGuide ? ', guidage' : '') + ')');
@@ -396,7 +414,7 @@
   }
   function startOf(m) { // où l'on arrive en touchant un bouton de la colonne
     if (m === 'map') return 'list';
-    if (m === 'route') return !dest ? 'dest' : routeReady || computing ? 'stops' : 'fuel';
+    if (m === 'route') return guide && guide.gmode === 'route' ? 'stops' : !dest ? 'dest' : routeReady || computing ? 'stops' : 'fuel'; // en guidage : jamais le réservoir
     return FLOWS[m][0][0];
   }
   function closeMode() { if (guide) setStep('guide', guide.gmode); else { selected = null; setStep('map', 'map'); } }
@@ -477,7 +495,44 @@
   function lower(t) { return t.charAt(0).toLowerCase() + t.slice(1); }
   function distText(m) { return m < 1000 ? Math.max(10, Math.round(m / 10) * 10) + ' m' : A.num(m / 1000, m < 10000 ? 1 : 0) + ' km'; }
   function distSpeech(m) { return m < 1000 ? Math.max(10, Math.round(m / 10) * 10) + ' mètres' : (m < 10000 ? A.num(m / 1000, 1) : A.num(m / 1000, 0)).replace(',', ' virgule ') + ' kilomètres'; }
-  function speak(text) { try { if (window.AndroidAuto && window.AndroidAuto.speak) { window.AndroidAuto.speak(text); return; } if (window.speechSynthesis) { var u = new SpeechSynthesisUtterance(text); u.lang = 'fr-FR'; speechSynthesis.speak(u); } } catch (e) { } }
+  // Voix : 5 niveaux (choix mémorisé) et un volume. Chaque phrase a une catégorie : turn = la manœuvre au moment de la faire (et l'arrivée),
+  // pre = l'annonce ~400 m avant, alert = radars / rupture / neige-verglas-orage, info = trajet, arrêts, recalcul, GPS, météo,
+  // extra = le reste (prix changé…). Pendant un appel, Android ne dit que turn / pre, plus bas (CarVoice).
+  var LEVELS = { full: ['turn', 'pre', 'alert', 'info', 'extra'], std: ['turn', 'pre', 'alert', 'info'], min: ['turn', 'alert'], alert: ['alert'], off: [] };
+  var voice = { level: 'full', vol: 1 };
+  try { var vs0 = JSON.parse(localStorage.getItem('fuelmap-carvoice') || 'null'); if (vs0) { voice.level = LEVELS[vs0.level] ? vs0.level : 'full'; voice.vol = Math.max(0.2, Math.min(1, +vs0.vol || 1)); } } catch (e) { }
+  function voiceCat(t) {
+    if (/zone de radar|rupture de carburant|^Neige|verglaçante|^Orage/i.test(t)) return 'alert';
+    if (/^Dans /.test(t)) return 'pre';
+    if (/^(Le prix a changé|Arrêt passé)/.test(t)) return 'extra';
+    if (/^(Itinéraire calculé|Recalcul|GPS perdu|Vous êtes à votre arrêt|Nouvel arrêt|Météo|Pluie|Brouillard)/.test(t)) return 'info';
+    return 'turn';
+  }
+  function speak(text, cat) { cat = cat || voiceCat(text); if (LEVELS[voice.level].indexOf(cat) < 0) { log('voiture : voix (' + voice.level + ') ne dit pas : ' + text); return; } say(text, cat); }
+  function say(text, cat) {
+    try {
+      var AA = window.AndroidAuto; if (AA && AA.speakAs) { AA.speakAs(text, cat, voice.vol); return; } if (AA && AA.speak) { AA.speak(text); return; }
+      if (window.speechSynthesis) { var u = new SpeechSynthesisUtterance(text); u.lang = 'fr-FR'; u.volume = voice.vol; speechSynthesis.speak(u); }
+    } catch (e) { }
+  }
+  function voiceIco() { return voice.level === 'off' ? '🔇' : voice.vol < 0.5 || voice.level === 'alert' || voice.level === 'min' ? '🔉' : '🔊'; }
+  var voiceT = 0;
+  function renderVoice() {
+    var LV = [['full', 'Complet', 'tout'], ['std', 'Standard', 'sans les détails'], ['min', 'Minimum', 'manœuvres, alertes'], ['alert', 'Alertes', 'radars, ruptures'], ['off', 'Muet', 'rien']];
+    voiceBox.innerHTML = '<div class="cvh"><b>' + voiceIco() + ' Voix du guidage</b><button data-vx aria-label="Fermer">✕</button></div><div class="cvl">' +
+      LV.map(function (x) { return '<button data-vl="' + x[0] + '"' + (voice.level === x[0] ? ' class="on"' : '') + '><b>' + x[1] + '</b><small>' + x[2] + '</small></button>'; }).join('') + '</div>' +
+      '<div class="cvv"><button data-vv="-1" aria-label="Moins fort">−</button><span>Volume <b>' + Math.round(voice.vol * 100) + ' %</b></span><button data-vv="1" aria-label="Plus fort">＋</button><button data-vt>▶ Tester</button></div>' +
+      '<p class="cvn">📞 Pendant un appel : seulement les directions, plus bas. 100 % = le volume du guidage de la voiture (molette pendant une annonce pour aller au-delà).</p>';
+    clearTimeout(voiceT); voiceT = setTimeout(function () { voiceBox.hidden = true; }, 12000); // se referme tout seul
+  }
+  voiceBox.addEventListener('click', function (e) {
+    var t; if (e.target.closest('[data-vx]')) { voiceBox.hidden = true; return; }
+    if ((t = e.target.closest('[data-vl]'))) { voice.level = t.getAttribute('data-vl'); log('voiture : voix ' + voice.level); }
+    else if ((t = e.target.closest('[data-vv]'))) voice.vol = Math.round(Math.max(0.2, Math.min(1, voice.vol + 0.2 * +t.getAttribute('data-vv'))) * 10) / 10;
+    else if (e.target.closest('[data-vt]')) { say('Dans 300 mètres, tournez à droite.', 'pre'); }
+    try { localStorage.setItem('fuelmap-carvoice', JSON.stringify(voice)); } catch (err) { }
+    renderVoice(); render();
+  });
   function hostRouting() { return !!(window.AndroidAuto && window.AndroidAuto.setRouting); }
 
   function wpOf(s, stop) { var k = A.pick(s, A.fuelsFor(A.car().fuel)); return { lat: s.lat, lon: s.lon, s: s, stop: !!stop, plain: plainName(s), price: k >= 0 ? A.price3(s.p[k]) : '' }; }
@@ -488,9 +543,11 @@
     if (!wps.length) return;
     var back = guide ? guide.back : { mode: mode, step: step === 'guide' ? FLOWS[mode][0][0] : step }, gmode = guide ? guide.gmode : mode;
     log('voiture : guidage → ' + wps.map(function (w) { return w.plain; }).join(' › '));
-    var spoken = keep && guide ? guide.spoken : resumeQuiet ? { start: 1 } : {}; // reprise après recréation : pas de nouvelle annonce
+    var spoken = keep && guide ? guide.spoken : resumeQuiet ? { start: 1, wxs: 1 } : {}; // reprise après recréation : pas de nouvelle annonce
+    // le trajet ENTIER (heure de départ, km déjà faits) : un recalcul, un arrêt passé ou remplacé ne le remettent pas à zéro
+    var trip = keep && guide && guide.trip ? { t0: guide.trip.t0, done: (guide.trip.done || 0) + (guide.realKm || 0) } : resumeQuiet && pendingTrip ? pendingTrip : null; pendingTrip = null;
     stopGuide(true);
-    var g = guide = { wps: wps, fin: wps[wps.length - 1], back: back, gmode: gmode, pts: null, cum: null, D: 0, min: 0, steps: [], spoken: spoken, lastKey: '', idx: 0 };
+    var g = guide = { wps: wps, fin: wps[wps.length - 1], back: back, gmode: gmode, pts: null, cum: null, D: 0, min: 0, steps: [], spoken: spoken, lastKey: '', idx: 0, trip: trip || { t0: Date.now(), done: 0 } };
     if (!hostRouting()) { guideBox.hidden = false; guideBox.innerHTML = '<div class="gi">⏳</div><div class="gt"><div class="d">Itinéraire…</div><div class="n">' + A.esc(g.fin.plain) + '</div></div><button data-stopguide>✕</button>'; }
     mode = gmode; setStep('guide');
     A.osrmRoute([{ lat: f.lat, lon: f.lon }].concat(wps), true, true, true).then(function (r) {
@@ -503,14 +560,17 @@
       (r.legs || []).forEach(function (leg, li) {
         var wp = wps[li], last = li === wps.length - 1;
         (leg.steps || []).forEach(function (st) {
-          var o = { kind: kind(st.maneuver), m: st.maneuver, road: st.name || '', at: acc, dist: st.distance, wp: li, mw: /^A\s?\d/.test(st.ref || '') }, sg = signs(st);
+          var o = { kind: kind(st.maneuver), m: st.maneuver, road: st.name || '', at: acc, dist: st.distance, wp: li, mw: /^A\s?\d/.test(st.ref || ''), lanes: st.intersections && st.intersections[0] && st.intersections[0].lanes || null }, sg = signs(st);
           o.cue = /^arrive/.test(o.kind) && !last ? 'Arrêt carburant, ' + wp.plain + (side(st.maneuver.modifier) === 'left' ? ', à gauche' : side(st.maneuver.modifier) === 'right' ? ', à droite' : '') : cueText(o.kind, st.maneuver, o.road, sg);
           g.steps.push(o); acc += st.distance;
         });
         legEnd += leg.distance; if (wp) wp.atM = legEnd; acc = legEnd;
       });
       var ac = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#2fd27a';
-      guideLayer = L.layerGroup([L.polyline(pts, { color: '#061a12', weight: 11, opacity: .55, lineCap: 'round' }), L.polyline(pts, { color: ac, weight: 6, opacity: .95, lineCap: 'round' })]).addTo(A.map);
+      g.lines = [L.polyline(pts, { color: '#061a12', weight: 11, opacity: .55, lineCap: 'round' }), L.polyline(pts, { color: ac, weight: 6, opacity: .95, lineCap: 'round' })];
+      guideLayer = L.layerGroup(g.lines).addTo(A.map);
+      // la destination écrite sous le drapeau, sur la carte
+      guideLayer.addLayer(L.marker([g.fin.lat, g.fin.lon], { icon: L.divIcon({ className: '', html: '<div class="cdest-marker"><i>🏁</i><span>' + A.esc(g.fin.plain) + '</span></div>', iconSize: [0, 0], iconAnchor: [0, 0] }), interactive: false, zIndexOffset: 900 }));
       wps.forEach(function (w) { if (w.stop) guideLayer.addLayer(L.marker([w.lat, w.lon], { icon: L.divIcon({ className: '', html: '<div class="cstop-marker">⛽</div>', iconSize: [30, 30], iconAnchor: [15, 15] }), interactive: false })); });
       // zones de danger (radars) sur l'itinéraire, peintes en rouge et bleu ; longueur selon la route (ville / route / autoroute)
       var spd = []; (r.legs || []).forEach(function (leg) { var a = leg.annotation && leg.annotation.speed; if (a) spd.push.apply(spd, a); });
@@ -521,9 +581,10 @@
       };
       if (window.FuelSafety) FuelSafety.load().then(function () {
         if (guide !== g || !guideLayer) return;
-        g.zones = FuelSafety.routeZones(pts, cum, segInfo); FuelSafety.paint(guideLayer, pts, cum, g.zones);
+        g.zones = FuelSafety.routeZones(pts, cum, segInfo); g.zl = FuelSafety.paint(guideLayer, pts, cum, g.zones);
         log('voiture : ' + g.zones.length + ' zone(s) de radar sur l’itinéraire');
       });
+      loadWeather(g);
       A.setFollow(false); followCar(true);
       if (!g.spoken.start) {
         g.spoken.start = 1; var nx = nextStep(0), ns = wps.filter(function (w) { return w.stop; }).length;
@@ -533,6 +594,56 @@
       updateGuide(true);
     }).catch(function (err) { A.toast('⚠️ ' + (err.message || 'itinéraire impossible')); if (guide === g) stopGuide(); });
   }
+  // ---- voies : à moins de 1,5 km d'une manœuvre où OpenStreetMap connaît les voies (OSRM « lanes »), les bonnes voies en couleur
+  var LANE_DEG = { 'sharp left': -135, 'left': -90, 'slight left': -45, 'straight': 0, 'none': 0, 'slight right': 45, 'right': 90, 'sharp right': 135, 'uturn': -170 };
+  function laneSvg(ind) { return '<svg viewBox="0 0 24 24" style="transform:rotate(' + (LANE_DEG[ind] || 0) + 'deg)"><path d="M12 2 19.5 10H14.5V22H9.5V10H4.5Z" fill="currentColor"/></svg>'; }
+  function showLanes(nx) {
+    var ls = nx && nx.lanes, html = '';
+    if (ls && ls.length > 1 && ls.some(function (l) { return !l.valid; }) && ls.some(function (l) { return l.valid; })) {
+      var want = nx.m.modifier || 'straight';
+      html = ls.map(function (l) { var ind = l.indications && l.indications.length ? l.indications : ['none']; return '<i' + (l.valid ? ' class="ok"' : '') + '>' + laneSvg(l.valid && (ind.indexOf(want) >= 0 || ind[0] === 'none') ? want : ind[0]) + '</i>'; }).join('');
+    }
+    if (lanesBox._h === html) return; lanesBox._h = html; lanesBox.hidden = !html; lanesBox.innerHTML = html;
+  }
+  // ---- météo du trajet (Open-Meteo, gratuit, sans clé) : prévision à l'heure où l'on passera, tous les ~25 km. On annonce pluie,
+  // neige, verglas, orage, brouillard ~10 km avant ; relu toutes les heures. Trajets de plus de 30 km seulement.
+  function wxKind(c) {
+    if (c >= 95) return { ico: '⛈️', say: 'Orage prévu' };
+    if ((c >= 71 && c <= 77) || c === 85 || c === 86) return { ico: '❄️', say: 'Neige prévue' };
+    if (c === 56 || c === 57 || c === 66 || c === 67) return { ico: '🧊', say: 'Pluie verglaçante prévue' };
+    if ((c >= 61 && c <= 65) || (c >= 80 && c <= 82)) return { ico: '🌧️', say: 'Pluie prévue' };
+    if (c === 45 || c === 48) return { ico: '🌫️', say: 'Brouillard prévu' };
+    return null;
+  }
+  function loadWeather(g) {
+    var k0 = g.realKm || 0; if (!g.pts || g.D - k0 < 30) return; g.wxAt = Date.now();
+    var n = Math.min(12, Math.max(2, Math.round((g.D - k0) / 25))), sm = [];
+    for (var i = 0; i < n; i++) { var kt = k0 + (g.D - k0) * (i + 0.5) / n, j = 0; while (j < g.cum.length - 1 && g.cum[j] < kt) j++; sm.push({ km: Math.round(g.cum[j]), lat: g.pts[j][0], lon: g.pts[j][1], at: Date.now() + g.min * 60000 * (kt - k0) / g.D }); }
+    var u = 'https://api.open-meteo.com/v1/forecast?latitude=' + sm.map(function (p) { return p.lat.toFixed(3); }).join(',') + '&longitude=' + sm.map(function (p) { return p.lon.toFixed(3); }).join(',') + '&hourly=weather_code&forecast_days=2&timeformat=unixtime';
+    fetch(u).then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); }).then(function (d) {
+      if (guide !== g) return; var arr = Array.isArray(d) ? d : [d], out = [];
+      arr.forEach(function (x, i) {
+        var p = sm[i], h = x && x.hourly; if (!p || !h || !h.time) return; var t = p.at / 1000, bi = 0;
+        h.time.forEach(function (tt, kk) { if (Math.abs(tt - t) < Math.abs(h.time[bi] - t)) bi = kk; });
+        var c = wxKind(h.weather_code[bi]); if (c) out.push({ km: p.km, ico: c.ico, say: c.say, at: p.at });
+      });
+      g.wx = out.filter(function (w, i) { return !i || out[i - 1].say !== w.say; }); // une suite de points pluvieux = une seule annonce, au début
+      log('voiture : météo du trajet : ' + (g.wx.length ? g.wx.map(function (w) { return w.ico + ' km ' + w.km; }).join(', ') : 'rien à signaler'));
+      var w0 = g.wx[0];
+      if (w0 && !g.spoken.wxs) {
+        g.spoken.wxs = 1; var hh = new Date(w0.at + 30 * 60000).getHours(); // heure la plus proche
+        A.toast(w0.ico + ' ' + w0.say + ' vers ' + hh + ' h, dans ' + km(Math.max(0, w0.km - (g.realKm || 0))));
+        if (w0.km - (g.realKm || 0) > 12) speak('Météo : ' + w0.say.toLowerCase() + ' vers ' + hh + ' heures, dans ' + distSpeech((w0.km - (g.realKm || 0)) * 1000) + '.');
+      }
+      g.lastKey = '';
+    }).catch(function (e) { log('voiture : météo indisponible (' + e.message + ')'); });
+  }
+  function weatherGuide(g, kmNow) {
+    if (g.wxAt && Date.now() - g.wxAt > 3600000) loadWeather(g); // prévisions relues toutes les heures sur les longs trajets
+    (g.wx || []).forEach(function (w) { var d = w.km - kmNow; if (d > 0.5 && d < 12 && !g.spoken['w' + w.km]) { g.spoken['w' + w.km] = 1; speak(w.say + ' dans ' + distSpeech(d * 1000) + '.'); } });
+  }
+  function wxNext(g, kmNow) { var w = (g.wx || []).filter(function (x) { return x.km - kmNow > -2 && x.km - kmNow < 60; })[0]; return w ? '<span class="nxw">' + w.ico + ' ' + (w.km - kmNow > 1 ? km(w.km - kmNow) : 'ici') + '</span>' : ''; }
+
   // ---- zones de danger et vitesse
   function zoneGuide(g, progM) { // sur l'itinéraire : la prochaine zone (annonce ~400 m avant, bandeau 800 m avant et jusqu'à sa fin)
     var z = null; (g.zones || []).some(function (q) { if (q.b > progM && q.a - 800 < progM) { z = q; return true; } return false; });
@@ -592,9 +703,17 @@
     var info = { kind: arrived ? 'arrive' : nx ? nx.kind : 'straight', cue: arrived ? 'Vous êtes arrivé' : nx ? nx.cue : 'Continuez', road: nx ? nx.road : '', exit: nx && nx.m.exit || 0, distM: Math.round(toNext), remainKm: leftKm, remainMin: mins, etaMs: Date.now() + mins * 60000, label: g.fin.plain, off: off };
     // voix : annonce à ~400 m puis à ~60 m de chaque manœuvre, une seule fois chacune
     if (nx && !arrived) { var key = nx.at; if (toNext < 450 && !g.spoken['a' + key]) { g.spoken['a' + key] = 1; if (toNext > 120) speak('Dans ' + distSpeech(toNext) + ', ' + lower(nx.cue)); } if (toNext < 70 && !g.spoken['b' + key]) { g.spoken['b' + key] = 1; speak(nx.cue); } }
-    if (arrived && !g.spoken.end) { g.spoken.end = 1; speak('Vous êtes arrivé à ' + g.fin.plain + '.'); setTimeout(function () { if (guide === g) stopGuide(); }, 20000); }
+    if (arrived && !g.spoken.end) { g.spoken.end = 1; speak('Vous êtes arrivé.'); setTimeout(function () { if (guide === g) stopGuide(); }, 20000); }
     var sig = info.kind + '|' + Math.round(info.distM / 10) + '|' + Math.round(info.remainMin) + '|' + Math.round(leftKm * 10) + '|' + (off ? 1 : 0) + '|' + (nw ? nw.plain + Math.round((nw.atM - progM) / 100) : '');
     zoneGuide(g, progM);
+    // le tracé déjà parcouru s'efface : on ne garde que ce qu'il reste à faire (et les zones de radar pas encore passées)
+    if (g.lines) { var rest = (pr.off < 0.3 ? [[f.lat, f.lon]] : []).concat(g.pts.slice(g.idx + 1)); if (rest.length > 1) g.lines.forEach(function (l) { l.setLatLngs(rest); }); }
+    if (g.zl) g.zl = g.zl.filter(function (z) { if (z.b < progM - 20) { try { guideLayer.removeLayer(z.l); } catch (e) { } return false; } return true; });
+    // avancement du trajet entier (g.trip.done = km faits avant ce calcul) : un arrêt sur l'aire ne le remet pas à zéro
+    var done = (g.trip.done || 0) + pr.km, pct = arrived ? 100 : Math.max(0, Math.min(99, Math.floor(100 * done / Math.max(0.01, done + leftKm))));
+    if (pct !== g.pct) { g.pct = pct; nextBox.style.setProperty('--pct', pct + '%'); renderTown(); }
+    weatherGuide(g, pr.km);
+    showLanes(!arrived && nx && toNext < 1500 && step === 'guide' ? nx : null);
     if (force || sig !== g.lastKey) {
       g.lastKey = sig;
       try { if (hostRouting()) window.AndroidAuto.setRouting(JSON.stringify(info)); } catch (e) { }
@@ -607,9 +726,9 @@
       // l'arrivée (heure, temps restant) est écrite ici : l'hôte n'affiche plus sa carte « temps restant » en bas à gauche,
       // qui lui faisait réserver toute la colonne de gauche (et pousser le reste vers le milieu)
       var hm = new Date(info.etaMs).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }), eta = '<span class="nxe">🏁 ' + hm + '</span>';
-      nextBox.innerHTML = !nw || !nw.stop ? '<span class="nxa">🏁 <b>' + A.esc(g.fin.plain) + '</b></span><span class="nxb">' + (arrived ? '' : ' · ' + km(leftKm) + ' · ' + (mins < 1 ? '< 1 min' : dur(mins)) + ' · <b>' + hm + '</b>') + '</span>' :
+      nextBox.innerHTML = wxNext(g, pr.km) + (!nw || !nw.stop ? '<span class="nxa">🏁 <b>' + A.esc(g.fin.plain) + '</b></span><span class="nxb">' + (arrived ? '' : ' · ' + km(leftKm) + ' · ' + (mins < 1 ? '< 1 min' : dur(mins)) + ' · <b>' + hm + '</b>') + '</span>' :
         '<span class="nxa">⛽ ' + (innerWidth < 1000 ? '' : 'Arrêt ') + (stops.indexOf(nw) + 1) + '/' + stops.length + ' · <b>' + A.esc(nw.plain) + '</b></span><span class="nxb">' +
-        (nw.s && nw.price ? ' · ' + nw.price + (nw.price.indexOf('⚠') < 0 ? ' €' : '') : '') + (nw.atM != null ? ' · ' + km(Math.max(0, nw.atM - progM) / 1000) : '') + '</span>' + eta + '<button data-skip>⏭ Passer</button>';
+        (nw.s && nw.price ? ' · ' + nw.price + (nw.price.indexOf('⚠') < 0 ? ' €' : '') : '') + (nw.atM != null ? ' · ' + km(Math.max(0, nw.atM - progM) / 1000) : '') + '</span>' + eta + '<button data-skip>⏭ Passer</button>');
     }
     if (force || !g.savedAt || Date.now() - g.savedAt > 15000) { g.savedAt = Date.now(); saveSession(); }
     followCar(false, vf);
@@ -665,7 +784,7 @@
     nw.done = true; log('voiture : arrêt passé ' + nw.plain); speak('Arrêt passé.'); go(remaining(), true);
   }
   function stopGuide(silent) {
-    var had = guide; guide = null; guideBox.hidden = true; nextBox.hidden = true; showZone(null); if (guideLayer) { try { guideLayer.remove(); } catch (e) { } guideLayer = null; }
+    var had = guide; guide = null; guideBox.hidden = true; nextBox.hidden = true; showZone(null); showLanes(null); if (guideLayer) { try { guideLayer.remove(); } catch (e) { } guideLayer = null; }
     if (silent) return;
     navOff();
     if (had) {
@@ -699,6 +818,7 @@
   viewBox.addEventListener('click', function (e) {
     var b = e.target.closest('[data-view]'), o = e.target.closest('[data-orient]');
     if (e.target.closest('[data-ov]')) { if (nav.ov || freeNow()) recenter(); else overview(); return; }
+    if (e.target.closest('[data-voice]')) { if (voiceBox.hidden) { renderVoice(); voiceBox.hidden = false; } else voiceBox.hidden = true; return; }
     if (o) { orient = o.getAttribute('data-orient'); try { localStorage.setItem('fuelmap-carorient', orient); } catch (err) { } navGeometry(); followCar(true); render(); log('voiture : orientation ' + orient); return; }
     if (!b) return; view3d = b.getAttribute('data-view') === '3'; try { localStorage.setItem('fuelmap-car3d', view3d ? '1' : '0'); } catch (err) { } applyView(); render(); log('voiture : vue ' + (view3d ? '3D' : '2D'));
   });
@@ -851,6 +971,12 @@
     if ((t = e.target.closest('[data-e]'))) { var v = +t.getAttribute('data-e'); if (v === A.state.startE) v--; A.state.startE = Math.max(0, Math.min(8, v)); A.save(); render(); return; }
     if (e.target.closest('[data-calc]')) { setStep('stops'); compute(); return; }
     if (e.target.closest('[data-trip]')) { goTrip(); return; }
+    if (e.target.closest('[data-resume]') && guide) { setStep('guide', guide.gmode); return; }
+    if (e.target.closest('[data-refresh]')) { // passé devant une station en rupture : on relit les prix publiés
+      log('voiture : actualisation des prix (fiche station)'); A.toast('🔄 Actualisation des prix…');
+      A.refreshPrices().then(function () { if (selected) { var s2 = A.stations.filter(function (x) { return String(x.id) === String(selected.id); })[0]; if (s2) select(s2, false); } render(); }).catch(function () { A.toast('⚠️ Prix injoignables'); });
+      return;
+    }
     if (e.target.closest('[data-swap]') && selected && guide) { // remplace le prochain arrêt du trajet (ou l'ajoute avant la destination)
       var rem = remaining(), ix = -1, nw = wpOf(selected, true); rem.some(function (w, i) { if (w.stop) { ix = i; return true; } return false; });
       if (ix >= 0) rem.splice(ix, 1, nw); else rem.splice(rem.length - 1, 0, nw);
@@ -918,6 +1044,21 @@
     lastX = e.clientX; if (locked()) return;
     var r = document.createElement('i'); r.className = 'ctap'; r.style.left = e.clientX + 'px'; r.style.top = e.clientY + 'px'; document.body.appendChild(r);
     setTimeout(function () { r.remove(); }, 450);
+  }, true);
+
+  // ---- toucher une pastille quand la carte est tournée / inclinée (guidage, suivi) : Leaflet ne sait pas défaire la rotation CSS
+  // et visait à côté. On place nous-mêmes chaque pastille à l'écran (même transformation que la carte) et on prend la plus proche.
+  function toScreen(cp) {
+    var c = A.map.getContainer(), tf = getComputedStyle(c).transform, w = c.offsetWidth, h = c.offsetHeight, x = cp.x - w / 2, y = cp.y - h / 2;
+    if (tf && tf !== 'none') { var p = new DOMMatrix(tf).transformPoint(new DOMPoint(x, y, 0, 1)); x = p.x / p.w; y = p.y / p.w; }
+    return { x: x + c.offsetLeft + w / 2, y: y + c.offsetTop + h / 2 }; // centre de la carte AVANT transformation (la rotation se fait autour de lui)
+  }
+  document.addEventListener('click', function (e) {
+    if (e.defaultPrevented || !A || !A.map || !rot() || !A.map.getContainer().contains(e.target)) return;
+    e.stopPropagation(); e.preventDefault();
+    var hs = A.stationHits ? A.stationHits() : [], best = null, bd = 44 * 44;
+    for (var i = 0; i < hs.length; i++) { var q = toScreen(A.map.layerPointToContainerPoint(L.point(hs[i].x, hs[i].y))), dx = q.x - e.clientX, dy = q.y - e.clientY, d = dx * dx + dy * dy; if (d < bd) { bd = d; best = hs[i].s; } }
+    if (best) { log('voiture : pastille touchée en vue voiture'); pick(best); }
   }, true);
 
   // ---- gestes renvoyés par l'hôte Android Auto (CarWebSurface). L'hôte ne dit pas où le doigt est posé :
@@ -1066,5 +1207,5 @@
     if (!ready() || !A.addNote(text, town.name)) return;
     log('voiture : note dictée (' + String(text).length + ' caractères)'); A.toast('📝 Note enregistrée'); render();
   }
-  window.__fuelmapCar = { render: render, select: select, pick: pick, setDest: setDest, scroll: scroll, fling: fling, zoom: zoom, state: state, dump: dump, setStep: setStep, target: target, go: goTarget, goTo: function (lat, lon, label) { go([{ lat: +lat, lon: +lon, s: null, stop: false, plain: label || 'Destination', price: '' }]); }, recenter: recenter, stopGuide: stopGuide, skipStop: skipStop, addNote: addNote, lockTest: function (on) { lock.test = !!on; }, __pts: function () { return guide && guide.pts; } };
+  window.__fuelmapCar = { render: render, select: select, pick: pick, setDest: setDest, scroll: scroll, fling: fling, zoom: zoom, state: state, dump: dump, setStep: setStep, target: target, go: goTarget, goTo: function (lat, lon, label) { go([{ lat: +lat, lon: +lon, s: null, stop: false, plain: label || 'Destination', price: '' }]); }, recenter: recenter, stopGuide: stopGuide, skipStop: skipStop, addNote: addNote, lockTest: function (on) { lock.test = !!on; }, __pts: function () { return guide && guide.pts; }, __steps: function () { return guide && guide.steps; } };
 })();

@@ -492,8 +492,9 @@ html.wide .fs-card { border-radius: 22px; }
 .fs-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .fs-pad button { height: 56px; border-radius: 14px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); font-size: 24px; font-weight: 700; }
 .fs-pad button:active { background: var(--accent); color: var(--accent-ink); }
-html[data-carui] #fillSheet { left: calc(var(--stable-l) + var(--rail)); right: auto; width: 380px; top: 0; bottom: 0; background: var(--panel); align-items: stretch; }
-html[data-carui] .fs-card { max-width: none; border: 0; border-radius: 0; padding: calc(8px + var(--ctop)) 10px calc(8px + var(--stable-b)); overflow-y: auto; }
+/* voiture : carte flottante posée sur la carte (plus un grand panneau sur toute la hauteur, « comme un menu ») */
+html[data-carui] #fillSheet { inset: auto; left: var(--navleft, var(--cleft)); bottom: calc(var(--stable-b) + 12px); width: 400px; max-width: calc(100vw - var(--navleft, var(--cleft)) - 16px); max-height: calc(100vh - var(--ctop) - var(--stable-b) - 24px); background: none; align-items: stretch; }
+html[data-carui] .fs-card { max-width: none; border: 1px solid var(--line); border-radius: 20px; padding: 10px 12px; overflow-y: auto; box-shadow: 0 12px 36px rgba(0,0,0,.5); }
 html[data-carui] .fs-pad { gap: 4px; } html[data-carui] .fs-pad button { height: 36px; font-size: 18px; } html[data-carui] .fs-amount { padding: 4px 10px; } html[data-carui] .fs-amount b { font-size: 22px; } html[data-carui] .fs-btn { min-height: 40px; font-size: 15px; } html[data-carui] .fs-btn.big { min-height: 42px; font-size: 16px; } html[data-carui] .fs-btn.ghost { min-height: 32px; } html[data-carui] .fs-station { font-size: 14px; padding: 5px 10px; } html[data-carui] .fs-station small, html[data-carui] .fs-q small { display: none; } html[data-carui] .fs-q { font-size: 15px; margin: 0; } html[data-carui] .fs-head { font-size: 15px; } html[data-carui] .fs-x { width: 34px; height: 34px; } html[data-carui] .fs-card { gap: 4px; } html[data-carui] .fs-row { gap: 6px; }
 /* carnet */
 .fl-stats { display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 10px 12px; border-radius: 14px; background: var(--panel2); margin-bottom: 8px; font-size: 14px; color: var(--muted); } .fl-stats b { color: var(--text); font-size: 16px; }
@@ -824,3 +825,39 @@ html[data-carui].crot #carZone { right: auto; left: var(--navleft, var(--cleft))
 .ctip { margin-top: 10px; font-size: 14px; line-height: 1.35; }
 html[data-carui].crot:not(.carnav) #carView { left: var(--cleft); bottom: calc(var(--stable-b) + 72px); }
 #carArrow { transition: transform .5s linear; }
+
+/* 1.7.9 — carte flottante ouverte en vue voiture : vitesse et zone de radar à droite (elles la recouvraient) */
+html[data-carui].crot.cpanel #carSpeed { left: auto; right: calc(max(var(--stable-r), var(--safe-r)) + 10px); bottom: calc(var(--stable-b) + 10px); }
+html[data-carui].crot.cpanel #carZone { left: auto; right: calc(max(var(--stable-r), var(--safe-r)) + 10px); bottom: calc(var(--stable-b) + 96px); }
+/* voies (en haut, au milieu de la partie libre) */
+#carLanes { position: fixed; z-index: 712; top: calc(var(--ctop) + 6px); left: calc((var(--navleft, var(--cleft)) + 100vw - var(--navright, 16px)) / 2); transform: translateX(-50%); display: flex; gap: 4px; padding: 5px 7px; border-radius: 14px; background: #121826; border: 1px solid rgba(255,255,255,.18); box-shadow: var(--shadow); pointer-events: none; }
+#carLanes[hidden] { display: none; }
+#carLanes i { width: 34px; height: 42px; display: grid; place-items: center; color: rgba(255,255,255,.32); border-radius: 8px; }
+#carLanes i.ok { color: #fff; background: color-mix(in srgb, var(--accent) 75%, #000); }
+#carLanes svg { width: 26px; height: 26px; }
+/* destination : drapeau + nom sur la carte ; et sous la commune en haut à gauche, avec l'heure de départ et l'avancement */
+.cdest-marker { position: absolute; left: 0; top: 0; display: flex; flex-direction: column; align-items: center; transform: translate(-50%, -26px); transform-origin: 50% 26px; pointer-events: none; }
+html.crot .cdest-marker { transform: translate(-50%, -26px) rotate(calc(-1 * var(--nav-rot, 0deg))); }
+.cdest-marker i { font-style: normal; font-size: 26px; line-height: 26px; filter: drop-shadow(0 1px 2px rgba(0,0,0,.6)); }
+.cdest-marker span { margin-top: 2px; padding: 3px 9px; border-radius: 10px; background: var(--panel); color: var(--text); border: 1px solid var(--line); box-shadow: var(--shadow); font: 800 14px/1.2 system-ui, sans-serif; white-space: nowrap; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+#carTown .cdst { font-size: 15px; font-weight: 800; color: var(--text); }
+/* avancement du trajet : barre au pied du bandeau du bas ; météo à venir en tête du bandeau */
+#carNext { overflow: hidden; }
+#carNext::after { content: ''; position: absolute; left: 0; bottom: 0; height: 4px; width: var(--pct, 0%); background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+#carNext .nxw { margin-right: 8px; font-weight: 800; white-space: nowrap; }
+/* étape Arrêts pendant un guidage : simple liste */
+.crow.cstatic { cursor: default; }
+/* voix du guidage : carte flottante au-dessus des boutons de vue */
+#carVoice { position: fixed; z-index: 730; left: var(--navleft, var(--cleft)); bottom: calc(var(--stable-b) + 128px); width: 440px; max-width: calc(100vw - var(--navleft, var(--cleft)) - var(--navright, 16px)); background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 12px 36px rgba(0,0,0,.5); padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+#carVoice[hidden] { display: none; }
+#carVoice .cvh { display: flex; align-items: center; justify-content: space-between; font-size: 16px; }
+#carVoice .cvh button { width: 40px; height: 40px; border-radius: 50%; border: 0; background: var(--panel2); color: var(--text); font-size: 18px; }
+#carVoice .cvl { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+#carVoice .cvl button { min-height: 58px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 4px 2px; font-size: 14px; }
+#carVoice .cvl button small { font-size: 10.5px; color: var(--muted); line-height: 1.1; text-align: center; }
+#carVoice .cvl button.on { border-color: var(--accent); box-shadow: inset 0 0 0 2px var(--accent); }
+#carVoice .cvv { display: flex; align-items: center; gap: 8px; }
+#carVoice .cvv button { height: 44px; min-width: 48px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); font-size: 20px; font-weight: 800; }
+#carVoice .cvv span { flex: 1; text-align: center; font-size: 15px; }
+#carVoice .cvv [data-vt] { font-size: 15px; padding: 0 12px; }
+#carVoice .cvn { margin: 0; font-size: 12px; line-height: 1.3; color: var(--muted); }

@@ -138,5 +138,10 @@
   document.addEventListener('fuelmap:plus', function () { renderLog(); });
   document.addEventListener('fuelmap:fix', maybeAsk);
   document.addEventListener('fuelmap:stations', maybeAsk);
+  // question posée toute seule (« tu viens de faire le plein ? ») : on repart à plus de 100 m de la station → c'est non, elle s'en va
+  document.addEventListener('fuelmap:fix', function () {
+    if (!cur || !cur.auto || cur.step !== 'ask' || !ready() || !A.fix) return;
+    if (A.haversine(A.fix.lat, A.fix.lon, cur.s.lat, cur.s.lon) > 0.1) { try { window.FM && window.FM.log('plein : question retirée (parti de la station)'); } catch (e) { } close(); }
+  });
   window.__fuelmapFill = { open: open, close: close, ask: maybeAsk, renderLog: renderLog, get current() { return cur; } };
 })();

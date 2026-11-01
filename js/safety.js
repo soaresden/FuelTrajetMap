@@ -83,17 +83,20 @@
   // façon gyrophare : toute la zone passe du rouge au bleu et inversement, deux fois par seconde (liseré sombre dessous, pour la voir
   // sur tous les fonds de carte)
   var lit = [], blinkOn = false, blinkT = 0;
+  // 1.7.9 : la zone est peinte SUR le trait de l'itinéraire, à peine plus large (8 px) : la route change de couleur, sans bande qui
+  // mange la carte. Renvoie [{ b, l }] pour que le guidage retire les zones dépassées.
   function paint(layer, pts, cum, zones) {
+    var out = [];
     zones.forEach(function (z) {
       var p = slice(pts, cum, z.a, z.b); if (p.length < 2) return;
-      layer.addLayer(L.polyline(p, { color: '#0b0f1a', weight: 14, opacity: .6, lineCap: 'butt', interactive: false }));
-      var l = L.polyline(p, { color: '#e3262f', weight: 10, opacity: 1, lineCap: 'butt', interactive: false }); layer.addLayer(l); lit.push(l);
+      var l = L.polyline(p, { color: '#e3262f', weight: 8, opacity: 1, lineCap: 'butt', interactive: false }); layer.addLayer(l); lit.push(l); out.push({ b: z.b, l: l });
     });
     if (lit.length && !blinkT) blinkT = setInterval(function () {
       lit = lit.filter(function (l) { return !!l._map; }); // zones d'un guidage terminé : oubliées
       if (!lit.length) { clearInterval(blinkT); blinkT = 0; return; }
       blinkOn = !blinkOn; lit.forEach(function (l) { l.setStyle({ color: blinkOn ? '#1e5bff' : '#e3262f' }); });
     }, 500);
+    return out;
   }
 
   // ---- hors guidage : un radar devant soi (cône de ±25° autour du cap, à moins de 80 m de côté), dans la longueur de sa zone

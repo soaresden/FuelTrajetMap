@@ -39,7 +39,7 @@ apk/android/app/src/main/java/fr/soaresden/fuelmap/
 ## Règles non négociables
 
 - **versionCode jamais réutilisé** : le Play Console grille un code dès qu'un AAB est téléversé, même en brouillon.
-  Dernier utilisé : **66 (1.7.8)**. Chaque livraison = code +1 ET bump de `versionName` dans `apk/android/app/build.gradle`,
+  Dernier utilisé : **67 (1.7.9)**. Chaque livraison = code +1 ET bump de `versionName` dans `apk/android/app/build.gradle`,
   de `version` dans `js/config.js`, et du nom de cache dans `sw.js`. Les trois ensemble, toujours.
 - Chaque livraison fournit : l'**AAB** (Play, signé avec la clé d'upload) et un commit. **Plus d'APK** : depuis la 1.5.9 Denis
   installe uniquement via le Play Store (tests internes). Les `*.apk`/`*.aab` sont ignorés par git ; ils vivent dans `apk/`.
@@ -232,6 +232,23 @@ l'étape est une **carte flottante** à gauche (`#carPane`, 330 px, hauteur selo
   lien Play https://play.google.com/apps/testing/fr.soaresden.fuelmap. Codes Plus envoyés tout seuls à chaque nouveau membre par un
   Google Apps Script sur le compte de Denis (`.plus-archive/envoi-codes.gs`, feuille « Codes » importée de `.plus-archive/codes-testeurs.csv`,
   toutes les 5 min). Plus de codes → il faut en générer de nouveaux (empreintes dans `BETA` de plus.js) et une nouvelle version.
+- 1.7.9 (premier vrai trajet de Denis en 1.7.7, photos) : BOGUE après 📝 Notes en guidage, 🧭 ramenait à « Réservoir » / « Arrêts » avec
+  « Démarrer le guidage » alors que le guidage tournait → `startOf('route')` = 'stops' en guidage, et l'étape Arrêts en guidage montre
+  ce qui reste + « 🧭 Retour au guidage » (`data-resume`). Bulles : place calculée jusqu'aux boutons de l'hôte au bord droit de NOTRE
+  zone (`--stable-r`, lecteur de musique), ~320 px. Carte flottante ouverte (`html.cpanel`) : vitesse / zone de radar à droite.
+  Tracé parcouru effacé (`g.lines` recoupées à chaque position, zones de radar dépassées retirées : `paint` renvoie [{b, l}]).
+  Zones peintes SUR le trait (8 px, plus de bande sombre de 14 px) ; longueurs inchangées (300 m / 2 km / 4 km : les « zones de
+  danger » officielles, plus court reviendrait à situer le radar). Avancement du trajet ENTIER `g.trip` {t0, done} gardé par les
+  recalculs / arrêts / reprises → « 🚩 parti à 13:05 · 67 % » sous la commune + barre au pied de `#carNext` ; 🏁 destination sous la
+  commune et sur la carte (`.cdest-marker`). Voies (OSRM `intersections[0].lanes`, `#carLanes`, < 1,5 km). Météo Open-Meteo (gratuit,
+  sans clé, CORS) tous les ~25 km à l'heure de passage, trajets > 30 km, relue chaque heure, annonce ~10 km avant (pluie, neige,
+  verglas, orage, brouillard). Voix : 🔊 dans `#carView` → `#carVoice` (Complet / Standard / Minimum / Alertes / Muet + volume 20-100 %,
+  `localStorage['fuelmap-carvoice']`) ; catégories turn / pre / alert / info / extra (`voiceCat`) ; `AndroidAuto.speakAs(text, cat, vol)`
+  → CarVoice : pendant un appel (MODE_IN_CALL / IN_COMMUNICATION) seulement turn / pre, à 40 %. Arrivée : « Vous êtes arrivé. »
+  Toucher une pastille en vue tournée : Leaflet visait à côté (il ne défait pas la rotation CSS) → car.js projette les pastilles
+  (`A.stationHits()` + DOMMatrix de la carte) et prend la plus proche. Fiche station : « 🔄 Actualiser les prix ». Question du plein :
+  carte flottante (plus un panneau pleine hauteur) et retirée à plus de 100 m de la station.
+  Trafic / routes fermées : toujours rien (piste Bison Futé DATEX II, chantier à part).
 État et journalisation : `__fuelmapCar.state()/dump()`. Plein : question « tu viens de faire le plein ? » (fillup.js) à gauche.
 
 ## Téléphone

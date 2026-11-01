@@ -48,7 +48,7 @@ import java.util.Locale;
  */
 public class CarWebSurface implements SurfaceCallback {
     static final String TAG = "FuelMapCar";
-    public interface TargetListener { void onTarget(double lat, double lon, String label); void onNavigate(double lat, double lon, String label); void onSearch(); void onOpenMaps(double lat, double lon, String label); void onRouting(String json); void onStopRouting(); void onSpeak(String text); void onAskAgenda(); void onNote(); void onBuyPlus(); }
+    public interface TargetListener { void onTarget(double lat, double lon, String label); void onNavigate(double lat, double lon, String label); void onSearch(); void onOpenMaps(double lat, double lon, String label); void onRouting(String json); void onStopRouting(); void onSpeak(String text); void onSpeakAs(String text, String cat, float vol); void onAskAgenda(); void onNote(); void onBuyPlus(); }
 
     private final Context ctx;
     private final TargetListener listener;
@@ -117,6 +117,7 @@ public class CarWebSurface implements SurfaceCallback {
                 @JavascriptInterface public void setRouting(String json) { main.post(() -> listener.onRouting(json)); }
                 @JavascriptInterface public void stopRouting() { main.post(listener::onStopRouting); }
                 @JavascriptInterface public void speak(String text) { main.post(() -> listener.onSpeak(text)); }
+                @JavascriptInterface public void speakAs(String text, String cat, float vol) { main.post(() -> listener.onSpeakAs(text, cat, vol)); } // catégorie + volume choisis dans la voiture
                 @JavascriptInterface public String agenda() { return fr.soaresden.fuelmap.agenda.Agenda.read(ctx, 7); } // rendez-vous avec un lieu, pour la destination
                 @JavascriptInterface public void askAgenda() { main.post(listener::onAskAgenda); }
                 @JavascriptInterface public void note() { main.post(listener::onNote); }

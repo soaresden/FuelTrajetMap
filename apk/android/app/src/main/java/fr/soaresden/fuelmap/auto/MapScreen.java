@@ -44,6 +44,7 @@ public class MapScreen extends Screen {
             @Override public void onRouting(String json) { setRouting(json); }
             @Override public void onStopRouting() { stopRouting(); }
             @Override public void onSpeak(String text) { voice.speak(text); }
+            @Override public void onSpeakAs(String text, String cat, float vol) { voice.speak(text, cat, vol); }
             @Override public void onTarget(double lat, double lon, String label) { targetLat = lat; targetLon = lon; targetLabel = label; Diag.i("FuelMapCar", "cible = " + label); }
             @Override public void onNavigate(double lat, double lon, String label) { openMaps(lat, lon, label != null ? label : "Station"); }
             @Override public void onSearch() { openSearch(); }
