@@ -302,7 +302,7 @@
     } else if (step === 'pick') {
       var T = A.themes || {}, au = A.state.themeAuto || {}, auto = !!au.on, okP = A.plusThemes();
       head = '<span>Couleurs de l\'appli et de la carte</span>';
-      // Statique : un thème ; Automatique : le clair touché sert le jour, le sombre touché la nuit (lever / coucher du soleil)
+      // Statique : un thème ; Automatique : le clair touché sert le jour, le sombre touché la nuit (lever / coucher du soleil, tunnels)
       var thm = function (dark) { return '<div class="cthemes">' + Object.keys(T).filter(function (k2) { return !!T[k2].dark === dark && (!T[k2].perso || okP); }).map(function (k2) {
         var t = T[k2], on = auto ? k2 === (au.day || 'jour') || k2 === (au.night || 'nuit') : k2 === A.state.theme;
         return '<button class="cth' + (on ? ' on' : '') + '" data-theme="' + k2 + '" style="background:' + t.bg + ';color:' + t.text + ';border-color:' + (on ? t.accent : t.line) + '"><i style="background:' + t.accent + '"></i>' + t.emoji + ' ' + t.name + (auto && on ? (dark ? ' · nuit' : ' · jour') : '') + '</button>'; }).join('') + '</div>'; };
@@ -553,8 +553,9 @@
     if (kmh != null && kmh >= 5) spdState.movedAt = now;
     var show = !!(guide && step === 'guide') || (spdState.movedAt && now - spdState.movedAt < 30000);
     document.documentElement.classList.toggle('cspeed', !!show);
-    if (!show) { speedBox.hidden = true; if (!guide) showZone(null); return; }
+    if (!show) { speedBox.hidden = true; if (!guide) showZone(null); if (A.setTunnel) A.setTunnel(false); return; }
     var l = S.limitFor(f, hd), v = kmh == null ? null : Math.round(kmh), lv = l.value, over = !!(lv && v != null && v > lv + 2);
+    if (A.setTunnel) A.setTunnel(!!l.tunnel); // thème automatique : sombre sous un tunnel
     var html = (lv ? '<div class="lim' + (lv >= 100 ? ' l3' : '') + '">' + lv + '</div>' : '') + '<div class="spd' + (over ? ' over' : '') + '"><b>' + (v == null ? '–' : v) + '</b><small>km/h</small></div>';
     if (speedBox._h !== html) { speedBox._h = html; speedBox.innerHTML = html; }
     speedBox.hidden = false;

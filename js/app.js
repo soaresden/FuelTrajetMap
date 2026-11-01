@@ -345,7 +345,9 @@
   var sunCache = {};
   function sunTimes(lat, lon, now) {
     var key = lat.toFixed(1) + ',' + lon.toFixed(1) + ',' + new Date(now).toDateString(); if (sunCache.k === key) return sunCache.v;
-    var r = Math.PI / 180, J = now / 864e5 + 2440587.5, n = Math.ceil(J - 2451545.0 + 0.0008), Js = n - lon / 360;
+    // jour julien de la date du jour à 0 h UTC : avec l'heure exacte, la formule passait au LENDEMAIN après midi UTC (le jour julien
+    // change à midi) → lever du lendemain → « nuit » tout l'après-midi (bogue de la 1.7.2)
+    var d0 = new Date(now), r = Math.PI / 180, J = Date.UTC(d0.getFullYear(), d0.getMonth(), d0.getDate()) / 864e5 + 2440587.5, n = Math.ceil(J - 2451545.0 + 0.0008), Js = n - lon / 360;
     var M = (357.5291 + 0.98560028 * Js) % 360, C = 1.9148 * Math.sin(M * r) + 0.02 * Math.sin(2 * M * r) + 0.0003 * Math.sin(3 * M * r);
     var L = (M + C + 180 + 102.9372) % 360, Jt = 2451545.0 + Js + 0.0053 * Math.sin(M * r) - 0.0069 * Math.sin(2 * L * r);
     var sd = Math.sin(L * r) * Math.sin(23.4397 * r), cd = Math.cos(Math.asin(sd));
@@ -356,9 +358,10 @@
   function here() { var f = lastFix || mePos; return f ? { lat: f.lat, lon: f.lon } : { lat: state.view.lat, lon: state.view.lon }; }
   function isNightNow() { var p = here(), s = sunTimes(p.lat, p.lon, Date.now()), t = Date.now(); return t < s.rise || t > s.set; }
   var previewKey = null, themeEdit = null, appliedKey = null;
+  var tunnel = { osm: false, on: false, offAt: 0 }, lastFixAt = 0; // tunnel : voir plus bas (thème automatique)
   function themeKey() {
     if (previewKey) return previewKey;
-    var k = state.theme, a = state.themeAuto; if (a && a.on) k = isNightNow() ? a.night || 'nuit' : a.day || 'jour';
+    var k = state.theme, a = state.themeAuto; if (a && a.on) k = isNightNow() || tunnel.on ? a.night || 'nuit' : a.day || 'jour';
     if (THEMES[k] && THEMES[k].perso && !plusThemes()) k = THEMES[k].dark ? 'nuit' : 'jour'; // thème perso sans Plus : le thème de base
     return THEMES[k] ? k : 'nuit';
   }
@@ -376,6 +379,17 @@
     applyCarColor();
   }
   setInterval(function () { if (state.themeAuto && state.themeAuto.on && !previewKey && themeKey() !== appliedKey) { applyTheme(); refreshMap(); } }, 120000); // lever / coucher du soleil
+  // Tunnel : en automatique, le thème de nuit aussi sous un tunnel — voie marquée « tunnel » dans OpenStreetMap (signalée par l'écran
+  // voiture, setTunnel) ou GPS muet depuis plus de 5 s alors qu'on roulait. Retour au thème de jour 8 s après la sortie (pas de clignotement).
+  setInterval(function () {
+    var dt = Date.now() - lastFixAt, lost = !!lastFix && lastFixAt > 0 && dt > 5000 && dt < 180000 && (lastFix.speed || 0) > 5 && document.visibilityState === 'visible';
+    var t = tunnel.osm || lost, was = tunnel.on;
+    if (t) { tunnel.offAt = 0; tunnel.on = true; } else if (tunnel.on) { if (!tunnel.offAt) tunnel.offAt = Date.now() + 8000; else if (Date.now() >= tunnel.offAt) tunnel.on = false; }
+    if (tunnel.on !== was) {
+      try { window.FM && window.FM.log('thème : ' + (tunnel.on ? 'entrée dans un tunnel' + (tunnel.osm ? '' : ' (GPS muet)') : 'sortie du tunnel')); } catch (e) { }
+      if (state.themeAuto && state.themeAuto.on && !previewKey && themeKey() !== appliedKey) { applyTheme(); refreshMap(); }
+    }
+  }, 1000);
   document.addEventListener('fuelmap:plus', function () { if (themeKey() !== appliedKey) { applyTheme(); refreshMap(); } });
   function applyCarColor() { document.documentElement.style.setProperty('--car', car().color || '#3b82f6'); } // curseur (point de position, flèche du guidage) à la couleur de la voiture
   function hhmm(t) { return isFinite(t) ? new Date(t).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '—'; }
@@ -392,7 +406,7 @@
     var p = here(), s = sunTimes(p.lat, p.lon, Date.now());
     openModal('<h2>🎨 Thème</h2><p class="hint">Couleurs de l\'appli et du fond de carte. Les couleurs des prix (vert = pas cher, rouge = cher) ne changent pas.</p>' +
       '<div class="tmode"><button class="' + (auto ? '' : 'on') + '" data-theme-mode="static">Statique</button><button class="' + (auto ? 'on' : '') + '" data-theme-mode="auto">Automatique</button></div>' +
-      '<p class="hint">' + (auto ? '🌗 Touche un thème clair pour le jour et un thème sombre pour la nuit. Bascule au lever (' + hhmm(s.rise) + ') et au coucher du soleil (' + hhmm(s.set) + ') là où tu es.' : 'Le thème choisi reste affiché jour et nuit.') + '</p>' +
+      '<p class="hint">' + (auto ? '🌗 Touche un thème clair pour le jour et un thème sombre pour la nuit. Bascule au lever (' + hhmm(s.rise) + ') et au coucher du soleil (' + hhmm(s.set) + ') là où tu es, et sous les tunnels.' : 'Le thème choisi reste affiché jour et nuit.') + '</p>' +
       '<h3 class="tgrp">☀️ Clairs</h3>' + group(false) + '<h3 class="tgrp">🌙 Sombres</h3>' + group(true) +
       (pst !== 'off' ? '<p class="hint">' + (P ? P.badge() : '') + ' Les thèmes ✨ Perso clair et 🌟 Perso sombre : tes couleurs, avec ✏️.</p>' : ''));
   }
@@ -785,7 +799,7 @@
   function startWatch() {
     if (watchId != null || !navigator.geolocation) return;
     watchId = navigator.geolocation.watchPosition(function (p) {
-      lastFix = mePos = { lat: p.coords.latitude, lon: p.coords.longitude, speed: p.coords.speed, heading: p.coords.heading, acc: p.coords.accuracy };
+      lastFix = mePos = { lat: p.coords.latitude, lon: p.coords.longitude, speed: p.coords.speed, heading: p.coords.heading, acc: p.coords.accuracy }; lastFixAt = Date.now();
       if (!meMarker) meMarker = L.marker([mePos.lat, mePos.lon], { icon: L.divIcon({ className: '', html: '<div class="me-marker"></div>', iconSize: [16, 16], iconAnchor: [8, 8] }), interactive: false }).addTo(map);
       else meMarker.setLatLng([mePos.lat, mePos.lon]);
       if (follow) map.panTo([mePos.lat, mePos.lon], { animate: true });
@@ -831,7 +845,11 @@
   function carPan(dx, dy) { setFollow(false); map.panBy([dx, dy], { animate: false }); }
   function carZoom(scale, fx, fy) { setFollow(false); map.setZoomAround(L.point(fx, fy), map.getZoom() + Math.log(scale) / Math.LN2, { animate: false }); }
   function carStable(t, r, b, l) { // zone JAMAIS couverte par l'hôte : la colonne de gauche s'y cale, sans bouger quand les boutons de l'hôte apparaissent
-    var st = document.documentElement.style; st.setProperty('--stable-t', t + 'px'); st.setProperty('--stable-b', b + 'px'); st.setProperty('--stable-l', l + 'px'); st.setProperty('--stable-r', r + 'px'); document.dispatchEvent(new CustomEvent('fuelmap:insets'));
+    var st = document.documentElement.style; st.setProperty('--stable-t', t + 'px'); st.setProperty('--stable-b', b + 'px'); st.setProperty('--stable-l', l + 'px'); st.setProperty('--stable-r', r + 'px');
+    // marge du bord gauche de l'écran (coins arrondis, ~26 px) : ni la colonne des cartes de l'hôte en guidage (stable-l ≈ 430), ni la
+    // place du lecteur de musique en écran partagé (stable-r ≈ 540 : c'est elle qui mettait la colonne au milieu)
+    st.setProperty('--edge-l', Math.max(8, Math.min(40, l, t)) + 'px');
+    document.dispatchEvent(new CustomEvent('fuelmap:insets'));
   }
   function carInsets(t, r, b, l) { // zone de la page non couverte par l'hôte Android Auto (sa carte d'infos, ses boutons)
     safe = { t: t, r: r, b: b, l: l }; var st = document.documentElement.style;
@@ -1960,7 +1978,8 @@
     findPlace: findPlace, agendaWhen: agendaWhen, franceAvg: franceAvg, addNote: addNote, histSeries: histSeries, histSeries: histSeries, staleDays: staleDays, refreshPrices: function () { return refreshPrices(); }, refreshQuiet: function () { return fetchData(true); }, // sans message : vérification à l'approche d'un arrêt
     refreshMap: refreshMap, themes: THEMES, themeKey: function () { return themeKey(); }, plusThemes: plusThemes,
     setTheme: function (k) { if (!THEMES[k]) return; if (state.themeAuto && state.themeAuto.on) state.themeAuto[THEMES[k].dark ? 'night' : 'day'] = k; else state.theme = k; save(); applyTheme(); refreshMap(); },
+    setTunnel: function (on) { tunnel.osm = !!on; },
     setThemeAuto: function (on) { state.themeAuto = Object.assign({ day: 'jour', night: 'nuit' }, state.themeAuto || {}, { on: !!on }); save(); applyTheme(); refreshMap(); }
   };
-  window.__fuelmap = { carPan: carPan, carZoom: carZoom, carInsets: carInsets, carStable: carStable, restoreLastRoute: restoreLastRoute, setCarMode: setCarMode, updateHud: updateHud, get fix() { return lastFix; }, set fix(p) { lastFix = mePos = p; updateHud(); }, setPlan: setPlan, alternativesFor: alternativesFor, tryPlan: tryPlan, state: state, compute: computeRoute, setPlace: setPlace, get route() { return routeCtx; }, get count() { return stations.length; }, get stations() { return stations; }, map: map, openStation: openStation }; // pour les tests
+  window.__fuelmap = { carPan: carPan, carZoom: carZoom, carInsets: carInsets, carStable: carStable, restoreLastRoute: restoreLastRoute, setCarMode: setCarMode, updateHud: updateHud, get fix() { return lastFix; }, set fix(p) { lastFix = mePos = p; lastFixAt = Date.now(); updateHud(); }, setPlan: setPlan, alternativesFor: alternativesFor, tryPlan: tryPlan, state: state, compute: computeRoute, setPlace: setPlace, get route() { return routeCtx; }, get count() { return stations.length; }, get stations() { return stations; }, map: map, openStation: openStation }; // pour les tests
 })();

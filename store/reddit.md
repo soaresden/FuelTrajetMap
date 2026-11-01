@@ -28,15 +28,21 @@ depuis moins de 3 jours) : à refaire le jour du post (voir « Recalculer les ch
 
 | Subreddit | Langue | Pour quoi | Post |
 |---|---|---|---|
-| r/france | FR | le grand public, l'essence moins chère | n° 1 (vérifier les règles sur l'auto-promotion) |
-| r/vosfinances | FR | économies au quotidien | n° 1, en insistant sur les chiffres (règles strictes : vérifier) |
+| r/france | FR | le grand public, l'essence moins chère | n° 1, mais PAS tout de suite (voir ci-dessous) |
+| ~~r/vosfinances~~ | FR | économies au quotidien | abandonné : pas assez de karma (1/11/2026) |
 | r/AndroidClosedTesting, r/TestersCommunity | EN | trouver les 12 testeurs du test fermé | n° 2 |
 | r/AndroidAuto | EN | l'écran voiture maison | n° 3 (France, Espagne, Portugal, Italie seulement : le dire) |
 | r/SideProject, r/androidapps | EN | projet perso, retours de développeurs | n° 3 adapté |
 
 ---
 
-## Post n° 1 — grand public (r/france, r/vosfinances)
+## Post n° 1 — grand public (r/france)
+
+> Règle 12 de r/france (relevée le 1/11/2026) : pas de publicité. Poster ce qu'on a créé n'est pas interdit, mais un contenu promotionnel
+> « est susceptible d'être supprimé, en particulier si le compte n'est pas autrement actif sur le subreddit ». Donc : d'abord quelques
+> semaines de vraie participation (commentaires utiles, surtout sur l'essence, les prix, la voiture), puis un seul post, présenté comme
+> un projet perso avec les chiffres (pas comme une pub). Si un fil parle déjà du prix de l'essence, y répondre avec le lien est souvent
+> mieux accepté qu'un post à part.
 
 **Titre** (au choix) :
 - J'ai fait une appli gratuite qui trouve l'essence la moins chère sur ton trajet (et te dit où t'arrêter)

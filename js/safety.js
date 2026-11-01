@@ -133,7 +133,7 @@
   function limitFor(f, heading) {
     if (!f) return lim;
     var now = Date.now(), on = offShape(f, lim.shape) < 22;
-    if (!on && lim.shape && now - lim.at > 12000) lim.value = null; // sortie de la voie connue et pas de réponse depuis : on n'affiche rien plutôt qu'une limite fausse
+    if (!on && lim.shape && now - lim.at > 12000) { lim.value = null; lim.tunnel = false; } // sortie de la voie connue et pas de réponse depuis : on n'affiche rien plutôt qu'une limite fausse
     var wait = lim.fails ? Math.min(60000, 5000 * lim.fails) : 3000;
     if (!lim.busy && (!on || now - lim.at > 90000) && now - lim.at > wait) query(f, heading);
     return lim;
@@ -151,7 +151,7 @@
         if (heading != null) es.sort(function (p, q) { return angle(p.heading, heading) - angle(q.heading, heading); });
         var e = es[0]; if (!e) { lim.shape = null; lim.value = null; return; }
         var info = e.edge_info || {}, v = +info.speed_limit, cls = (e.edge && e.edge.classification && e.edge.classification.classification) || '';
-        lim.value = v > 0 && v < 200 ? v : null; lim.motorway = cls === 'motorway'; lim.name = (info.names || [])[0] || '';
+        lim.value = v > 0 && v < 200 ? v : null; lim.motorway = cls === 'motorway'; lim.tunnel = !!(e.edge && e.edge.tunnel); lim.name = (info.names || [])[0] || '';
         lim.shape = info.shape ? decode6(info.shape) : null; lim.at = Date.now();
       })
       .catch(function (err) { clearTimeout(to); lim.busy = false; lim.fails++; if (lim.fails === 1 || lim.fails % 10 === 0) log('limitation : serveur indisponible (' + (err.name === 'AbortError' ? 'trop lent' : err.message) + ')'); });

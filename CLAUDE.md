@@ -39,7 +39,7 @@ apk/android/app/src/main/java/fr/soaresden/fuelmap/
 ## Règles non négociables
 
 - **versionCode jamais réutilisé** : le Play Console grille un code dès qu'un AAB est téléversé, même en brouillon.
-  Dernier utilisé : **62 (1.7.4)**. Chaque livraison = code +1 ET bump de `versionName` dans `apk/android/app/build.gradle`,
+  Dernier utilisé : **63 (1.7.5)**. Chaque livraison = code +1 ET bump de `versionName` dans `apk/android/app/build.gradle`,
   de `version` dans `js/config.js`, et du nom de cache dans `sw.js`. Les trois ensemble, toujours.
 - Chaque livraison fournit : l'**AAB** (Play, signé avec la clé d'upload) et un commit. **Plus d'APK** : depuis la 1.5.9 Denis
   installe uniquement via le Play Store (tests internes). Les `*.apk`/`*.aab` sont ignorés par git ; ils vivent dans `apk/`.
@@ -210,6 +210,15 @@ l'étape est une **carte flottante** à gauche (`#carPane`, 330 px, hauteur selo
   le grand carré tourné, que le guidage utilise aussi avec `carnav`) ; glisser la carte ou toucher une station → `trackOff()`.
   Orientation `orient` 'cap' (sens de la marche en haut, défaut) / 'nord' (nord en haut, la flèche tourne), boutons N / Cap à côté
   de 2D / 3D (`#carView`), mémorisée dans `localStorage['fuelmap-carorient']`, valable en guidage et en suivi.
+- 1.7.5 : LA VRAIE CAUSE de « la barre au milieu » en écran partagé : la colonne du guidage se calait sur `--stable-r` (marge DROITE
+  de l'hôte), or avec le lecteur de musique l'hôte réserve ~540 px à droite → colonne à 540 px du bord gauche. Désormais `--edge-l`
+  (posé par carStable = min(stable-l, stable-t) borné 8-40 px ≈ 26) pour la colonne et `--navleft`. Ne JAMAIS se servir d'une marge
+  d'un côté pour l'autre côté. Colonne du guidage à la taille normale (Denis : « riquiqui »), sans logo ni zoom.
+  Bouton « ⭐ Garder ce lieu » : `.csub` n'était stylé que dans `.cfoot` → bouton blanc du navigateur, texte illisible ; `.csub` partout.
+  Thème automatique = aussi les TUNNELS (précision de Denis) : `tunnel.on` dans app.js = voie `tunnel` de Valhalla (car.js →
+  `__fuelmapAPI.setTunnel`) OU GPS muet > 5 s alors qu'on roulait (> 5 m/s) ; sortie 8 s après ; le thème de nuit est pris pendant ce temps.
+  BOGUE 1.7.2 corrigé : `sunTimes` partait de l'heure exacte → après midi UTC, lever du LENDEMAIN → thème de nuit tout l'après-midi.
+  Il part maintenant de la date du jour à 0 h UTC.
 État et journalisation : `__fuelmapCar.state()/dump()`. Plein : question « tu viens de faire le plein ? » (fillup.js) à gauche.
 
 ## Téléphone
