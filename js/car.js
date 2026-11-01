@@ -706,7 +706,6 @@
     var left = Math.max(px('--stable-l'), px('--safe-l')), right = innerWidth - Math.max(px('--stable-r'), px('--safe-r')), h = innerHeight;
     var rr = !rail.hidden && rail.getBoundingClientRect(); if (rr && rr.width) { if (rr.left > innerWidth / 2) right = Math.min(right, rr.left); else left = Math.max(left, rr.right); } // colonne flottante (au bord droit en guidage)
     if (panelStep()) left = Math.max(left, pane.getBoundingClientRect().right); // une étape est ouverte : la flèche reste visible à sa droite
-    root.classList.toggle('cnav-narrow', right - left < 520); // écran partagé : le compteur monte au-dessus du bandeau, qui garde toute la largeur
     var cx = left + Math.max(0, right - left) / 2, cy = h * (orient === 'nord' ? 0.5 : 0.66) /* cap : on voit plus loin devant */, R = Math.max(Math.hypot(cx, cy), Math.hypot(innerWidth - cx, cy), Math.hypot(cx, h - cy), Math.hypot(innerWidth - cx, h - cy));
     var S = Math.ceil(2 * R * 1.2); // le carré tourné et incliné doit couvrir tout l'écran, coins compris
     st.setProperty('--nav-s', S + 'px'); st.setProperty('--nav-x', Math.round(cx - S / 2) + 'px'); st.setProperty('--nav-y', Math.round(cy - S / 2) + 'px');

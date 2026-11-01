@@ -39,7 +39,7 @@ apk/android/app/src/main/java/fr/soaresden/fuelmap/
 ## Règles non négociables
 
 - **versionCode jamais réutilisé** : le Play Console grille un code dès qu'un AAB est téléversé, même en brouillon.
-  Dernier utilisé : **63 (1.7.5)**. Chaque livraison = code +1 ET bump de `versionName` dans `apk/android/app/build.gradle`,
+  Dernier utilisé : **64 (1.7.6)**. Chaque livraison = code +1 ET bump de `versionName` dans `apk/android/app/build.gradle`,
   de `version` dans `js/config.js`, et du nom de cache dans `sw.js`. Les trois ensemble, toujours.
 - Chaque livraison fournit : l'**AAB** (Play, signé avec la clé d'upload) et un commit. **Plus d'APK** : depuis la 1.5.9 Denis
   installe uniquement via le Play Store (tests internes). Les `*.apk`/`*.aab` sont ignorés par git ; ils vivent dans `apk/`.
@@ -219,6 +219,9 @@ l'étape est une **carte flottante** à gauche (`#carPane`, 330 px, hauteur selo
   `__fuelmapAPI.setTunnel`) OU GPS muet > 5 s alors qu'on roulait (> 5 m/s) ; sortie 8 s après ; le thème de nuit est pris pendant ce temps.
   BOGUE 1.7.2 corrigé : `sunTimes` partait de l'heure exacte → après midi UTC, lever du LENDEMAIN → thème de nuit tout l'après-midi.
   Il part maintenant de la date du jour à 0 h UTC.
+- 1.7.6 : en guidage la colonne prend TOUTE la hauteur (logo, modes, zoom, comme au repos ; Denis la trouvait « petite »), collée au
+  bord gauche (`--edge-l`). Vue voiture (`crot`, guidage ou suivi) : compteur + limitation au-dessus de 2D / 3D, zone de radar au-dessus
+  du compteur, à gauche de la partie libre ; `cnav-narrow` supprimé (plus utile).
 État et journalisation : `__fuelmapCar.state()/dump()`. Plein : question « tu viens de faire le plein ? » (fillup.js) à gauche.
 
 ## Téléphone

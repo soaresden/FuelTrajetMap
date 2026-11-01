@@ -523,8 +523,7 @@ html[data-carui].carnav #carGuide { left: var(--navleft); }
 /* guidage : les cartes de l'hôte prennent la gauche ; la colonne reste là, en colonne flottante juste à leur droite (sans le logo) */
 /* guidage : la colonne reste collée au bord GAUCHE, comme au repos (marge = celle de l'hôte, symétrique à droite), compacte et
    centrée en hauteur : entre la carte de manœuvre de l'hôte (en haut à gauche) et sa carte « temps restant » (en bas à gauche). */
-html[data-carui].carnav #carRail { left: var(--edge-l, 10px); right: auto; top: 50%; bottom: auto; transform: translateY(-50%); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); padding: 5px; } /* même taille qu'au repos ; seuls le logo et le zoom sont cachés */
-html[data-carui].carnav #carRail .cbrand, html[data-carui].carnav #carRail .sp, html[data-carui].carnav #carRail .cz { display: none; }
+html[data-carui].carnav #carRail { left: var(--edge-l, 10px); right: auto; top: calc(var(--ctop) + 4px); bottom: calc(var(--stable-b) + 8px); transform: none; border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); padding: 5px; } /* guidage : toute la hauteur, comme au repos (logo, modes, zoom), collée au bord gauche */
 html[data-carui].carnav { --navleft: calc(max(var(--stable-l), var(--edge-l, 10px) + var(--rail)) + 8px); --navright: calc(var(--stable-r, 0px) + 8px); } /* jamais sur la colonne, même si les cartes de l'hôte sont étroites */
 html[data-carui].carnav #carNext { left: calc(var(--navleft) + (100vw - var(--navleft) - var(--navright)) / 2); max-width: calc(100vw - var(--navleft) - var(--navright) - 8px); }
 html[data-carui].carnav #carView { bottom: calc(var(--stable-b) + 72px); } /* 2D / 3D au-dessus du bandeau d'arrêt : le bandeau garde toute la largeur libre */
@@ -812,13 +811,12 @@ html.wide #plus .sheet, html.wide #update .sheet { border-radius: 18px; }
 #carZone b { font-size: 16px; font-weight: 800; } #carZone span { font-size: 14px; font-weight: 700; }
 @keyframes cgyro { 0%, 49% { background: #e3262f; box-shadow: 0 0 18px 4px rgba(227, 38, 47, .75); } 50%, 100% { background: #1e5bff; box-shadow: 0 0 18px 4px rgba(30, 91, 255, .75); } } /* gyrophare : rouge / bleu, comme la zone sur la carte */
 html[data-carui].cspeed #carChip { max-width: calc(100vw - var(--cleft) - 60px - 180px - var(--safe-r)); }
-html[data-carui].carnav.cspeed { --navright: calc(var(--stable-r, 0px) + 8px + 170px); }
-html[data-carui].carnav #carRail { top: auto; bottom: calc(var(--stable-b) + 8px); transform: none; }
 #carNext .nxe { flex-shrink: 0; margin-left: 8px; padding-left: 8px; border-left: 1px solid var(--line); }
 @media (max-width: 999px) { #carNext .nxe { display: none; } }
-html[data-carui].carnav.cnav-narrow.cspeed { --navright: calc(var(--stable-r, 0px) + 8px); }
-html[data-carui].carnav.cnav-narrow #carSpeed { right: auto; left: var(--navleft); bottom: calc(var(--stable-b) + 136px); } /* au-dessus de 2D / 3D, à gauche de la flèche */
-html[data-carui].carnav.cnav-narrow #carZone { right: auto; left: var(--navleft); bottom: calc(var(--stable-b) + 220px); }
+/* vue voiture (guidage ou suivi) : vitesse + limitation juste au-dessus de 2D / 3D, la zone de radar au-dessus ; le bandeau du bas
+   garde toute la largeur libre (demande de Denis, 1.7.6) */
+html[data-carui].crot #carSpeed { right: auto; left: var(--navleft, var(--cleft)); bottom: calc(var(--stable-b) + 136px); }
+html[data-carui].crot #carZone { right: auto; left: var(--navleft, var(--cleft)); bottom: calc(var(--stable-b) + 220px); }
 /* 1.7.4 : 2D / 3D + N / Cap ; en suivi hors guidage (crot sans carnav), le sélecteur se pose au-dessus du bouton du bas */
 #carView .vsep { width: 1px; align-self: stretch; margin: 6px 2px; background: var(--line); }
 html[data-carui].crot:not(.carnav) #carView { left: var(--cleft); bottom: calc(var(--stable-b) + 72px); }
