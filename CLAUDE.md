@@ -39,7 +39,7 @@ apk/android/app/src/main/java/fr/soaresden/fuelmap/
 ## Règles non négociables
 
 - **versionCode jamais réutilisé** : le Play Console grille un code dès qu'un AAB est téléversé, même en brouillon.
-  Dernier utilisé : **65 (1.7.7)**. Chaque livraison = code +1 ET bump de `versionName` dans `apk/android/app/build.gradle`,
+  Dernier utilisé : **66 (1.7.8)**. Chaque livraison = code +1 ET bump de `versionName` dans `apk/android/app/build.gradle`,
   de `version` dans `js/config.js`, et du nom de cache dans `sw.js`. Les trois ensemble, toujours.
 - Chaque livraison fournit : l'**AAB** (Play, signé avec la clé d'upload) et un commit. **Plus d'APK** : depuis la 1.5.9 Denis
   installe uniquement via le Play Store (tests internes). Les `*.apk`/`*.aab` sont ignorés par git ; ils vivent dans `apk/`.
@@ -227,6 +227,11 @@ l'étape est une **carte flottante** à gauche (`#carPane`, 330 px, hauteur selo
   comprises ; cachée hors écran), 15 s de liberté (`FREE_MS`) puis retour au suivi. Bouton `[data-ov]` dans `#carView` (guidage) :
   🗺️ = vue d'ensemble (`overview()` : trajet restant dans la partie libre, nord en haut, à plat, jusqu'au recentrage), 🎯 = recentrer
   (carte déplacée ou vue d'ensemble ; même effet que « ma position » de l'hôte). Écran Thème : ligne « couleurs perso sur le téléphone ».
+- 1.7.8 : même contenu que la 1.7.7, première release du TEST FERMÉ (Play exige 12 testeurs pendant 14 jours avant la production).
+  Testeurs : Google Group `fuelmapandroidfr@googlegroups.com` (rejoindre aussi par e-mail vide à `fuelmapandroidfr+subscribe@googlegroups.com`),
+  lien Play https://play.google.com/apps/testing/fr.soaresden.fuelmap. Codes Plus envoyés tout seuls à chaque nouveau membre par un
+  Google Apps Script sur le compte de Denis (`.plus-archive/envoi-codes.gs`, feuille « Codes » importée de `.plus-archive/codes-testeurs.csv`,
+  toutes les 5 min). Plus de codes → il faut en générer de nouveaux (empreintes dans `BETA` de plus.js) et une nouvelle version.
 État et journalisation : `__fuelmapCar.state()/dump()`. Plein : question « tu viens de faire le plein ? » (fillup.js) à gauche.
 
 ## Téléphone

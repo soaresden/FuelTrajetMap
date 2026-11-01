@@ -159,7 +159,7 @@ Si la revue refuse la catégorie navigation, repli possible en « points d'inté
 
 ## 5. Version (Tests → Test interne, puis Production)
 
-AAB : `apk/FuelMap-1.7.7.aab` (versionCode 65). **Nom de la version** : `1.7.7`
+AAB : `apk/FuelMap-1.7.8.aab` (versionCode 66). **Nom de la version** : `1.7.8`
 
 **Notes de version** (500 max) :
 
