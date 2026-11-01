@@ -819,5 +819,8 @@ html[data-carui].crot #carSpeed { right: auto; left: var(--navleft, var(--cleft)
 html[data-carui].crot #carZone { right: auto; left: var(--navleft, var(--cleft)); bottom: calc(var(--stable-b) + 220px); }
 /* 1.7.4 : 2D / 3D + N / Cap ; en suivi hors guidage (crot sans carnav), le sélecteur se pose au-dessus du bouton du bas */
 #carView .vsep { width: 1px; align-self: stretch; margin: 6px 2px; background: var(--line); }
+#carView button.cov { font-size: 22px; } /* 🗺️ vue d'ensemble / 🎯 recentrer */
+#carArrow.cfree { transition: none; } /* posée sur la vraie position pendant qu'on regarde ailleurs */
+.ctip { margin-top: 10px; font-size: 14px; line-height: 1.35; }
 html[data-carui].crot:not(.carnav) #carView { left: var(--cleft); bottom: calc(var(--stable-b) + 72px); }
 #carArrow { transition: transform .5s linear; }

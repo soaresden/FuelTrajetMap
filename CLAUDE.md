@@ -39,7 +39,7 @@ apk/android/app/src/main/java/fr/soaresden/fuelmap/
 ## Règles non négociables
 
 - **versionCode jamais réutilisé** : le Play Console grille un code dès qu'un AAB est téléversé, même en brouillon.
-  Dernier utilisé : **64 (1.7.6)**. Chaque livraison = code +1 ET bump de `versionName` dans `apk/android/app/build.gradle`,
+  Dernier utilisé : **65 (1.7.7)**. Chaque livraison = code +1 ET bump de `versionName` dans `apk/android/app/build.gradle`,
   de `version` dans `js/config.js`, et du nom de cache dans `sw.js`. Les trois ensemble, toujours.
 - Chaque livraison fournit : l'**AAB** (Play, signé avec la clé d'upload) et un commit. **Plus d'APK** : depuis la 1.5.9 Denis
   installe uniquement via le Play Store (tests internes). Les `*.apk`/`*.aab` sont ignorés par git ; ils vivent dans `apk/`.
@@ -222,6 +222,11 @@ l'étape est une **carte flottante** à gauche (`#carPane`, 330 px, hauteur selo
 - 1.7.6 : en guidage la colonne prend TOUTE la hauteur (logo, modes, zoom, comme au repos ; Denis la trouvait « petite »), collée au
   bord gauche (`--edge-l`). Vue voiture (`crot`, guidage ou suivi) : compteur + limitation au-dessus de 2D / 3D, zone de radar au-dessus
   du compteur, à gauche de la partie libre ; `cnav-narrow` supprimé (plus utile).
+- 1.7.7 : en guidage, carte déplacée du doigt = la flèche ne reste plus au point fixe (on croyait que la voiture bougeait) : elle est
+  posée sur la VRAIE position (`placeArrow` : repère Leaflet invisible `pin`, place lue par getBoundingClientRect, rotation et inclinaison
+  comprises ; cachée hors écran), 15 s de liberté (`FREE_MS`) puis retour au suivi. Bouton `[data-ov]` dans `#carView` (guidage) :
+  🗺️ = vue d'ensemble (`overview()` : trajet restant dans la partie libre, nord en haut, à plat, jusqu'au recentrage), 🎯 = recentrer
+  (carte déplacée ou vue d'ensemble ; même effet que « ma position » de l'hôte). Écran Thème : ligne « couleurs perso sur le téléphone ».
 État et journalisation : `__fuelmapCar.state()/dump()`. Plein : question « tu viens de faire le plein ? » (fillup.js) à gauche.
 
 ## Téléphone

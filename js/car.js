@@ -192,7 +192,9 @@
       favBox.style.top = Math.round((tb && tb.height ? tb.bottom : rail.getBoundingClientRect().top + 6) + 8) + 'px';
     }
     viewBox.innerHTML = '<button data-view="2"' + (view3d ? '' : ' class="on"') + '>2D</button><button data-view="3"' + (view3d ? ' class="on"' : '') + '>3D</button><i class="vsep"></i>' +
-      '<button data-orient="nord"' + (orient === 'nord' ? ' class="on"' : '') + '>N</button><button data-orient="cap"' + (orient === 'cap' ? ' class="on"' : '') + '>Cap</button>';
+      '<button data-orient="nord"' + (orient === 'nord' ? ' class="on"' : '') + '>N</button><button data-orient="cap"' + (orient === 'cap' ? ' class="on"' : '') + '>Cap</button>' +
+      (guide ? '<i class="vsep"></i><button data-ov class="cov"></button>' : '');
+    updOv();
     var show = panelStep(); pane.classList.toggle('open', show);
     var wide = show && (step === 'setup' && !wheel || step === 'pick') && innerWidth >= 900; document.documentElement.classList.toggle('cpane-wide', wide); // Ma voiture : deux colonnes, tout tient sans défiler
     var pl = (nav.on ? Math.max(rail.getBoundingClientRect().right, 0) : rail.getBoundingClientRect().right) + 8; // carte flottante sous les boutons de l'hôte si elle atteint leur zone
@@ -307,7 +309,8 @@
         var t = T[k2], on = auto ? k2 === (au.day || 'jour') || k2 === (au.night || 'nuit') : k2 === A.state.theme;
         return '<button class="cth' + (on ? ' on' : '') + '" data-theme="' + k2 + '" style="background:' + t.bg + ';color:' + t.text + ';border-color:' + (on ? t.accent : t.line) + '"><i style="background:' + t.accent + '"></i>' + t.emoji + ' ' + t.name + (auto && on ? (dark ? ' · nuit' : ' · jour') : '') + '</button>'; }).join('') + '</div>'; };
       body = '<div class="cmode2"><button class="copt' + (auto ? '' : ' on') + '" data-tmode="static">Statique</button><button class="copt' + (auto ? ' on' : '') + '" data-tmode="auto">🌗 Automatique</button></div>' +
-        '<div class="c2col"><div><div class="ctg">☀️ Clairs' + (auto ? ' · le jour' : '') + '</div>' + thm(false) + '</div><div><div class="ctg">🌙 Sombres' + (auto ? ' · la nuit' : '') + '</div>' + thm(true) + '</div></div>';
+        '<div class="c2col"><div><div class="ctg">☀️ Clairs' + (auto ? ' · le jour' : '') + '</div>' + thm(false) + '</div><div><div class="ctg">🌙 Sombres' + (auto ? ' · la nuit' : '') + '</div>' + thm(true) + '</div></div>' +
+        (okP ? '<div class="cnote ctip">✏️ Les couleurs de ✨ Perso clair et 🌟 Perso sombre se choisissent sur le téléphone : bouton 🎨 de la carte, puis ✏️ sur le thème.</div>' : '');
     }
     pane.innerHTML = (head ? '<div class="chead">' + head + '</div>' : '') + '<div class="clist">' + body + '</div>' + (foot ? '<div class="cfoot">' + foot + '</div>' : '');
     listEl = pane.querySelector('.clist'); listEl.scrollTop = scrollKeep;
@@ -690,14 +693,15 @@
   var view3d = true; try { view3d = localStorage.getItem('fuelmap-car3d') !== '0'; } catch (e) { }
   // Orientation : « Cap » = la carte tourne, le sens de la marche toujours en haut ; « N » = le nord toujours en haut, la flèche tourne
   var orient = 'cap'; try { orient = localStorage.getItem('fuelmap-carorient') === 'nord' ? 'nord' : 'cap'; } catch (e) { }
-  function applyView() { document.documentElement.style.setProperty('--nav-tilt', view3d ? '32deg' : '0deg'); }
+  var nav = { on: false, heading: 0, freeUntil: 0, ov: false }, track = { on: false }, lastHd = null;
+  function applyView() { document.documentElement.style.setProperty('--nav-tilt', view3d && !nav.ov ? '32deg' : '0deg'); } // vue d'ensemble : toujours à plat
   applyView();
   viewBox.addEventListener('click', function (e) {
     var b = e.target.closest('[data-view]'), o = e.target.closest('[data-orient]');
+    if (e.target.closest('[data-ov]')) { if (nav.ov || freeNow()) recenter(); else overview(); return; }
     if (o) { orient = o.getAttribute('data-orient'); try { localStorage.setItem('fuelmap-carorient', orient); } catch (err) { } navGeometry(); followCar(true); render(); log('voiture : orientation ' + orient); return; }
     if (!b) return; view3d = b.getAttribute('data-view') === '3'; try { localStorage.setItem('fuelmap-car3d', view3d ? '1' : '0'); } catch (err) { } applyView(); render(); log('voiture : vue ' + (view3d ? '3D' : '2D'));
   });
-  var nav = { on: false, heading: 0, freeUntil: 0 }, track = { on: false }, lastHd = null;
   function rot() { return nav.on || track.on; } // carte en « vue voiture » (grand carré tourné / incliné, flèche fixe)
   function navGeometry() {
     // Pendant le guidage, l'hôte pose ses cartes (manœuvre, temps restant) à gauche et annonce une zone libre qui commence à leur droite :
@@ -709,13 +713,52 @@
     var cx = left + Math.max(0, right - left) / 2, cy = h * (orient === 'nord' ? 0.5 : 0.66) /* cap : on voit plus loin devant */, R = Math.max(Math.hypot(cx, cy), Math.hypot(innerWidth - cx, cy), Math.hypot(cx, h - cy), Math.hypot(innerWidth - cx, h - cy));
     var S = Math.ceil(2 * R * 1.2); // le carré tourné et incliné doit couvrir tout l'écran, coins compris
     st.setProperty('--nav-s', S + 'px'); st.setProperty('--nav-x', Math.round(cx - S / 2) + 'px'); st.setProperty('--nav-y', Math.round(cy - S / 2) + 'px');
-    arrow.style.left = cx + 'px'; arrow.style.top = cy + 'px';
+    nav.cx = cx; nav.cy = cy; placeArrow();
+  }
+  // Quand on déplace la carte du doigt (ou en vue d'ensemble), la carte ne suit plus la voiture : la flèche quitte son point fixe et
+  // reste posée sur la VRAIE position (un repère invisible sur la carte, dont le navigateur donne la place à l'écran, rotation et
+  // inclinaison comprises). Hors de l'écran : cachée. Elle revient au point fixe quand la carte se recentre.
+  var pin = null;
+  function freeNow() { return nav.on && (nav.ov || Date.now() < nav.freeUntil); }
+  function placeArrow() {
+    var f = A.fix, x = nav.cx, y = nav.cy, out = false;
+    if (freeNow() && f && A.map) {
+      if (!pin) pin = L.marker([f.lat, f.lon], { icon: L.divIcon({ className: 'cpin', iconSize: [0, 0] }), interactive: false, keyboard: false });
+      pin.setLatLng([f.lat, f.lon]); if (!A.map.hasLayer(pin)) pin.addTo(A.map);
+      var r = pin.getElement() && pin.getElement().getBoundingClientRect();
+      if (r) { x = r.left; y = r.top; out = x < -20 || y < -20 || x > innerWidth + 20 || y > innerHeight + 20; }
+    } else if (pin && A.map && A.map.hasLayer(pin)) A.map.removeLayer(pin);
+    if (x == null) return;
+    arrow.style.left = Math.round(x) + 'px'; arrow.style.top = Math.round(y) + 'px'; arrow.classList.toggle('cfree', freeNow()); arrow.style.visibility = out ? 'hidden' : '';
+  }
+  function updOv() { // bouton « vue d'ensemble » ↔ « recentrer »
+    var b = viewBox.querySelector('[data-ov]'); if (!b) return; var back = nav.ov || freeNow();
+    if (b._b === back) return; b._b = back; b.classList.toggle('on', !!nav.ov);
+    b.innerHTML = back ? '🎯' : '🗺️'; b.title = back ? 'Recentrer sur la voiture' : 'Voir tout le trajet'; b.setAttribute('aria-label', b.title);
+  }
+  // Vue d'ensemble : tout le trajet restant (et les arrêts) dans la partie libre de l'écran, nord en haut, à plat. Elle reste jusqu'au
+  // 🎯 Recentrer (ou le bouton « ma position » de l'hôte) ; le guidage, la voix et les alertes continuent pendant ce temps.
+  function overview() {
+    if (!guide || !guide.pts || !nav.on) return;
+    var m = A.map, P = guide.pts.slice(Math.max(0, guide.idx || 0)), f = A.fix; if (f) P.push([f.lat, f.lon]); if (P.length < 2) return;
+    nav.ov = true; applyView(); setHeading(0); arrow.style.transform = lastHd != null ? 'rotate(' + Math.round(lastHd) + 'deg)' : '';
+    var root = document.documentElement, cs = getComputedStyle(root), px = function (v) { return parseFloat(cs.getPropertyValue(v)) || 0; };
+    var S = m.getSize().x, left = px('--navleft') || 100, right = innerWidth - Math.max(px('--stable-r'), px('--safe-r')) - 16;
+    var vb = viewBox.getBoundingClientRect(), nb = nextBox.hidden ? null : nextBox.getBoundingClientRect();
+    var top = px('--ctop') + 70, bot = Math.min(vb.height ? vb.top : innerHeight, nb && nb.height ? nb.top : innerHeight) - 16; // sous la fiche de manœuvre, au-dessus des boutons
+    var w = Math.max(120, right - left), h = Math.max(100, bot - top), b = L.latLngBounds(P.map(function (p) { return L.latLng(p[0], p[1]); }));
+    var z = Math.min(16, m.getBoundsZoom(b, false, L.point(S - w, S - h)));
+    // le centre du grand carré est à l'écran en (cx, cy) ; on veut le milieu du trajet au milieu de la partie libre
+    var c = m.unproject(m.project(b.getCenter(), z).subtract([(left + right) / 2 - nav.cx, (top + bot) / 2 - nav.cy]), z);
+    m.setView(c, z, { animate: false }); log('voiture : vue d\'ensemble du trajet (zoom ' + z.toFixed(1) + ')');
+    updOv(); setTimeout(placeArrow, 600); // après la transition de la carte (0,5 s)
   }
   // « vue voiture » (classe crot) : utilisée par le guidage (carnav, qui change aussi la disposition) et par le suivi hors guidage
   function viewOn() {
     var r = document.documentElement; if (r.classList.contains('crot')) { navGeometry(); return; }
     r.classList.add('crot'); navGeometry(); arrow.hidden = false;
     A.map.invalidateSize({ animate: false }); window.addEventListener('resize', navGeometry);
+    if (!viewOn._w) { viewOn._w = true; A.map.on('move zoom moveend', function () { if (freeNow()) placeArrow(); }); }
   }
   function viewOff() {
     var r = document.documentElement; if (!r.classList.contains('crot')) return;
@@ -727,8 +770,9 @@
     document.documentElement.classList.add('carnav'); viewOn();
   }
   function navOff() {
-    if (!nav.on) return; nav.on = false;
-    document.documentElement.classList.remove('carnav');
+    if (!nav.on) return; nav.on = false; nav.freeUntil = 0;
+    if (nav.ov) { nav.ov = false; applyView(); }
+    document.documentElement.classList.remove('carnav'); placeArrow();
     if (track.on) { viewOn(); followCar(true); return; } // on suivait la voiture avant : on continue
     viewOff();
     var f = A.fix; if (f) A.map.setView(shifted([f.lat, f.lon], 14), 14, { animate: false });
@@ -757,14 +801,16 @@
     if (guide) { if (!nav.on) navOn(); } else viewOn();
     var kmh = f.speed != null ? f.speed * 3.6 : 0, hd = f.heading != null && !isNaN(f.heading) && kmh > 6 ? f.heading : guide ? routeBearing(f) : null;
     if (hd != null) lastHd = hd;
-    if (orient === 'nord') { setHeading(0); arrow.style.transform = lastHd != null ? 'rotate(' + Math.round(lastHd) + 'deg)' : ''; } // la flèche montre le sens de la marche
+    if (orient === 'nord' || nav.ov) { setHeading(0); arrow.style.transform = lastHd != null ? 'rotate(' + Math.round(lastHd) + 'deg)' : ''; } // la flèche montre le sens de la marche
     else { setHeading(hd != null ? hd : lastHd); arrow.style.transform = ''; }
-    if (Date.now() < nav.freeUntil) return; // l'utilisateur a déplacé ou zoomé la carte : on la lui laisse quelques secondes
+    if (freeNow()) { placeArrow(); updOv(); return; } // l'utilisateur regarde ailleurs (carte déplacée, vue d'ensemble) : on la lui laisse
+    if (arrow.classList.contains('cfree')) { placeArrow(); updOv(); } // fin du temps libre : la flèche revient à son point fixe
     var m = A.map, c = L.latLng(f.lat, f.lon), z = guide ? (kmh > 80 ? 14 : kmh > 45 ? 15 : 16) : Math.max(13, m.getZoom()); // hors guidage : le zoom choisi
     if (force || m.getZoom() !== z) m.setView(c, z, { animate: false }); else m.panTo(c, { animate: true, duration: 0.5, easeLinearity: 1 });
   }
   function recenter() {
-    nav.freeUntil = 0; if (guide) { followCar(true); return; }
+    nav.freeUntil = 0; if (nav.ov) { nav.ov = false; applyView(); }
+    if (guide) { followCar(true); placeArrow(); updOv(); return; }
     if (A.fix) trackOn(); else A.locate().then(function () { if (A.fix) trackOn(); }).catch(function () { });
   }
 
@@ -876,10 +922,10 @@
 
   // ---- gestes renvoyés par l'hôte Android Auto (CarWebSurface). L'hôte ne dit pas où le doigt est posé :
   // une liste est affichée → le glisser la fait défiler ; sinon il déplace la carte. Le pincer zoome toujours la carte.
-  var pdx = 0, pdy = 0, panRaf = 0, panEnd = null;
+  var pdx = 0, pdy = 0, panRaf = 0, panEnd = null, FREE_MS = 15000; // guidage : la carte déplacée reste 15 s là où on l'a mise (ou jusqu'à 🎯)
   function panMap(dx, dy) {
     if (track.on && !nav.on) trackOff(); // déplacer la carte du doigt : on arrête de suivre la voiture
-    if (nav.on) { var a = nav.heading * Math.PI / 180, rx = dx * Math.cos(a) - dy * Math.sin(a), ry = dx * Math.sin(a) + dy * Math.cos(a); dx = rx; dy = ry; nav.freeUntil = Date.now() + 8000; }
+    if (nav.on) { var a = nav.heading * Math.PI / 180, rx = dx * Math.cos(a) - dy * Math.sin(a), ry = dx * Math.sin(a) + dy * Math.cos(a); dx = rx; dy = ry; nav.freeUntil = Date.now() + FREE_MS; updOv(); }
     pdx += dx; pdy += dy;
     if (!panRaf) panRaf = requestAnimationFrame(function () {
       panRaf = 0; var m = A.map, off = L.point(pdx, pdy); pdx = pdy = 0;
@@ -906,7 +952,7 @@
       pz = { z: m.getZoom(), p: p, ll: m.containerPointToLatLng(p) };
       A.setFollow(false); if (m._stop) m._stop(); m._moveStart(true, false);
     }
-    if (nav.on) nav.freeUntil = Date.now() + 8000;
+    if (nav.on) { nav.freeUntil = Date.now() + FREE_MS; updOv(); }
     pz.z = Math.max(m.getMinZoom(), Math.min(m.getMaxZoom(), pz.z + Math.log(scale) / Math.LN2));
     if (!pzRaf) pzRaf = requestAnimationFrame(function () {
       pzRaf = 0; if (!pz) return;
@@ -916,7 +962,7 @@
     clearTimeout(pzEnd); pzEnd = setTimeout(endPinch, 220);
   }
   function endPinch() { if (!pz) return; var m = A.map, z = pz.z; pz = null; cancelAnimationFrame(pzRaf); pzRaf = 0; m._resetView(m.getCenter(), m._limitZoom(z)); } // comme la fin d'un pincer Leaflet
-  function zoomBy(d) { var m = A.map; if (nav.on) nav.freeUntil = Date.now() + 8000; A.setFollow(false); m.setZoom(Math.round(m.getZoom()) + d); }
+  function zoomBy(d) { var m = A.map; if (nav.on) { nav.freeUntil = Date.now() + FREE_MS; updOv(); } A.setFollow(false); m.setZoom(Math.round(m.getZoom()) + d); }
 
   // ---- la commune où l'on est (en haut à gauche de la carte) : pour se repérer d'un coup d'œil. Demandée au service d'adresses
   // tous les ~600 m (Géoplateforme IGN, puis l'ancienne API Adresse, puis Photon hors de France).
