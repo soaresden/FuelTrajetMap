@@ -58,7 +58,10 @@ public class MapScreen extends Screen {
     @Override
     public Template onGetTemplate() {
         NavigationTemplate.Builder b = new NavigationTemplate.Builder();
-        if (routing != null) { b.setNavigationInfo(routing); if (estimate != null) b.setDestinationTravelEstimate(estimate); }
+        // Seulement la fiche de manœuvre (en haut à gauche). Pas de setDestinationTravelEstimate : sa carte « temps restant » en bas à
+        // gauche faisait réserver par l'hôte toute la colonne de gauche, et la page se retrouvait poussée vers le milieu. L'arrivée est
+        // écrite par la page (bandeau du bas) ; le tableau de bord de la voiture la reçoit toujours par updateTrip.
+        if (routing != null) b.setNavigationInfo(routing);
         return b
             .setActionStrip(new ActionStrip.Builder()
                 .addAction(routing != null

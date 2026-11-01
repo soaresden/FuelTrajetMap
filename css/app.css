@@ -798,3 +798,25 @@ html.wide #plus .sheet, html.wide #update .sheet { border-radius: 18px; }
 .tcol input[type=color] { width: 44px; height: 34px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: none; }
 .tbtns { margin-top: 14px; } .linkbtn { display: block; margin: 10px auto 0; border: 0; background: none; color: var(--muted); text-decoration: underline; font-size: 13px; }
 .cmode2 { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 6px; } .cmode2 .copt { height: 34px; font-size: 14px; }
+/* 1.7.3 : compteur + limitation (bas droite), zones de danger (rouge / bleu) ; en guidage la colonne descend en bas à gauche,
+   sous la fiche de manœuvre de l'hôte (sa carte « temps restant » n'existe plus) */
+#carSpeed { position: fixed; z-index: 713; right: calc(var(--safe-r) + 10px); bottom: calc(var(--stable-b) + 10px); display: flex; align-items: center; gap: 8px; pointer-events: none; }
+#carSpeed[hidden] { display: none; }
+#carSpeed .spd { width: 76px; height: 76px; border-radius: 50%; background: var(--panel); border: 3px solid var(--line); box-shadow: var(--shadow); display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text); line-height: 1; }
+#carSpeed .spd b { font-size: 32px; font-weight: 800; font-variant-numeric: tabular-nums; } #carSpeed .spd small { font-size: 12px; color: var(--muted); font-weight: 700; margin-top: 2px; }
+#carSpeed .spd.over { border-color: #e3262f; background: #e3262f; } #carSpeed .spd.over b, #carSpeed .spd.over small { color: #fff; }
+#carSpeed .lim { width: 64px; height: 64px; border-radius: 50%; background: #fff; border: 8px solid #e3262f; box-sizing: border-box; box-shadow: var(--shadow); color: #111; font-size: 26px; font-weight: 900; display: flex; align-items: center; justify-content: center; font-variant-numeric: tabular-nums; letter-spacing: -1px; }
+#carSpeed .lim.l3 { font-size: 21px; }
+#carZone { position: fixed; z-index: 713; right: calc(var(--safe-r) + 10px); bottom: calc(var(--stable-b) + 96px); padding: 5px; border-radius: 16px; background: repeating-linear-gradient(135deg, #e3262f 0 12px, #1e5bff 12px 24px); box-shadow: var(--shadow); display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 150px; pointer-events: none; }
+#carZone[hidden] { display: none; }
+#carZone b, #carZone span { background: var(--panel); color: var(--text); padding: 2px 10px; border-radius: 9px; white-space: nowrap; }
+#carZone b { font-size: 16px; font-weight: 800; } #carZone span { font-size: 14px; font-weight: 700; }
+#carZone.in { animation: czone 1.2s ease-in-out infinite alternate; } @keyframes czone { to { filter: brightness(1.25); } }
+html[data-carui].cspeed #carChip { max-width: calc(100vw - var(--cleft) - 60px - 180px - var(--safe-r)); }
+html[data-carui].carnav.cspeed { --navright: calc(var(--stable-r, 0px) + 8px + 170px); }
+html[data-carui].carnav #carRail { top: auto; bottom: calc(var(--stable-b) + 8px); transform: none; }
+#carNext .nxe { flex-shrink: 0; margin-left: 8px; padding-left: 8px; border-left: 1px solid var(--line); }
+@media (max-width: 999px) { #carNext .nxe { display: none; } }
+html[data-carui].carnav.cnav-narrow.cspeed { --navright: calc(var(--stable-r, 0px) + 8px); }
+html[data-carui].carnav.cnav-narrow #carSpeed { right: auto; left: var(--navleft); bottom: calc(var(--stable-b) + 136px); } /* au-dessus de 2D / 3D, à gauche de la flèche */
+html[data-carui].carnav.cnav-narrow #carZone { right: auto; left: var(--navleft); bottom: calc(var(--stable-b) + 220px); }

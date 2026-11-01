@@ -13,7 +13,7 @@
   if (!/[?&]aa=1/.test(location.search)) return;
   var A = null, F = null, pane = document.getElementById('carPane'), timer = null;
   function el(id, tag) { var e = document.createElement(tag || 'div'); e.id = id; e.hidden = true; document.body.appendChild(e); return e; }
-  var plusBox = el('carPlus'), rail = el('carRail', 'nav'), steps = el('carSteps'), chip = el('carChip', 'button'), nextBox = el('carNext'), lockBox = el('carLock'), favBox = el('carFavs'), viewBox = el('carView'), townBox = el('carTown'), refreshBox = el('carRefresh', 'button');
+  var plusBox = el('carPlus'), rail = el('carRail', 'nav'), steps = el('carSteps'), chip = el('carChip', 'button'), nextBox = el('carNext'), lockBox = el('carLock'), favBox = el('carFavs'), viewBox = el('carView'), townBox = el('carTown'), refreshBox = el('carRefresh', 'button'), speedBox = el('carSpeed'), zoneBox = el('carZone');
   refreshBox.setAttribute('aria-label', 'Actualiser les prix'); refreshBox.innerHTML = '<svg viewBox="0 0 24 24" width="24" height="24"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3.5v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><rect x="8.6" y="8" width="4.6" height="8" rx=".8" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="9.7" y="9.2" width="2.4" height="2" fill="currentColor"/><path d="M13.2 10l1.7 1.4v3.1a.7.7 0 0 0 1.4 0V11" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   refreshBox.addEventListener('click', function () { log('voiture : actualisation des prix'); A.refreshPrices().then(schedule); });
   function log(m) { try { window.FM && window.FM.log(m); } catch (e) { } }
@@ -489,7 +489,7 @@
     var g = guide = { wps: wps, fin: wps[wps.length - 1], back: back, gmode: gmode, pts: null, cum: null, D: 0, min: 0, steps: [], spoken: spoken, lastKey: '', idx: 0 };
     if (!hostRouting()) { guideBox.hidden = false; guideBox.innerHTML = '<div class="gi">⏳</div><div class="gt"><div class="d">Itinéraire…</div><div class="n">' + A.esc(g.fin.plain) + '</div></div><button data-stopguide>✕</button>'; }
     mode = gmode; setStep('guide');
-    A.osrmRoute([{ lat: f.lat, lon: f.lon }].concat(wps), true, true).then(function (r) {
+    A.osrmRoute([{ lat: f.lat, lon: f.lon }].concat(wps), true, true, true).then(function (r) {
       if (guide !== g) return;
       var pts = A.decodePolyline(r.geometry), cum = [0];
       for (var i = 1; i < pts.length; i++) cum.push(cum[i - 1] + A.haversine(pts[i - 1][0], pts[i - 1][1], pts[i][0], pts[i][1]));
@@ -499,7 +499,7 @@
       (r.legs || []).forEach(function (leg, li) {
         var wp = wps[li], last = li === wps.length - 1;
         (leg.steps || []).forEach(function (st) {
-          var o = { kind: kind(st.maneuver), m: st.maneuver, road: st.name || '', at: acc, dist: st.distance, wp: li }, sg = signs(st);
+          var o = { kind: kind(st.maneuver), m: st.maneuver, road: st.name || '', at: acc, dist: st.distance, wp: li, mw: /^A\s?\d/.test(st.ref || '') }, sg = signs(st);
           o.cue = /^arrive/.test(o.kind) && !last ? 'Arrêt carburant, ' + wp.plain + (side(st.maneuver.modifier) === 'left' ? ', à gauche' : side(st.maneuver.modifier) === 'right' ? ', à droite' : '') : cueText(o.kind, st.maneuver, o.road, sg);
           g.steps.push(o); acc += st.distance;
         });
@@ -508,6 +508,18 @@
       var ac = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#2fd27a';
       guideLayer = L.layerGroup([L.polyline(pts, { color: '#061a12', weight: 11, opacity: .55, lineCap: 'round' }), L.polyline(pts, { color: ac, weight: 6, opacity: .95, lineCap: 'round' })]).addTo(A.map);
       wps.forEach(function (w) { if (w.stop) guideLayer.addLayer(L.marker([w.lat, w.lon], { icon: L.divIcon({ className: '', html: '<div class="cstop-marker">⛽</div>', iconSize: [30, 30], iconAnchor: [15, 15] }), interactive: false })); });
+      // zones de danger (radars) sur l'itinéraire, peintes en rouge et bleu ; longueur selon la route (ville / route / autoroute)
+      var spd = []; (r.legs || []).forEach(function (leg) { var a = leg.annotation && leg.annotation.speed; if (a) spd.push.apply(spd, a); });
+      var segInfo = function (i) {
+        var m = cum[i] * 1000, st = null; for (var k = 0; k < g.steps.length && g.steps[k].at <= m; k++) st = g.steps[k];
+        var raw = spd[i] != null ? spd[i] * 3.6 : null; // OSRM roule à ~80 % de la limitation : 40 km/h en ville (50), 64 sur route (80), 104 sur autoroute (130)
+        return { kmh: raw != null ? raw / 0.8 : null, motorway: !!(st && st.mw) || (raw != null && raw >= 95) };
+      };
+      if (window.FuelSafety) FuelSafety.load().then(function () {
+        if (guide !== g || !guideLayer) return;
+        g.zones = FuelSafety.routeZones(pts, cum, segInfo); FuelSafety.paint(guideLayer, pts, cum, g.zones);
+        log('voiture : ' + g.zones.length + ' zone(s) de danger sur l’itinéraire');
+      });
       A.setFollow(false); followCar(true);
       if (!g.spoken.start) {
         g.spoken.start = 1; var nx = nextStep(0), ns = wps.filter(function (w) { return w.stop; }).length;
@@ -517,6 +529,41 @@
       updateGuide(true);
     }).catch(function (err) { A.toast('⚠️ ' + (err.message || 'itinéraire impossible')); if (guide === g) stopGuide(); });
   }
+  // ---- zones de danger et vitesse
+  function zoneGuide(g, progM) { // sur l'itinéraire : la prochaine zone (annonce ~400 m avant, bandeau 800 m avant et jusqu'à sa fin)
+    var z = null; (g.zones || []).some(function (q) { if (q.b > progM && q.a - 800 < progM) { z = q; return true; } return false; });
+    if (!z) { showZone(null); return; }
+    var inside = progM >= z.a, key = 'z' + Math.round(z.a);
+    if (!g.spoken[key] && z.a - progM < 420) { g.spoken[key] = 1; speak(inside ? 'Attention, zone de danger.' : 'Zone de danger dans ' + distSpeech(z.a - progM) + '.'); log('voiture : zone de danger à ' + Math.round(z.a - progM) + ' m'); }
+    showZone(inside ? 'encore ' + distText(z.b - progM) : 'dans ' + distText(z.a - progM), inside);
+  }
+  function showZone(sub, inside) {
+    var html = sub ? '<b>⚠️ Zone de danger</b><span>' + sub + '</span>' : '';
+    if (zoneBox._h === html) return; zoneBox._h = html;
+    zoneBox.hidden = !sub; zoneBox.innerHTML = html; zoneBox.classList.toggle('in', !!inside);
+  }
+  // Compteur (vitesse GPS) + panneau de limitation de la route (OpenStreetMap) en bas à droite, en guidage et quand on roule ;
+  // hors guidage, les zones de danger devant soi sont signalées par le bandeau (sans dessin : on ne connaît pas la route suivie).
+  var spdState = { movedAt: 0, said: {} };
+  function speedTick() {
+    var f = A.fix, S = window.FuelSafety; if (!f || !S) return;
+    var kmh = f.speed != null && f.speed >= 0 ? f.speed * 3.6 : null, now = Date.now();
+    var hd = f.heading != null && !isNaN(f.heading) && kmh > 6 ? f.heading : guide ? routeBearing(f) : null;
+    if (kmh != null && kmh >= 5) spdState.movedAt = now;
+    var show = !!(guide && step === 'guide') || (spdState.movedAt && now - spdState.movedAt < 30000);
+    document.documentElement.classList.toggle('cspeed', !!show);
+    if (!show) { speedBox.hidden = true; if (!guide) showZone(null); return; }
+    var l = S.limitFor(f, hd), v = kmh == null ? null : Math.round(kmh), lv = l.value, over = !!(lv && v != null && v > lv + 2);
+    var html = (lv ? '<div class="lim' + (lv >= 100 ? ' l3' : '') + '">' + lv + '</div>' : '') + '<div class="spd' + (over ? ' over' : '') + '"><b>' + (v == null ? '–' : v) + '</b><small>km/h</small></div>';
+    if (speedBox._h !== html) { speedBox._h = html; speedBox.innerHTML = html; }
+    speedBox.hidden = false;
+    if (guide) return; // en guidage : zones de l'itinéraire (zoneGuide)
+    if (!S.ready()) { S.load(); return; }
+    var z = kmh != null && kmh > 15 ? S.freeZone(f, hd, l.motorway, lv) : null;
+    if (z && (!spdState.said[z.id] || now - spdState.said[z.id] > 10 * 60000)) { spdState.said[z.id] = now; speak('Attention, zone de danger.'); log('voiture : zone de danger (hors guidage)'); }
+    showZone(z ? 'encore ' + distText(z.left) : null, true);
+  }
+
   function nextStep(progM) { for (var i = 0; i < guide.steps.length; i++) if (guide.steps[i].kind !== 'depart' && guide.steps[i].at > progM - 15) return guide.steps[i]; return null; }
   function progress(f) { // avancement le long de l'itinéraire, sans sauter en arrière (aller-retour vers une station par la même route)
     var P = guide.pts, n = P.length, best = Infinity, bi = guide.idx, i, d;
@@ -541,7 +588,8 @@
     // voix : annonce à ~400 m puis à ~60 m de chaque manœuvre, une seule fois chacune
     if (nx && !arrived) { var key = nx.at; if (toNext < 450 && !g.spoken['a' + key]) { g.spoken['a' + key] = 1; if (toNext > 120) speak('Dans ' + distSpeech(toNext) + ', ' + lower(nx.cue)); } if (toNext < 70 && !g.spoken['b' + key]) { g.spoken['b' + key] = 1; speak(nx.cue); } }
     if (arrived && !g.spoken.end) { g.spoken.end = 1; speak('Vous êtes arrivé à ' + g.fin.plain + '.'); setTimeout(function () { if (guide === g) stopGuide(); }, 20000); }
-    var sig = info.kind + '|' + Math.round(info.distM / 10) + '|' + Math.round(info.remainMin) + '|' + (off ? 1 : 0) + '|' + (nw ? nw.plain + Math.round((nw.atM - progM) / 100) : '');
+    var sig = info.kind + '|' + Math.round(info.distM / 10) + '|' + Math.round(info.remainMin) + '|' + Math.round(leftKm * 10) + '|' + (off ? 1 : 0) + '|' + (nw ? nw.plain + Math.round((nw.atM - progM) / 100) : '');
+    zoneGuide(g, progM);
     if (force || sig !== g.lastKey) {
       g.lastKey = sig;
       try { if (hostRouting()) window.AndroidAuto.setRouting(JSON.stringify(info)); } catch (e) { }
@@ -551,9 +599,12 @@
       }
       var stops = g.wps.filter(function (w) { return w.stop; });
       // deux morceaux : le nom (coupé en « … » si l'écran est étroit) puis prix et distance, toujours lisibles, puis « Passer »
-      nextBox.innerHTML = !nw ? '<span class="nxa">🏁 <b>' + A.esc(g.fin.plain) + '</b></span>' :
-        '<span class="nxa">' + (nw.s ? '⛽ ' + (nw.stop ? (innerWidth < 1000 ? '' : 'Arrêt ') + (stops.indexOf(nw) + 1) + '/' + stops.length + ' · ' : '') : '🏁 ') + '<b>' + A.esc(nw.plain) + '</b></span><span class="nxb">' +
-        (nw.s && nw.price ? ' · ' + nw.price + (nw.price.indexOf('⚠') < 0 ? ' €' : '') : '') + (nw.atM != null ? ' · ' + km(Math.max(0, nw.atM - progM) / 1000) : '') + '</span>' + (nw.stop ? '<button data-skip>⏭ Passer</button>' : '');
+      // l'arrivée (heure, temps restant) est écrite ici : l'hôte n'affiche plus sa carte « temps restant » en bas à gauche,
+      // qui lui faisait réserver toute la colonne de gauche (et pousser le reste vers le milieu)
+      var hm = new Date(info.etaMs).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }), eta = '<span class="nxe">🏁 ' + hm + '</span>';
+      nextBox.innerHTML = !nw || !nw.stop ? '<span class="nxa">🏁 <b>' + A.esc(g.fin.plain) + '</b></span><span class="nxb">' + (arrived ? '' : ' · ' + km(leftKm) + ' · ' + (mins < 1 ? '< 1 min' : dur(mins)) + ' · <b>' + hm + '</b>') + '</span>' :
+        '<span class="nxa">⛽ ' + (innerWidth < 1000 ? '' : 'Arrêt ') + (stops.indexOf(nw) + 1) + '/' + stops.length + ' · <b>' + A.esc(nw.plain) + '</b></span><span class="nxb">' +
+        (nw.s && nw.price ? ' · ' + nw.price + (nw.price.indexOf('⚠') < 0 ? ' €' : '') : '') + (nw.atM != null ? ' · ' + km(Math.max(0, nw.atM - progM) / 1000) : '') + '</span>' + eta + '<button data-skip>⏭ Passer</button>';
     }
     if (force || !g.savedAt || Date.now() - g.savedAt > 15000) { g.savedAt = Date.now(); saveSession(); }
     followCar(false, vf);
@@ -609,7 +660,7 @@
     nw.done = true; log('voiture : arrêt passé ' + nw.plain); speak('Arrêt passé.'); go(remaining(), true);
   }
   function stopGuide(silent) {
-    var had = guide; guide = null; guideBox.hidden = true; nextBox.hidden = true; if (guideLayer) { try { guideLayer.remove(); } catch (e) { } guideLayer = null; }
+    var had = guide; guide = null; guideBox.hidden = true; nextBox.hidden = true; showZone(null); if (guideLayer) { try { guideLayer.remove(); } catch (e) { } guideLayer = null; }
     if (silent) return;
     navOff();
     if (had) {
@@ -646,6 +697,7 @@
     var left = Math.max(px('--stable-l'), px('--safe-l')), right = innerWidth - Math.max(px('--stable-r'), px('--safe-r')), h = innerHeight;
     var rr = !rail.hidden && rail.getBoundingClientRect(); if (rr && rr.width) { if (rr.left > innerWidth / 2) right = Math.min(right, rr.left); else left = Math.max(left, rr.right); } // colonne flottante (au bord droit en guidage)
     if (panelStep()) left = Math.max(left, pane.getBoundingClientRect().right); // une étape est ouverte : la flèche reste visible à sa droite
+    root.classList.toggle('cnav-narrow', right - left < 520); // écran partagé : le compteur monte au-dessus du bandeau, qui garde toute la largeur
     var cx = left + Math.max(0, right - left) / 2, cy = h * 0.66, R = Math.max(Math.hypot(cx, cy), Math.hypot(innerWidth - cx, cy), Math.hypot(cx, h - cy), Math.hypot(innerWidth - cx, h - cy));
     var S = Math.ceil(2 * R * 1.2); // le carré tourné et incliné doit couvrir tout l'écran, coins compris
     st.setProperty('--nav-s', S + 'px'); st.setProperty('--nav-x', Math.round(cx - S / 2) + 'px'); st.setProperty('--nav-y', Math.round(cy - S / 2) + 'px');
@@ -872,7 +924,7 @@
     document.addEventListener('fuelmap:stations', function () { schedule(); if (wantRoute && !computing && !routeReady && !routeErr) compute(); });
     document.addEventListener('fuelmap:fix', function () {
       lastFixAt = Date.now(); if (guide) guide.drLogged = 0;
-      center(); resumeGuide(); updateGuide(); updateTown(); plusCheck();
+      center(); resumeGuide(); updateGuide(); updateTown(); plusCheck(); speedTick();
       if (wantRoute && !computing && !routeReady && !routeErr) compute();
       else if (step === 'list' && (!listEl || listEl.scrollTop < 10)) schedule();
     });

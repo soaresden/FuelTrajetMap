@@ -159,14 +159,16 @@ Si la revue refuse la catégorie navigation, repli possible en « points d'inté
 
 ## 5. Version (Tests → Test interne, puis Production)
 
-AAB : `apk/FuelMap-1.7.2.aab` (versionCode 60). **Nom de la version** : `1.7.2`
+AAB : `apk/FuelMap-1.7.3.aab` (versionCode 61). **Nom de la version** : `1.7.3`
 
 **Notes de version** (500 max) :
 
 ```
 <fr-FR>
-• Thème automatique : un thème clair le jour, un thème sombre la nuit, bascule au lever et au coucher du soleil
-• FuelMap Plus : crée tes thèmes perso, clair et sombre, avec aperçu en direct
+• Voiture : ta vitesse et la limitation de la route (rouge si tu dépasses)
+• Zones de danger (radars) : bandeau, voix, zone en rouge et bleu sur l'itinéraire
+• Guidage : heure d'arrivée dans le bandeau du bas
+• Thème automatique jour / nuit ; thèmes perso (Plus)
 • FuelMap Plus, 7 jours d'essai gratuit : la carte et le guidage sur l'écran de la voiture, 12 curseurs en plus, l'analyse du carnet
 • Bêta-testeurs : saisis ton code dans FuelMap Plus › « J'ai un code »
 </fr-FR>

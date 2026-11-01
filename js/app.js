@@ -1535,8 +1535,8 @@
     }
     return out;
   }
-  function osrmRoute(points, full, steps) {
-    var path = points.map(function (p) { return p.lon.toFixed(5) + ',' + p.lat.toFixed(5); }).join(';') + '?overview=' + (full ? 'full' : 'false') + '&geometries=polyline' + (steps ? '&steps=true' : '');
+  function osrmRoute(points, full, steps, speeds) {
+    var path = points.map(function (p) { return p.lon.toFixed(5) + ',' + p.lat.toFixed(5); }).join(';') + '?overview=' + (full ? 'full' : 'false') + '&geometries=polyline' + (steps ? '&steps=true' : '') + (speeds ? '&annotations=speed' : '');
     var tryOne = function (i) { // serveur suivant si celui-ci ne répond pas (panne, refus, plus de 12 s)
       var ctl = window.AbortController ? new AbortController() : null, to = ctl ? setTimeout(function () { ctl.abort(); }, 12000) : 0;
       return fetch(OSRM_SERVERS[i] + path, ctl ? { signal: ctl.signal } : {}).then(function (r) { if (!r.ok) throw new Error('itinéraire HTTP ' + r.status); return r.json(); })

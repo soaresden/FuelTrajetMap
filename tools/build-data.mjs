@@ -8,6 +8,9 @@
  *                    (90 jours) → data/fr-habits.json : par station, nombre de mises à jour, heure la plus fréquente et sa
  *                    part (≥ 60 % = mise à jour automatique à heure fixe, ex. TotalEnergies 00:01), répartition par heure.
  *                    Source : archive annuelle de prix-carburants.gouv.fr (≈ 30 Mo zippés ; nécessite la commande `unzip`).
+ *   radars           radars automatiques français → data/radars.json (position + type). Source : la carte officielle
+ *                    radars.securite-routiere.gouv.fr. L'appli n'affiche JAMAIS un radar à sa place exacte (interdit en France
+ *                    depuis 2012) : elle en déduit des « zones de danger » de 300 m (ville), 2 km (route) ou 4 km (autoroute).
  * Usage : node tools/build-data.mjs [cibles…]      (Node >= 18, aucune dépendance ; sans argument : tout)
  * Tourne dans .github/workflows/pages.yml. Une cible qui échoue garde son fichier précédent.
  */
@@ -120,7 +123,17 @@ async function hist() {
   return `${kept} stations, ${Object.keys(shards).length} départements ; habitudes : ${Object.keys(hab).length} stations dont ${nAuto} à heure fixe`;
 }
 
-const TARGETS = { ...Object.fromEntries(Object.keys(SOURCES).filter(k => SOURCES[k].urls).map(cc => [cc, () => country(cc)])), brands, hist };
+async function radars() {
+  const TYPES = ['fixes', 'discriminants', 'feux', 'itineraire', 'niveaux', 'troncons', 'urbain'];
+  const all = await get('https://radars.securite-routiere.gouv.fr/radars/all?_format=json');
+  const r = all.filter(x => isFinite(x.lat) && isFinite(x.lng) && Math.abs(x.lat) > 1)
+    .map(x => [+(+x.lat).toFixed(5), +(+x.lng).toFixed(5), Math.max(0, TYPES.indexOf(x.type))]);
+  if (r.length < 1000) throw new Error(`seulement ${r.length} radars : réponse anormale`);
+  await writeFile(new URL('radars.json', DATA), JSON.stringify({ ts: Date.now(), types: TYPES, r }));
+  return `${r.length} radars`;
+}
+
+const TARGETS = { ...Object.fromEntries(Object.keys(SOURCES).filter(k => SOURCES[k].urls).map(cc => [cc, () => country(cc)])), brands, hist, radars };
 const wanted = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(TARGETS);
 await mkdir(DATA, { recursive: true });
 let failed = 0;

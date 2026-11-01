@@ -17,6 +17,7 @@ js/car.js                              écran Android Auto (?aa=1) : rail + pann
 js/fillup.js                           carnet de pleins (question au démarrage près d'une station, pavé, km, stats)
 js/diag.js                             journal côté page (FM.log), export du zip de diagnostic
 js/sources.js, js/optimizer.js         chargement/normalisation des données ; algorithme d'arrêts (testé : tests/optimizer.test.js)
+js/safety.js                           (1.7.3) limitation de vitesse (Valhalla /locate) + zones de danger des radars (data/radars.json)
 js/themes.js, js/update.js             14 thèmes (7 clairs, 7 sombres ; anciens noms → FUELMAP_THEME_ALIASES) + 2 « Perso » construits
                                        dans app.js (buildCustom) ; mise à jour obligatoire
 js/cursors.js                          icônes du curseur de guidage (SVG maison vus de dessus, `car.icon`)
@@ -38,7 +39,7 @@ apk/android/app/src/main/java/fr/soaresden/fuelmap/
 ## Règles non négociables
 
 - **versionCode jamais réutilisé** : le Play Console grille un code dès qu'un AAB est téléversé, même en brouillon.
-  Dernier utilisé : **60 (1.7.2)**. Chaque livraison = code +1 ET bump de `versionName` dans `apk/android/app/build.gradle`,
+  Dernier utilisé : **61 (1.7.3)**. Chaque livraison = code +1 ET bump de `versionName` dans `apk/android/app/build.gradle`,
   de `version` dans `js/config.js`, et du nom de cache dans `sw.js`. Les trois ensemble, toujours.
 - Chaque livraison fournit : l'**AAB** (Play, signé avec la clé d'upload) et un commit. **Plus d'APK** : depuis la 1.5.9 Denis
   installe uniquement via le Play Store (tests internes). Les `*.apk`/`*.aab` sont ignorés par git ; ils vivent dans `apk/`.
@@ -189,6 +190,20 @@ l'étape est une **carte flottante** à gauche (`#carPane`, 330 px, hauteur selo
   en automatique, le thème clair touché sert le jour, le sombre la nuit ; bascule au lever / coucher du soleil calculés pour la position
   (ou le centre de la carte), vérifiée toutes les 2 min. Mêmes réglages dans la voiture (écran Thème). `custom` et `themeAuto` sont dans SHARED.
   Sans Plus, un thème perso choisi retombe sur Jour / Nuit.
+- 1.7.3 (« la barre au milieu », compris par Denis le 1/11) : la carte « temps restant » de l'hôte (en bas à gauche, posée par
+  `setDestinationTravelEstimate`) lui faisait réserver TOUTE la colonne de gauche → tout était poussé vers le milieu. Elle est retirée
+  (MapScreen : seulement `setNavigationInfo` ; `updateTrip` garde l'ETA pour le tableau de bord). L'arrivée est écrite par la page dans
+  `#carNext` (« 🏁 14:32 »). En guidage la colonne compacte est en bas à gauche (sous la fiche de manœuvre de l'hôte).
+  Compteur `#carSpeed` (vitesse GPS + panneau de limitation, rouge si > limite + 2) en bas à droite, en guidage et quand on roule
+  (30 s après l'arrêt). Limitation : `js/safety.js` → serveur Valhalla de FOSSGIS `/locate` (CORS ouvert, ~0,1 s), voie dans le sens de
+  la marche, gardée tant qu'on reste à < 22 m de sa forme ; rien d'inventé si OSM n'a pas de `maxspeed`. Overpass écarté (trop lent / 502).
+  OSRM ne donne PAS `maxspeed` (annotations=maxspeed refusé) ; `annotations=speed` sert à classer ville / route (~80 % de la limite).
+  Radars : `node tools/build-data.mjs radars` → data/radars.json depuis radars.securite-routiere.gouv.fr/radars/all?_format=json
+  (3 664). **Jamais l'emplacement exact d'un radar** (interdit en France depuis 2012) : « zones de danger » de 300 m (ville, feux,
+  urbains, route ≤ 50), 2 km (route), 4 km (autoroute : ref « A n » ou ≥ 95 km/h OSRM), le radar placé entre 50 et 90 % de la zone
+  (fraction fixe par radar). Guidage : zones peintes rouge plein + bleu pointillé (`FuelSafety.paint`), bandeau `#carZone` 800 m avant,
+  voix ~400 m avant. Hors guidage : radar devant soi (±25°, < 80 m de côté), bandeau + voix, sans dessin. Écran partagé
+  (`html.cnav-narrow`, partie libre < 520 px) : compteur et zone passent à gauche, au-dessus de 2D / 3D.
 État et journalisation : `__fuelmapCar.state()/dump()`. Plein : question « tu viens de faire le plein ? » (fillup.js) à gauche.
 
 ## Téléphone
