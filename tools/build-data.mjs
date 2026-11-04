@@ -27,10 +27,19 @@ const DATA = new URL('../data/', import.meta.url), DAY = 86400000, FUEL_BY_GOV_I
 const UA = { 'User-Agent': 'FuelMap data builder' };
 
 async function get(url, text, init) {
-  const r = await fetch(url, { headers: UA, ...init });
-  if (!r.ok) throw new Error(`${url} → HTTP ${r.status}`);
-  const body = (await r.text()).replace(/^﻿/, '');
-  return text ? body : JSON.parse(body);
+  // Les serveurs de l'État ont des ratés passagers (HTTP 504 la nuit du 3/11) : 3 essais, à 20 s puis 60 s d'écart.
+  for (let i = 0; ; i++) {
+    try {
+      const r = await fetch(url, { headers: UA, ...init });
+      if (!r.ok) throw Object.assign(new Error(`${url} → HTTP ${r.status}`), { retry: r.status >= 500 || r.status === 429 });
+      const body = (await r.text()).replace(/^﻿/, '');
+      return text ? body : JSON.parse(body);
+    } catch (e) {
+      if (i >= 2 || e.retry === false || e instanceof SyntaxError) throw e;
+      console.error(`  nouvel essai dans ${i ? 60 : 20} s — ${e.message.slice(-60)}`);
+      await new Promise(ok => setTimeout(ok, i ? 60000 : 20000));
+    }
+  }
 }
 
 async function country(cc) {

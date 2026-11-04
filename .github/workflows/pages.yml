@@ -16,6 +16,15 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
       - run: node tests/optimizer.test.js
+      # Le dossier data/ n'est pas dans git : sans cette étape, une source en panne (HTTP 504 de l'État le 3/11 à 3 h) donnait un site
+      # publié SANS ses prix pendant 3 h. On repart donc des fichiers déjà en ligne ; build-data.mjs ne remplace que ce qu'il réussit à refaire.
+      - name: Reprendre les données déjà publiées
+        run: |
+          mkdir -p data/hist
+          site=https://soaresden.github.io/FuelTrajetMap/data
+          for f in fr es pt ad it fr-brands fr-habits radars; do curl -sfL --max-time 60 -o data/$f.json $site/$f.json || rm -f data/$f.json; done
+          for d in $(seq -w 1 95); do echo $d; done | xargs -P 16 -I{} sh -c "curl -sfL --max-time 60 -o data/hist/{}.json $site/hist/{}.json || rm -f data/hist/{}.json"
+          ls -la data; ls data/hist | wc -l
       - run: node tools/build-data.mjs
       - run: mkdir _site && cp -r index.html sw.js manifest.webmanifest privacy.html version-min.json css js icons vendor data _site/  # privacy.html : page exigée par le Play Store ; version-min.json : mise à jour obligatoire
       - uses: actions/configure-pages@v5
