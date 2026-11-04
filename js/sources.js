@@ -83,6 +83,20 @@
     });
     return clean(out, 500);
   }
+  // Secours Italie : depuis mi-octobre 2026, mimit.gov.it ne répond plus hors d'Italie (GitHub, PC en France). Le projet libre
+  // FuelFinder_DATA (Apache-2.0) republie chaque jour les mêmes CSV du MIMIT, téléchargés depuis l'Italie, en un seul JSON.
+  function parseITMirror(j) {
+    var ref = Date.parse(j && j.prices_reference_date), out = [];
+    if (!(Date.now() - ref < 4 * DAY)) throw new Error('copie italienne trop ancienne (' + (j && j.prices_reference_date) + ')');
+    var FUEL = { gasolio: 'gazole', benzina: 'sp95', gpl: 'gplc', benzina_special: 'sp98' };
+    (j.stations || []).forEach(function (x) {
+      if (!(x.lat > 35 && x.lat < 48 && x.lon > 6 && x.lon < 19)) return;
+      var s = station('it', x.id, x.lat, x.lon, { brand: x.brand, hw: x.type === 'autostradale', adr: x.address, ville: x.city });
+      (x.prices || []).forEach(function (p) { if (FUEL[p.fuel]) setMin(s, FUEL[p.fuel], p.price, day(Date.parse(p.updated_at))); });
+      out.push(s);
+    });
+    return clean(out, 15000);
+  }
 
   // France : export complet du flux instantané (data.economie.gouv.fr)
   var FR_KEYS = ['gazole', 'sp95', 'e10', 'sp98', 'e85', 'gplc'];
@@ -128,6 +142,7 @@
     es: { name: 'Espagne', bbox: [35.9, -9.4, 43.9, 4.4], urls: ['https://sedeaplicaciones.minetur.gob.es/ServiciosRESTCarburantes/PreciosCarburantes/EstacionesTerrestres/'], parse: parseES, live: true, credit: 'Ministerio para la Transición Ecológica (ES)' },
     pt: { name: 'Portugal', bbox: [36.9, -9.6, 42.2, -6.1], urls: ['https://precoscombustiveis.dgeg.gov.pt/api/PrecoComb/PesquisarPostos?idsTiposComb=2101,3201,3400,3405,1120&idMarca=&idTipoPosto=&idDistrito=&idsMunicipios=&qtdPorPagina=50000&pagina=1'], parse: parsePT, live: true, credit: 'DGEG (PT)' },
     ad: { name: 'Andorre', bbox: [42.42, 1.40, 42.66, 1.79], urls: ['https://sig.govern.ad/server/rest/services/CARBURANTS/CARBURANTS/FeatureServer/1/query?where=1%3D1&outFields=*&returnGeometry=false&returnCentroid=true&outSR=4326&f=json'], parse: parseAD, live: true, credit: "Govern d'Andorra" },
-    it: { name: 'Italie', bbox: [36.6, 6.6, 47.1, 18.6], urls: ['https://www.mimit.gov.it/images/exportCSV/prezzo_alle_8.csv', 'https://www.mimit.gov.it/images/exportCSV/anagrafica_impianti_attivi.csv'], parse: parseIT, live: false, text: true, credit: 'MIMIT (IT), IODL 2.0' }
+    it: { name: 'Italie', bbox: [36.6, 6.6, 47.1, 18.6], urls: ['https://www.mimit.gov.it/images/exportCSV/prezzo_alle_8.csv', 'https://www.mimit.gov.it/images/exportCSV/anagrafica_impianti_attivi.csv'], parse: parseIT, live: false, text: true, credit: 'MIMIT (IT), IODL 2.0',
+      backup: { url: 'https://leixien.github.io/FuelFinder_DATA/stations.json', parse: parseITMirror } }
   };
 });

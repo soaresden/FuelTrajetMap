@@ -43,10 +43,15 @@ async function get(url, text, init) {
 }
 
 async function country(cc) {
-  const src = SOURCES[cc], payloads = await Promise.all(src.urls.map(u => get(u, src.text)));
-  const list = src.parse(...payloads);
+  const src = SOURCES[cc]; let list, via = '';
+  try { list = src.parse(...await Promise.all(src.urls.map(u => get(u, src.text)))); }
+  catch (e) {
+    if (!src.backup) throw e;
+    console.error(`  ${cc} : source officielle injoignable (${e.message.slice(-40)}) → copie de secours`);
+    list = src.backup.parse(await get(src.backup.url)); via = ` (copie de secours ${new URL(src.backup.url).host})`;
+  }
   await writeFile(new URL(`${cc}.json`, DATA), JSON.stringify({ cc, ts: Date.now(), list }));
-  return `${list.length} stations`;
+  return `${list.length} stations${via}`;
 }
 
 async function brands() {

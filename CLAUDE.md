@@ -281,6 +281,11 @@ la section « Sécurité des données » (lu sur l'appareil, seul le lieu choisi
 - Publication : `privacy.html` et `version-min.json` étaient ABSENTS du site (404 : politique de confidentialité du Play et mise à jour
   obligatoire cassées) → ajoutés au workflow. Dernière étape du workflow : échec (→ e-mail GitHub) si les prix français ont plus d'un
   jour ou le fichier plus de 12 h. Dans l'appli : pastille « ⚠️ prix d'il y a N j » (`staleDays`).
+- `data/` n'est pas dans git : le 3/11 à 3 h, un HTTP 504 de l'État a publié le site SANS fr.json. Depuis, le workflow recopie d'abord
+  les fichiers déjà en ligne (étape « Reprendre les données déjà publiées ») et `get()` fait 3 essais (20 s, 60 s).
+- Italie : mimit.gov.it ne répond plus hors d'Italie depuis mi-octobre 2026 (ni GitHub, ni le PC de Denis) → `backup` de la source `it`
+  (sources.js) = https://leixien.github.io/FuelFinder_DATA/stations.json (projet libre Apache-2.0 qui republie chaque jour les CSV du
+  MIMIT depuis l'Italie), refusé s'il a plus de 4 jours ou moins de 15 000 stations. La source officielle reste essayée en premier.
 - Tunnels : GPS muet > 4 s en roulant → position estimée sur l'itinéraire (vitesse connue, 2 min max), annonce « GPS perdu. N'oubliez
   pas : … » ; recalcul seulement après 3 positions hors route et jamais sur position imprécise (> 80 m) ou estimée.
 - Instructions : numéro de sortie et directions des panneaux (`exits` / `destinations` d'OSRM) dans le texte et la voix.
